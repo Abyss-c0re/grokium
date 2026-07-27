@@ -85,7 +85,23 @@ def make_handler(cfg: dict[str, Any]):
             path = u.path.rstrip("/") or "/"
             q = parse_qs(u.query)
 
-            if path in ("/", "/v1/status"):
+            if path in ("/", "/ui", "/index.html") or path.startswith("/ui/"):
+                www = Path(cfg["_root"]) / "www" / "index.html"
+                if www.is_file():
+                    data = www.read_bytes()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Content-Length", str(len(data)))
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("X-Grokium-Telemetry", "off")
+                    self.send_header("X-Grokium-UI", "commander")
+                    self.end_headers()
+                    self.wfile.write(data)
+                    return
+                _json_response(self, 404, {"ok": False, "error": "ui_missing"})
+                return
+
+            if path == "/v1/status":
                 llama = probe_local(cfg)
                 cube = cube_status(cfg) if (cfg.get("cube") or {}).get("enabled") else {"ok": False}
                 cat = Path(cfg["sessions"]["import_dir"]) / "CATALOG.json"
@@ -269,18 +285,6 @@ def make_handler(cfg: dict[str, Any]):
             if path == "/healthz":
                 _json_response(self, 200, {"ok": True})
                 return
-
-            if path in ("/ui", "/index.html") or path.startswith("/ui"):
-                www = Path(cfg["_root"]) / "www" / "index.html"
-                if www.is_file():
-                    data = www.read_bytes()
-                    self.send_response(200)
-                    self.send_header("Content-Type", "text/html; charset=utf-8")
-                    self.send_header("Content-Length", str(len(data)))
-                    self.send_header("X-Grokium-Telemetry", "off")
-                    self.end_headers()
-                    self.wfile.write(data)
-                    return
 
             _json_response(self, 404, {"ok": False, "error": "not_found", "path": path})
 
@@ -467,5 +471,5 @@ def serve(cfg: dict[str, Any] | None = None) -> None:
     if host not in ("127.0.0.1", "localhost", "::1"):
         host = "127.0.0.1"
     httpd = ThreadingHTTPServer((host, port), make_handler(cfg))
-    print(f"grokium serve http://{host}:{port} telemetry=off local_first=1 capable=1", flush=True)
+    print(f"grokium serve http://{host}:{port}/  UI+API  telemetry=off integrity=on", flush=True)
     httpd.serve_forever()

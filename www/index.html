@@ -5,85 +5,577 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Grokium</title>
 <style>
-  :root { color-scheme: dark; --bg:#0b0d10; --fg:#c8d0d8; --mut:#6a7380; --acc:#6ee7b7; --bad:#f87171; --panel:#11151a; }
-  * { box-sizing: border-box; }
-  body { margin:0; font:13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; background:var(--bg); color:var(--fg); }
-  header { padding:.9rem 1.1rem; border-bottom:1px solid #1e242c; display:flex; gap:1rem; align-items:baseline; flex-wrap:wrap; }
-  h1 { font-size:.95rem; margin:0; letter-spacing:.08em; text-transform:uppercase; color:var(--acc); }
-  .badge { color:var(--mut); font-size:11px; }
-  main { padding:1rem; max-width:60rem; display:grid; gap:1rem; }
-  .row { display:flex; gap:.45rem; flex-wrap:wrap; align-items:center; }
-  button, input, textarea { background:#151a21; color:var(--fg); border:1px solid #2a3340; padding:.4rem .65rem; border-radius:4px; font:inherit; }
-  button { cursor:pointer; }
-  button:hover { border-color:var(--acc); }
-  input, textarea { flex:1; min-width:12rem; }
-  textarea { width:100%; min-height:4.5rem; resize:vertical; }
-  pre { background:var(--panel); border:1px solid #1e242c; padding:.85rem; overflow:auto; max-height:55vh; border-radius:6px; white-space:pre-wrap; }
-  .ok { color:var(--acc); } .err { color:var(--bad); }
-  label { color:var(--mut); font-size:11px; }
+:root {
+  color-scheme: dark;
+  --bg: #07090c;
+  --bg2: #0c1016;
+  --panel: #10151c;
+  --line: #1c2530;
+  --fg: #d6dde6;
+  --mut: #6b7785;
+  --acc: #5eead4;
+  --acc2: #38bdf8;
+  --warn: #fbbf24;
+  --bad: #f87171;
+  --ok: #4ade80;
+  --chat-user: #15202b;
+  --chat-bot: #121a14;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font: 13px/1.45 var(--sans);
+  background: radial-gradient(1200px 600px at 10% -10%, #12201c 0%, transparent 50%),
+              radial-gradient(900px 500px at 100% 0%, #0c1a28 0%, transparent 45%),
+              var(--bg);
+  color: var(--fg);
+  display: grid;
+  grid-template-rows: 48px 1fr;
+  overflow: hidden;
+}
+button, input, textarea, select {
+  font: inherit; color: var(--fg);
+  background: var(--bg2); border: 1px solid var(--line);
+  border-radius: 6px; padding: .4rem .6rem;
+}
+button { cursor: pointer; }
+button:hover { border-color: var(--acc); }
+button.primary { background: linear-gradient(180deg, #134e4a, #0f3d3a); border-color: #2dd4bf55; color: #ecfeff; }
+button.primary:hover { border-color: var(--acc); }
+button.ghost { background: transparent; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+/* top bar */
+#top {
+  display: flex; align-items: center; gap: .75rem;
+  padding: 0 1rem; border-bottom: 1px solid var(--line);
+  background: rgba(8,10,14,.9); backdrop-filter: blur(8px);
+}
+#top .brand {
+  font-family: var(--mono); font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--acc); font-size: 12px;
+}
+#top .sub { color: var(--mut); font-size: 11px; flex: 1; }
+#top .pill {
+  font-family: var(--mono); font-size: 10px; padding: .2rem .45rem;
+  border-radius: 999px; border: 1px solid var(--line); color: var(--mut);
+}
+#top .pill.on { border-color: #4ade8055; color: var(--ok); }
+#top .pill.off { border-color: #f8717155; color: var(--bad); }
+#top .pill.warn { border-color: #fbbf2455; color: var(--warn); }
+/* layout */
+#app {
+  display: grid;
+  grid-template-columns: 260px 1fr 300px;
+  min-height: 0;
+}
+aside, section, #rail {
+  min-height: 0; display: flex; flex-direction: column;
+  border-right: 1px solid var(--line);
+}
+#rail { border-right: 0; border-left: 1px solid var(--line); }
+/* sessions */
+#sessions-head {
+  padding: .65rem .75rem; border-bottom: 1px solid var(--line);
+  display: flex; gap: .4rem; align-items: center;
+}
+#sessions-head input { flex: 1; font-size: 12px; }
+#sess-list { overflow: auto; flex: 1; padding: .4rem; }
+.sess {
+  padding: .55rem .6rem; border-radius: 8px; cursor: pointer;
+  border: 1px solid transparent; margin-bottom: .25rem;
+}
+.sess:hover { background: var(--panel); border-color: var(--line); }
+.sess.active { background: #13241f; border-color: #2dd4bf33; }
+.sess .t { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sess .m { font-size: 10px; color: var(--mut); font-family: var(--mono); margin-top: .15rem; }
+/* main chat */
+#main-head {
+  padding: .55rem .9rem; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: .75rem;
+}
+#main-head h2 { margin: 0; font-size: 13px; font-weight: 600; }
+#main-head .meta { color: var(--mut); font-size: 11px; font-family: var(--mono); flex: 1; }
+#chat {
+  flex: 1; overflow: auto; padding: 1rem 1.1rem;
+  display: flex; flex-direction: column; gap: .75rem;
+}
+.bubble {
+  max-width: min(720px, 92%);
+  padding: .7rem .85rem; border-radius: 10px;
+  border: 1px solid var(--line); white-space: pre-wrap; word-break: break-word;
+  font-size: 13px; line-height: 1.5;
+}
+.bubble.user { align-self: flex-end; background: var(--chat-user); }
+.bubble.assistant { align-self: flex-start; background: var(--chat-bot); border-color: #1f3a2e; }
+.bubble.system { align-self: center; background: transparent; color: var(--mut); font-size: 11px; border-style: dashed; max-width: 90%; }
+.bubble .who { font-size: 10px; color: var(--mut); font-family: var(--mono); margin-bottom: .35rem; text-transform: uppercase; letter-spacing: .06em; }
+#composer {
+  border-top: 1px solid var(--line); padding: .7rem .9rem;
+  display: grid; grid-template-columns: 1fr auto; gap: .5rem;
+  background: rgba(10,12,16,.85);
+}
+#composer textarea {
+  min-height: 72px; max-height: 180px; resize: vertical;
+  font-family: var(--sans); line-height: 1.4;
+}
+#composer .actions { display: flex; flex-direction: column; gap: .35rem; }
+/* right rail */
+#rail-tabs {
+  display: flex; border-bottom: 1px solid var(--line);
+}
+#rail-tabs button {
+  flex: 1; border: 0; border-radius: 0; border-bottom: 2px solid transparent;
+  background: transparent; padding: .55rem; color: var(--mut); font-size: 11px;
+}
+#rail-tabs button.on { color: var(--acc); border-bottom-color: var(--acc); }
+.rail-pane { display: none; flex: 1; overflow: auto; padding: .7rem; gap: .55rem; flex-direction: column; }
+.rail-pane.on { display: flex; }
+.card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: .6rem .7rem;
+}
+.card h3 {
+  margin: 0 0 .4rem; font-size: 10px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--mut); font-weight: 600;
+}
+.kv { display: grid; grid-template-columns: 1fr auto; gap: .2rem .5rem; font-size: 11px; }
+.kv span:last-child { font-family: var(--mono); color: var(--acc2); text-align: right; max-width: 11rem; overflow: hidden; text-overflow: ellipsis; }
+.bits {
+  font-family: var(--mono); font-size: 9px; line-height: 1.2;
+  word-break: break-all; color: #5b9a8a; max-height: 6.5rem; overflow: hidden;
+  background: #0a1210; border-radius: 4px; padding: .4rem;
+}
+.smx-canvas { width: 100%; height: 96px; border-radius: 6px; background: #05080a; border: 1px solid var(--line); image-rendering: pixelated; }
+.bot-row {
+  display: flex; justify-content: space-between; gap: .4rem;
+  font-size: 11px; padding: .3rem 0; border-bottom: 1px solid #151c24;
+}
+.bot-row:last-child { border-bottom: 0; }
+.dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: .35rem; }
+.dot.ok { background: var(--ok); box-shadow: 0 0 6px #4ade80aa; }
+.dot.bad { background: var(--bad); }
+.dot.warn { background: var(--warn); }
+#toast {
+  position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);
+  background: #0f1720; border: 1px solid var(--line); padding: .45rem .8rem;
+  border-radius: 8px; font-size: 12px; display: none; z-index: 20;
+  box-shadow: 0 8px 30px #0008;
+}
+#empty {
+  margin: auto; text-align: center; color: var(--mut); max-width: 28rem; padding: 2rem;
+}
+#empty h3 { color: var(--fg); font-weight: 600; margin-bottom: .4rem; }
+#empty kbd {
+  font-family: var(--mono); font-size: 11px; background: var(--panel);
+  border: 1px solid var(--line); padding: .1rem .35rem; border-radius: 4px;
+}
+@media (max-width: 1100px) {
+  #app { grid-template-columns: 220px 1fr; }
+  #rail { display: none; }
+}
 </style>
 </head>
 <body>
-<header>
-  <h1>Grokium</h1>
-  <span class="badge">local-first · zero telemetry · state matrix share only · capable · Apache-2.0</span><span class="badge">not affiliated with xAI / Grok Build</span>
-</header>
-<main>
-  <div class="row">
-    <button data-a="status">status</button>
-    <button data-a="llama">llama</button>
-    <button data-a="cube">cube</button>
-    <button data-a="matrix">matrix</button>
-    <button data-a="search">search</button>
-    <button data-a="pickup">pickup</button>
-    <button data-a="resume">resume</button>
-    <button data-a="agent">agent</button>
-    <button data-a="license">license</button>
+<div id="top">
+  <div class="brand">Grokium</div>
+  <div class="sub">local-first harness · zero telemetry · Cube way · not xAI</div>
+  <span class="pill" id="p-api">api · …</span>
+  <span class="pill" id="p-llama">llama · …</span>
+  <span class="pill" id="p-int">integrity · …</span>
+  <span class="pill" id="p-share">smx share</span>
+  <button class="ghost" id="btn-refresh" title="Refresh status">↻</button>
+</div>
+<div id="app">
+  <aside>
+    <div id="sessions-head">
+      <input id="q" placeholder="Search sessions…" />
+      <button id="btn-search" title="Search">⌕</button>
+    </div>
+    <div id="sess-list"></div>
+  </aside>
+  <section>
+    <div id="main-head">
+      <h2 id="chat-title">New local chat</h2>
+      <div class="meta" id="chat-meta">local llama · no cloud</div>
+      <select id="mode" title="Mode">
+        <option value="chat">Chat</option>
+        <option value="agent">Agent (tools)</option>
+        <option value="resume">Resume session</option>
+      </select>
+    </div>
+    <div id="chat">
+      <div id="empty">
+        <h3>Commander surface</h3>
+        <p>Grokium is the product. Models are not commander. Session import, agent tools, SMX stream, integrity core — one local UI.</p>
+        <p>Type below or pick a session. <kbd>Enter</kbd> send · <kbd>Shift+Enter</kbd> newline</p>
+      </div>
+    </div>
+    <div id="composer">
+      <textarea id="input" placeholder="Message Grokium (local-first)…"></textarea>
+      <div class="actions">
+        <button class="primary" id="btn-send">Send</button>
+        <button class="ghost" id="btn-clear">Clear</button>
+      </div>
+    </div>
+  </section>
+  <div id="rail">
+    <div id="rail-tabs">
+      <button class="on" data-tab="status">Status</button>
+      <button data-tab="smx">SMX</button>
+      <button data-tab="fleet">Fleet</button>
+      <button data-tab="law">Law</button>
+    </div>
+    <div class="rail-pane on" id="tab-status">
+      <div class="card">
+        <h3>Harness</h3>
+        <div class="kv" id="kv-status"></div>
+      </div>
+      <div class="card">
+        <h3>Integrity</h3>
+        <div class="kv" id="kv-integrity"></div>
+      </div>
+      <div class="card">
+        <h3>Commander</h3>
+        <div class="kv" id="kv-cmd"></div>
+      </div>
+    </div>
+    <div class="rail-pane" id="tab-smx">
+      <div class="card">
+        <h3>Live StateMatrix</h3>
+        <canvas class="smx-canvas" id="smx-canvas" width="256" height="64"></canvas>
+        <div class="bits" id="smx-bits">awaiting stream…</div>
+        <div class="kv" id="kv-smx" style="margin-top:.45rem"></div>
+      </div>
+    </div>
+    <div class="rail-pane" id="tab-fleet">
+      <div class="card">
+        <h3>Nanobots</h3>
+        <div id="fleet-list"><span style="color:var(--mut)">—</span></div>
+        <div style="margin-top:.5rem;display:flex;gap:.35rem">
+          <button id="btn-deploy" style="flex:1">Deploy fleet</button>
+          <button id="btn-nb-refresh" class="ghost">↻</button>
+        </div>
+      </div>
+    </div>
+    <div class="rail-pane" id="tab-law">
+      <div class="card">
+        <h3>Cube / share</h3>
+        <div class="kv" id="kv-law"></div>
+      </div>
+      <div class="card">
+        <h3>Creed</h3>
+        <div style="font-size:11px;color:var(--mut);line-height:1.5">
+          Cube is SoT · OS is way · Grokium commands bots · crypto proves Grokium · models do not · SMX share only · HOLD_FLASH · no collection
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="row">
-    <label>session</label>
-    <input id="sid" value="019f9444-14fa-7091-aa03-1a86b42eb495"/>
-    <label>q</label>
-    <input id="q" value="Prophecy"/>
-  </div>
-  <textarea id="msg" placeholder="agent / resume message">List top-level entries under grokium using list_dir, then one-line summary.</textarea>
-  <pre id="out">ready</pre>
-</main>
+</div>
+<div id="toast"></div>
 <script>
-const out = document.getElementById('out');
-const sid = () => document.getElementById('sid').value.trim();
-const msg = () => document.getElementById('msg').value;
-const q = () => document.getElementById('q').value;
-async function show(path, opt) {
-  out.textContent = '…';
+const $ = (s) => document.querySelector(s);
+const state = {
+  sessionId: null,
+  title: 'New local chat',
+  messages: [],
+  busy: false,
+  es: null,
+};
+
+function toast(msg, ms=2200) {
+  const t = $('#toast');
+  t.textContent = msg; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', ms);
+}
+
+function pill(el, text, cls) {
+  el.textContent = text;
+  el.className = 'pill ' + (cls || '');
+}
+
+async function api(path, opt) {
+  const r = await fetch(path, opt);
+  const j = await r.json().catch(() => ({ ok: false, error: 'bad_json', status: r.status }));
+  if (!r.ok && j.ok !== true) j.ok = false;
+  return j;
+}
+
+function setKV(el, rows) {
+  el.innerHTML = rows.map(([k,v]) => `<span>${k}</span><span title="${String(v??'')}">${v ?? '—'}</span>`).join('');
+}
+
+function renderChat() {
+  const box = $('#chat');
+  if (!state.messages.length) {
+    box.innerHTML = `<div id="empty"><h3>Commander surface</h3>
+      <p>Grokium is the product. Models are not commander. Local llama, sessions, agent tools, SMX, integrity.</p>
+      <p><kbd>Enter</kbd> send · <kbd>Shift+Enter</kbd> newline</p></div>`;
+    return;
+  }
+  box.innerHTML = state.messages.map(m => {
+    const who = m.role === 'user' ? 'you' : m.role === 'assistant' ? 'grokium' : m.role;
+    return `<div class="bubble ${m.role}"><div class="who">${who}</div>${escapeHtml(m.content||'')}</div>`;
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function addMsg(role, content) {
+  state.messages.push({ role, content });
+  renderChat();
+}
+
+async function refreshStatus() {
   try {
-    const r = await fetch(path, opt);
-    const j = await r.json();
-    out.textContent = JSON.stringify(j, null, 2);
-    out.className = j.ok === false ? 'err' : 'ok';
-  } catch (e) {
-    out.textContent = String(e);
-    out.className = 'err';
+    const st = await api('/v1/status');
+    pill($('#p-api'), st.ok ? 'api · live' : 'api · down', st.ok ? 'on' : 'off');
+    pill($('#p-llama'), st.llama?.ok ? 'llama · hot' : 'llama · cold', st.llama?.ok ? 'on' : 'warn');
+    setKV($('#kv-status'), [
+      ['product', st.product],
+      ['version', st.version],
+      ['telemetry', String(st.telemetry)],
+      ['share', st.share],
+      ['sessions', st.sessions_catalog],
+      ['hold_flash', st.hold_flash],
+    ]);
+  } catch {
+    pill($('#p-api'), 'api · down', 'off');
+  }
+  try {
+    const ig = await api('/v1/integrity');
+    pill($('#p-int'), ig.ok ? 'integrity · ok' : 'integrity · fail', ig.ok ? 'on' : 'off');
+    setKV($('#kv-integrity'), [
+      ['ok', String(ig.ok)],
+      ['fail_closed', String(ig.fail_closed)],
+      ['code', (ig.code_seal||'').slice(0,16)],
+      ['privacy', (ig.privacy_sha256||'').slice(0,16)],
+    ]);
+  } catch {
+    pill($('#p-int'), 'integrity · ?', 'warn');
+  }
+  try {
+    const c = await api('/v1/commander');
+    setKV($('#kv-cmd'), [
+      ['product', c.product || 'grokium'],
+      ['not', c.not || 'grok_model'],
+      ['fp', (c.fingerprint||'').slice(0,20)],
+      ['unforgeable', String(c.unforgeable)],
+    ]);
+  } catch {}
+  try {
+    const law = await api('/v1/law');
+    setKV($('#kv-law'), Object.entries(law).filter(([k]) => typeof law[k] !== 'object').slice(0,12).map(([k,v]) => [k, String(v)]));
+  } catch {}
+  await refreshFleet();
+  await refreshSmxOnce();
+}
+
+async function refreshFleet() {
+  try {
+    const n = await api('/v1/nanobot/status');
+    const list = $('#fleet-list');
+    if (!n.bots || !n.bots.length) {
+      list.innerHTML = `<span style="color:var(--mut)">no fleet · deploy to pin law</span>`;
+      return;
+    }
+    list.innerHTML = n.bots.map(b => {
+      const ok = b.status === 'running';
+      return `<div class="bot-row"><span><span class="dot ${ok?'ok':'bad'}"></span>${b.id}</span><span style="color:var(--mut);font-family:var(--mono)">${b.status} · :${b.port||'—'}</span></div>`;
+    }).join('');
+  } catch {
+    $('#fleet-list').innerHTML = `<span style="color:var(--mut)">fleet offline</span>`;
   }
 }
-const actions = {
-  status: () => show('/v1/status'),
-  llama: () => show('/v1/llama/probe'),
-  cube: () => show('/v1/cube/status'),
-  matrix: () => show('/v1/matrix/latest'),
-  search: () => show('/v1/sessions/search?q=' + encodeURIComponent(q())),
-  pickup: () => show('/v1/sessions/pickup?id=' + encodeURIComponent(sid()) + '&tail=4'),
-  resume: () => show('/v1/sessions/resume', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({id: sid(), message: msg() || 'Summarize next step in one line.'})
-  }),
-  license: () => show('/v1/license'),
-  agent: () => show('/v1/agent', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({message: msg(), session_id: sid() || null, max_steps: 5})
-  }),
+
+function drawSmx(bits) {
+  const c = $('#smx-canvas');
+  const ctx = c.getContext('2d');
+  const w = c.width, h = c.height;
+  ctx.fillStyle = '#05080a';
+  ctx.fillRect(0,0,w,h);
+  if (!bits) return;
+  const n = Math.min(bits.length, 512);
+  const cols = 32, rows = 16;
+  const cw = w / cols, ch = h / rows;
+  for (let i = 0; i < n; i++) {
+    const x = i % cols, y = Math.floor(i / cols) % rows;
+    if (bits[i] === '1') {
+      ctx.fillStyle = `hsl(${160 + (i%40)}, 70%, ${40 + (i%20)}%)`;
+      ctx.fillRect(x*cw, y*ch, cw-0.5, ch-0.5);
+    }
+  }
+}
+
+async function refreshSmxOnce() {
+  try {
+    const fr = await api('/v1/stream/smx/latest');
+    if (fr && fr.bits) {
+      drawSmx(fr.bits);
+      $('#smx-bits').textContent = fr.bits;
+      setKV($('#kv-smx'), [
+        ['seq', fr.seq],
+        ['source', fr.source],
+        ['set', fr.bits_set],
+        ['share', fr.share],
+        ['prose', String(fr.prose)],
+      ]);
+    }
+  } catch {}
+}
+
+function connectSmx() {
+  if (state.es) try { state.es.close(); } catch {}
+  try {
+    const es = new EventSource('/v1/stream/smx');
+    state.es = es;
+    es.addEventListener('smx', (ev) => {
+      try {
+        const fr = JSON.parse(ev.data);
+        drawSmx(fr.bits);
+        $('#smx-bits').textContent = fr.bits || '';
+        setKV($('#kv-smx'), [
+          ['seq', fr.seq],
+          ['source', fr.source],
+          ['set', fr.bits_set],
+          ['live', 'sse'],
+        ]);
+      } catch {}
+    });
+    es.onerror = () => { /* soft */ };
+  } catch {}
+}
+
+async function loadSessions(q='') {
+  const list = $('#sess-list');
+  list.innerHTML = `<div style="color:var(--mut);padding:.5rem">loading…</div>`;
+  try {
+    let data;
+    if (q) data = await api('/v1/sessions/search?q=' + encodeURIComponent(q) + '&limit=40');
+    else data = await api('/v1/sessions?limit=40');
+    const sessions = data.matches || data.sessions || [];
+    if (!sessions.length) {
+      list.innerHTML = `<div style="color:var(--mut);padding:.5rem">no sessions — import via CLI</div>`;
+      return;
+    }
+    list.innerHTML = sessions.map(s => `
+      <div class="sess ${s.id===state.sessionId?'active':''}" data-id="${s.id}" data-title="${escapeHtml(s.title||s.id)}">
+        <div class="t">${escapeHtml(s.title||s.id)}</div>
+        <div class="m">${(s.id||'').slice(0,13)} · ${s.num_messages??'?'}</div>
+      </div>`).join('');
+    list.querySelectorAll('.sess').forEach(el => {
+      el.onclick = () => selectSession(el.dataset.id, el.dataset.title);
+    });
+  } catch (e) {
+    list.innerHTML = `<div style="color:var(--bad);padding:.5rem">${escapeHtml(String(e))}</div>`;
+  }
+}
+
+async function selectSession(id, title) {
+  state.sessionId = id;
+  state.title = title || id;
+  $('#chat-title').textContent = state.title;
+  $('#chat-meta').textContent = id.slice(0, 18) + '… · local resume ready';
+  $('#mode').value = 'resume';
+  document.querySelectorAll('.sess').forEach(s => s.classList.toggle('active', s.dataset.id === id));
+  addMsg('system', `Session selected: ${title || id}\nMode → Resume (local llama, no cloud dump).`);
+  try {
+    const pk = await api('/v1/sessions/pickup?id=' + encodeURIComponent(id) + '&tail=0');
+    if (pk.ok) $('#chat-meta').textContent = `${pk.num_messages||'?'} msgs · ${pk.workspace||''}`;
+  } catch {}
+}
+
+async function send() {
+  if (state.busy) return;
+  const text = $('#input').value.trim();
+  if (!text) return;
+  const mode = $('#mode').value;
+  $('#input').value = '';
+  addMsg('user', text);
+  state.busy = true;
+  $('#btn-send').disabled = true;
+  try {
+    if (mode === 'chat') {
+      const r = await api('/v1/chat', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: 'You are Grokium local harness. Concise. Zero telemetry. Not a cloud Grok product.' },
+            ...state.messages.filter(m => m.role === 'user' || m.role === 'assistant').slice(-12).map(m => ({ role: m.role, content: m.content })),
+          ],
+          prefer_local: true,
+          max_tokens: 500,
+        }),
+      });
+      addMsg('assistant', r.ok ? (r.content || '(empty)') : `Error: ${r.error||'chat failed'}`);
+    } else if (mode === 'agent') {
+      const r = await api('/v1/agent', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ message: text, session_id: state.sessionId, max_steps: 6 }),
+      });
+      let out = r.final || r.error || JSON.stringify(r).slice(0,800);
+      if (r.trace_tools || (r.trace||[]).some(t => t.tool)) {
+        const tools = (r.trace||[]).filter(t => t.tool).map(t => t.tool).join(', ');
+        out = (tools ? `[tools: ${tools}]\n\n` : '') + out;
+      }
+      addMsg('assistant', out);
+    } else {
+      if (!state.sessionId) {
+        addMsg('assistant', 'Pick a session first (left rail), or switch mode to Chat.');
+      } else {
+        const r = await api('/v1/sessions/resume', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ id: state.sessionId, message: text, max_tokens: 500 }),
+        });
+        addMsg('assistant', r.ok ? (r.reply || '(empty)') : `Error: ${r.error||'resume failed'}`);
+      }
+    }
+  } catch (e) {
+    addMsg('assistant', 'Request failed: ' + e);
+  } finally {
+    state.busy = false;
+    $('#btn-send').disabled = false;
+  }
+}
+
+// tabs
+document.querySelectorAll('#rail-tabs button').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('#rail-tabs button').forEach(x => x.classList.remove('on'));
+    document.querySelectorAll('.rail-pane').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    $('#tab-' + b.dataset.tab).classList.add('on');
+  };
+});
+
+$('#btn-send').onclick = send;
+$('#btn-clear').onclick = () => { state.messages = []; renderChat(); };
+$('#btn-refresh').onclick = () => refreshStatus();
+$('#btn-search').onclick = () => loadSessions($('#q').value.trim());
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter') loadSessions($('#q').value.trim()); });
+$('#input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+});
+$('#btn-deploy').onclick = async () => {
+  toast('Deploying fleet…');
+  const r = await api('/v1/nanobot/deploy', { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' });
+  toast(r.ok ? `Deployed ${r.count||0}` : (r.error || 'deploy issue'));
+  refreshFleet();
 };
-document.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => actions[b.dataset.a]());
+$('#btn-nb-refresh').onclick = refreshFleet;
+
+// boot
+(async () => {
+  addMsg('system', 'Grokium UI online. Commander product · SMX share only · integrity fail-closed.');
+  await refreshStatus();
+  await loadSessions();
+  connectSmx();
+  setInterval(refreshStatus, 20000);
+})();
 </script>
 </body>
 </html>
