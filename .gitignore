@@ -1,0 +1,17 @@
+# secrets — THE LAW private key never committed
+data/law/commander.sk
+**/commander.sk
+
+# runtime
+build/
+data/import/
+data/runs/
+data/home/
+data/matrix/*.json
+!data/blueprint/
+__pycache__/
+*.pyc
+*.o
+.venv/
+*.out
+serve.pid

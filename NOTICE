@@ -1,0 +1,27 @@
+Grokium
+Copyright 2026 Grokium contributors
+
+This product is licensed under the Apache License, Version 2.0.
+See the LICENSE file in the project root.
+
+Grokium is an independent, local-first agent harness.
+It is NOT affiliated with, endorsed by, or sponsored by xAI, SpaceXAI,
+or the Grok Build project.
+
+---
+
+Inspiration (not a source copy)
+  Grok Build — https://github.com/xai-org/grok-build
+  First-party Grok Build code is Apache License 2.0 (xAI / SpaceXAI).
+  Grokium does not redistribute Grok Build source code.
+  Session import reads user-local ~/.grok/sessions data created by Grok Build;
+  that data remains the user's; Grokium does not relicense it.
+
+Naming
+  "Grok", "Grok Build", and "xAI" are trademarks of their respective owners.
+  Use of those names is solely for identification / interoperability
+  (session formats, optional opt-in API), not as a claim of origin.
+
+Optional runtime components (not bundled in this tree)
+  See THIRD-PARTY-NOTICES for licenses of optional local dependencies
+  (e.g. llama.cpp server already installed on the host).

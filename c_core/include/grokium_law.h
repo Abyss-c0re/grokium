@@ -1,0 +1,23 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+#ifndef GROKIUM_LAW_H
+#define GROKIUM_LAW_H
+/* Cube Standards flags — non-verbal hot path */
+#define GROKIUM_HOLD_FLASH        1
+#define GROKIUM_NO_BRAIN_WIRES    1
+#define GROKIUM_STATE_MATRIX_KEY  1
+#define GROKIUM_CORES_UNMIXED     1
+#define GROKIUM_SHARE_SMX_ONLY    1
+#define GROKIUM_CELLS             512
+#define GROKIUM_EDGE              8
+typedef struct {
+  int hold_flash;
+  int no_brain_wires;
+  int state_matrix_key;
+  int cores_unmixed;
+  int face_blur;
+  int zero_telemetry;
+  int commander_only_residual;
+} grokium_law;
+void grokium_law_default(grokium_law *L);
+int  grokium_law_blocks_flash(const grokium_law *L);
+#endif

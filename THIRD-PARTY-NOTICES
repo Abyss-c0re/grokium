@@ -1,0 +1,46 @@
+Grokium third-party / related notices
+=====================================
+
+Grokium first-party code in this repository is Apache-2.0 (see LICENSE + NOTICE).
+Nothing in this tree is a vendored copy of Grok Build or llama.cpp source.
+
+1) Grok Build (inspiration / session format interoperability)
+   Project:  https://github.com/xai-org/grok-build
+   License:  Apache License 2.0 (first-party code)
+   Notes:    Grok Build also documents third-party notices for its own deps
+             (see upstream THIRD-PARTY-NOTICES). Grokium does not ship those.
+             We intentionally reimplemented a small local harness rather than
+             forking or copying Grok Build sources (Codium-style independence).
+
+2) Session artifacts under data/import/ (if present)
+   Origin:   User's local ~/.grok/sessions (created by Grok Build / Grok tools)
+   License:  Not relicensed by Grokium. Content remains the session owner's.
+   Policy:   Import is local-only; zero telemetry; never uploaded by Grokium.
+
+3) llama.cpp (optional local inference — host-provided, not bundled)
+   Project:  https://github.com/ggml-org/llama.cpp
+   License:  MIT (upstream)
+   Notes:    Grokium only calls an OpenAI-compatible HTTP API the operator runs
+             (default http://127.0.0.1:1212/v1). Install/license compliance for
+             llama.cpp and any GGUF model weights is the operator's responsibility.
+
+4) Model weights (optional, host-provided, not bundled)
+   GGUF / other weights used with local servers remain under their own licenses
+   (e.g. model card terms). Grokium does not redistribute model weights.
+
+5) Python standard library
+   http.server, urllib, json, tomllib, etc. — Python Software Foundation License.
+   No additional pip packages are required for the core harness.
+
+6) Optional cloud Grok API (opt-in only)
+   When GROKIUM_GROK_AUTH=1, requests go to the user-configured Grok/xAI endpoint.
+   Use of that API is governed by xAI / product terms and requires the user's key.
+   Default Grokium config keeps cloud auth OFF.
+
+If you distribute Grokium, keep LICENSE, NOTICE, and this file with the distribution.
+
+
+7) libsodium (runtime link for Ed25519 commander)
+   Project:  https://libsodium.org /
+   License:  ISC
+   Notes:    Used only for Grokium commander keygen/sign/verify (THE LAW).

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Grokium</title>
+<style>
+  :root { color-scheme: dark; --bg:#0b0d10; --fg:#c8d0d8; --mut:#6a7380; --acc:#6ee7b7; --bad:#f87171; --panel:#11151a; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; background:var(--bg); color:var(--fg); }
+  header { padding:.9rem 1.1rem; border-bottom:1px solid #1e242c; display:flex; gap:1rem; align-items:baseline; flex-wrap:wrap; }
+  h1 { font-size:.95rem; margin:0; letter-spacing:.08em; text-transform:uppercase; color:var(--acc); }
+  .badge { color:var(--mut); font-size:11px; }
+  main { padding:1rem; max-width:60rem; display:grid; gap:1rem; }
+  .row { display:flex; gap:.45rem; flex-wrap:wrap; align-items:center; }
+  button, input, textarea { background:#151a21; color:var(--fg); border:1px solid #2a3340; padding:.4rem .65rem; border-radius:4px; font:inherit; }
+  button { cursor:pointer; }
+  button:hover { border-color:var(--acc); }
+  input, textarea { flex:1; min-width:12rem; }
+  textarea { width:100%; min-height:4.5rem; resize:vertical; }
+  pre { background:var(--panel); border:1px solid #1e242c; padding:.85rem; overflow:auto; max-height:55vh; border-radius:6px; white-space:pre-wrap; }
+  .ok { color:var(--acc); } .err { color:var(--bad); }
+  label { color:var(--mut); font-size:11px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Grokium</h1>
+  <span class="badge">local-first · zero telemetry · state matrix share only · capable · Apache-2.0</span><span class="badge">not affiliated with xAI / Grok Build</span>
+</header>
+<main>
+  <div class="row">
+    <button data-a="status">status</button>
+    <button data-a="llama">llama</button>
+    <button data-a="cube">cube</button>
+    <button data-a="matrix">matrix</button>
+    <button data-a="search">search</button>
+    <button data-a="pickup">pickup</button>
+    <button data-a="resume">resume</button>
+    <button data-a="agent">agent</button>
+    <button data-a="license">license</button>
+  </div>
+  <div class="row">
+    <label>session</label>
+    <input id="sid" value="019f9444-14fa-7091-aa03-1a86b42eb495"/>
+    <label>q</label>
+    <input id="q" value="Prophecy"/>
+  </div>
+  <textarea id="msg" placeholder="agent / resume message">List top-level entries under grokium using list_dir, then one-line summary.</textarea>
+  <pre id="out">ready</pre>
+</main>
+<script>
+const out = document.getElementById('out');
+const sid = () => document.getElementById('sid').value.trim();
+const msg = () => document.getElementById('msg').value;
+const q = () => document.getElementById('q').value;
+async function show(path, opt) {
+  out.textContent = '…';
+  try {
+    const r = await fetch(path, opt);
+    const j = await r.json();
+    out.textContent = JSON.stringify(j, null, 2);
+    out.className = j.ok === false ? 'err' : 'ok';
+  } catch (e) {
+    out.textContent = String(e);
+    out.className = 'err';
+  }
+}
+const actions = {
+  status: () => show('/v1/status'),
+  llama: () => show('/v1/llama/probe'),
+  cube: () => show('/v1/cube/status'),
+  matrix: () => show('/v1/matrix/latest'),
+  search: () => show('/v1/sessions/search?q=' + encodeURIComponent(q())),
+  pickup: () => show('/v1/sessions/pickup?id=' + encodeURIComponent(sid()) + '&tail=4'),
+  resume: () => show('/v1/sessions/resume', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({id: sid(), message: msg() || 'Summarize next step in one line.'})
+  }),
+  license: () => show('/v1/license'),
+  agent: () => show('/v1/agent', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({message: msg(), session_id: sid() || null, max_steps: 5})
+  }),
+};
+document.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => actions[b.dataset.a]());
+</script>
+</body>
+</html>
