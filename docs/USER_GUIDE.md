@@ -84,6 +84,25 @@ export GROKIUM_LOCAL_MODEL=/home/voldemar/Dev/AI/model/YourModel.gguf
 Grokium can *select* an id; it does not replace loading GGUFs into llama-server.  
 Start/reload the server with `-m path.gguf` (or your multi-model setup), then `/model list` to confirm **live** ids.
 
+## Versions (two different things)
+
+| Version | Meaning |
+|---------|---------|
+| **Grokium** (`0.x`) | Our app / product version |
+| **Reported Grok Build** | Sent as `x-grok-client-version` to cli-chat-proxy only |
+
+A background watcher (default every **3 hours**) refreshes the *reported* version
+from the local `grok` CLI / `~/.grok/version.json` / GitHub when reachable, and
+**hot-swaps live** — no TUI restart.
+
+```bash
+./scripts/grokium compat           # status
+./scripts/grokium compat refresh   # check now
+# TUI: /compat  ·  /compat refresh
+```
+
+Env: `GROKIUM_GROK_BUILD_VERSION=0.2.112` force · `GROKIUM_VERSION_WATCH_SEC=10800` interval.
+
 ## Grok auth (same token store as original CLI)
 
 Grokium is **not** xAI software. For optional cloud Grok it reuses the **same**

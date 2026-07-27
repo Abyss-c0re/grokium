@@ -192,11 +192,20 @@ def login_web(timeout: int = 300) -> dict[str, Any]:
 
 
 def bearer_headers(extra: dict[str, str] | None = None) -> dict[str, str]:
+    # Live-swappable reported Grok Build version (NOT Grokium product version)
+    try:
+        from .version_compat import reported_version, product_version
+        rep = reported_version()
+        prod = product_version()
+    except Exception:
+        rep, prod = "0.2.112", "0.3.0"
     h = {
         "Content-Type": "application/json",
-        "User-Agent": "grokium/0.5 (independent; zero-telemetry; not-xai)",
-        # Grok CLI chat proxy often expects this marker (see upstream docs)
+        # Proxy gates on this header (error said version "none")
+        "x-grok-client-version": rep,
         "X-XAI-Token-Auth": "xai-grok-cli",
+        # Product UA stays Grokium; reported version is separate
+        "User-Agent": f"grokium/{prod} (compat={rep}; independent; not-xai)",
     }
     tok = get_access_token()
     if tok.get("ok") and tok.get("token"):

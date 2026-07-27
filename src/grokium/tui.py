@@ -29,6 +29,13 @@ from .llm import backend_status, chat, chat_stream, get_backend, probe_local, se
 from .lab_context import system_prompt
 from .models import list_all, load_persisted_model, persist_model, resolve_model_id, set_model
 from .grok_auth import auth_status, ensure_token, login_web
+from .version_compat import (
+    product_version,
+    refresh_reported,
+    reported_version,
+    start_watcher,
+    status as version_status,
+)
 from .md_render import render_markdown_lines
 from .matrix import parse_plate, fold_bits, plate_ack, save_matrix
 from .privacy import assert_zero_telemetry, force_privacy_false
@@ -61,6 +68,8 @@ BACKENDS (cores unmixed)
   /backend           show active backend
   /login             use ~/.grok/auth.json token or run `grok login` (web, like original)
   /auth              show auth status (no secrets)
+  /compat            Grokium vs reported Grok Build version
+  /compat refresh    check upstream / local CLI and hot-swap report
   /logout            switch back to local (does not delete auth.json)
 
 GROK BUILD–LIKE
@@ -375,6 +384,12 @@ class GrokiumTUI:
             self.lines.clear()
             self._add("system", "cleared")
             return
+        if cmd in ("/compat", "/versions"):
+            if arg.strip() in ("refresh", "check", "update"):
+                self._add("system", json.dumps(refresh_reported(force=True), indent=2, default=str))
+            else:
+                self._add("system", json.dumps(version_status(), indent=2, default=str))
+            return
         if cmd in ("/auth", "/whoami"):
             self._add("system", json.dumps(auth_status(), indent=2))
             return
@@ -662,25 +677,55 @@ class GrokiumTUI:
                 if not self.session_id:
                     self._add("system", "no session — /sessions · /load <id>")
                 else:
-                    # resume_chat uses local prefer — patch path via cfg backend
-                    prefer = be != "grok"
-                    # resume_chat doesn't take backend; temporarily set
-                    r = resume_chat(self.cfg, self.session_id, text, max_tokens=600)
-                    # if grok wanted, do direct chat with context instead
+                    # cores unmixed: one backend path only — never local then grok in one turn
                     if be == "grok":
-                        ctx = []
-                        r2 = chat(
+                        hist = [
+                            {"role": r, "content": c}
+                            for r, c in self.lines
+                            if r in ("user", "assistant")
+                        ][-16:]
+                        msgs = [
+                            {
+                                "role": "system",
+                                "content": (
+                                    f"Resume session {self.session_title or self.session_id}. "
+                                    "Product=grokium. Concise. Zero telemetry."
+                                ),
+                            }
+                        ] + hist
+                        self._add("assistant", "")
+                        idx = len(self.lines) - 1
+                        buf: list[str] = []
+
+                        def on_tok_resume(d: str) -> None:
+                            buf.append(d)
+                            self.lines[idx] = ("assistant", "".join(buf))
+                            self.status = f"streaming… {len(''.join(buf))}c"
+                            self.draw()
+
+                        r2 = chat_stream(
                             self.cfg,
-                            [
-                                {"role": "system", "content": f"Resume session {self.session_title}. Be concise."},
-                                {"role": "user", "content": text},
-                            ],
-                            backend="grok",
+                            msgs,
                             max_tokens=600,
+                            backend="grok",
+                            on_token=on_tok_resume,
                         )
-                        self._add("assistant", r2.get("content") if r2.get("ok") else f"error: {r2.get('error')}")
+                        if not r2.get("ok"):
+                            self.lines[idx] = (
+                                "system",
+                                f"chat error [{r2.get('path')}]: {r2.get('error')}",
+                            )
+                        else:
+                            self.lines[idx] = (
+                                "assistant",
+                                r2.get("content") or "".join(buf) or "(empty)",
+                            )
                     else:
-                        self._add("assistant", r.get("reply") if r.get("ok") else f"error: {r.get('error')}")
+                        r = resume_chat(self.cfg, self.session_id, text, max_tokens=600)
+                        self._add(
+                            "assistant",
+                            r.get("reply") if r.get("ok") else f"error: {r.get('error')}",
+                        )
         except Exception as e:
             self._add("system", f"exception: {e}")
         self.status = f"ready · {self._backend_label()}"
@@ -748,6 +793,8 @@ def run_tui(cfg: dict[str, Any] | None = None) -> int:
     saved = load_persisted_theme(str(cfg.get("_root") or "."))
 
     def _main(stdscr: Any) -> None:
+        # hot version watcher — no UX restart when reported Grok Build version bumps
+        start_watcher()
         tid = init_curses_theme(stdscr, saved or "crimson")
         ui = GrokiumTUI(stdscr, cfg)
         ui.theme = tid

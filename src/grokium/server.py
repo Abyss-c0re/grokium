@@ -20,6 +20,7 @@ from .history import build_resume_context
 from .llm import chat, probe_local
 from .matrix import fold_bits, parse_plate, plate_ack, save_matrix
 from .privacy import assert_zero_telemetry, force_privacy_false
+from .version_compat import start_watcher, status as version_status, product_version, reported_version
 from .integrity_core import (
     assert_integrity_or_raise,
     install_integrity_nanobot_home,
@@ -124,6 +125,9 @@ def make_handler(cfg: dict[str, Any]):
                         "official_xai_client": False,
                         "disclaimer": DISCLAIMER_MEDIUM,
                         "telemetry": False,
+                        "grokium_version": product_version(),
+                        "reported_grok_build_version": reported_version(),
+                        "version_note": "reported_* is for cli-chat-proxy only",
                         "auth_cloud": bool((cfg.get("auth") or {}).get("enabled")),
                         "local_first": True,
                         "capabilities": [
@@ -156,6 +160,10 @@ def make_handler(cfg: dict[str, Any]):
 
             if path == "/v1/license":
                 _json_response(self, 200, license_blob())
+                return
+
+            if path == "/v1/compat":
+                _json_response(self, 200, version_status())
                 return
 
             if path == "/v1/law":
@@ -430,13 +438,26 @@ def make_handler(cfg: dict[str, Any]):
                 return
 
             if path == "/v1/coord":
-                plate_line = body.get("plate") or body.get("line") or ""
+                plate_line = body.get("plate") or body.get("line") or body.get("_raw") or ""
                 if not plate_line and body:
-                    plate = dict(body)
-                    plate.setdefault("schema", "nexus_coord.v1")
+                    # station may POST structured JSON without plate key
+                    if body.get("schema") in ("NEXUS_COORD.v1", "nexus_coord.v1") or "from" in body:
+                        plate = dict(body)
+                        plate.setdefault("schema", "nexus_coord.v1")
+                    else:
+                        plate = parse_plate(json.dumps(body))
                 else:
-                    plate = parse_plate(plate_line)
+                    plate = parse_plate(str(plate_line))
                 path_saved = save_matrix(Path(cfg["_root"]), plate)
+                # also push SMX realtime bus
+                try:
+                    get_bus(Path(cfg["_root"])).publish(
+                        source="api_coord",
+                        plate={k: v for k, v in plate.items() if not isinstance(v, (dict, list))},
+                        integrity={"api": 1},
+                    )
+                except Exception:
+                    pass
                 llama = probe_local(cfg)
                 ack = plate_ack(
                     from_id="Grokium",
@@ -463,6 +484,20 @@ def make_handler(cfg: dict[str, Any]):
                 )
                 return
 
+            if path == "/v1/coord/station":
+                # pull latest BlackCube station plate into Grokium
+                from .station_coord import ingest_station_coord, start_station_coord_watch
+
+                if body.get("watch") or body.get("start_watch"):
+                    _json_response(self, 200, start_station_coord_watch(cfg))
+                    return
+                _json_response(
+                    self,
+                    200,
+                    ingest_station_coord(cfg, force=bool(body.get("force", True))),
+                )
+                return
+
             _json_response(self, 404, {"ok": False, "error": "not_found"})
 
     return H
@@ -475,6 +510,19 @@ def serve(cfg: dict[str, Any] | None = None) -> None:
     port = int(cfg["server"]["port"])
     if host not in ("127.0.0.1", "localhost", "::1"):
         host = "127.0.0.1"
+    # Station NEXUS_COORD → StateMatrix + SMX (BlackCube channel_stim)
+    try:
+        from .station_coord import ingest_station_coord, start_station_coord_watch
+
+        boot = ingest_station_coord(cfg, force=True)
+        watch = start_station_coord_watch(cfg, interval_s=2.0)
+        print(
+            f"grokium station_coord: boot_ok={boot.get('ok')} seq={boot.get('seq')} "
+            f"watch={watch.get('started') or watch.get('already')}",
+            flush=True,
+        )
+    except Exception as e:
+        print(f"grokium station_coord watch deferred: {e}", flush=True)
     httpd = ThreadingHTTPServer((host, port), make_handler(cfg))
     print(f"grokium serve http://{host}:{port}/  UI+API  telemetry=off integrity=on", flush=True)
     httpd.serve_forever()

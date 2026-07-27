@@ -67,6 +67,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("llama-test", help="Probe local llama + short completion")
     sub.add_parser("login", help="Grok web auth via original CLI or reuse ~/.grok/auth.json")
     sub.add_parser("auth", help="Show Grok auth status (no secrets)")
+    cp = sub.add_parser("compat", help="Grok Build reported version (not app version)")
+    cp.add_argument("action", nargs="?", default="status", choices=["status", "refresh", "watch"])
     md = sub.add_parser("models", help="List/set configurable llama.cpp models")
     md_sub = md.add_subparsers(dest="models_cmd", required=False)
     md_sub.add_parser("list", help="List presets + live server models")
@@ -97,6 +99,12 @@ def main(argv: list[str] | None = None) -> int:
     cd = sub.add_parser("coord", help="Ingest NEXUS_COORD plate → state matrix only")
     cd.add_argument("plate", nargs="*")
     cd.add_argument("--file", default=None)
+    cd.add_argument(
+        "--station",
+        action="store_true",
+        help="Pull latest BlackCube station plate (prophecy_cube/state/nexus_coord.json)",
+    )
+    cd.add_argument("--watch", action="store_true", help="Start station plate watcher (foreground poll once + note)")
 
     args = p.parse_args(argv)
     cfg = load()
@@ -198,6 +206,18 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(list_all(cfg), indent=2, default=str))
         return 0
 
+    if args.cmd == "compat":
+        from .version_compat import status as vs, refresh_reported, start_watcher, product_version, reported_version
+        act = getattr(args, "action", "status") or "status"
+        if act == "refresh":
+            print(json.dumps(refresh_reported(force=True), indent=2, default=str))
+            return 0
+        if act == "watch":
+            print(json.dumps(start_watcher(), indent=2, default=str))
+            return 0
+        print(json.dumps(vs(), indent=2, default=str))
+        return 0
+
     if args.cmd == "auth":
         from .grok_auth import auth_status
         print(json.dumps(auth_status(), indent=2))
@@ -232,6 +252,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if r.get("ok") and "grokium" in (r.get("content") or "").lower() else 3
 
     if args.cmd == "coord":
+        if getattr(args, "station", False) or getattr(args, "watch", False):
+            from .station_coord import ingest_station_coord, start_station_coord_watch
+
+            if args.watch:
+                print(json.dumps(start_station_coord_watch(cfg), indent=2, default=str))
+            r = ingest_station_coord(cfg, force=True)
+            print(json.dumps(r, indent=2, default=str)[:4000])
+            return 0 if r.get("ok") else 2
         if args.file:
             line = Path(args.file).read_text(encoding="utf-8").strip()
         else:
@@ -239,7 +267,7 @@ def main(argv: list[str] | None = None) -> int:
             if not line and not sys.stdin.isatty():
                 line = sys.stdin.read().strip()
         if not line:
-            print("need plate line", file=sys.stderr)
+            print("need plate line (or --station)", file=sys.stderr)
             return 1
         plate = parse_plate(line)
         path = save_matrix(Path(cfg["_root"]), plate)
