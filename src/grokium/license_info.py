@@ -13,7 +13,7 @@ SPDX = "Apache-2.0"
 COPYRIGHT = "Copyright 2026 Grokium contributors"
 NOT_AFFILIATED = (
     "Grokium is not affiliated with, endorsed by, or sponsored by xAI, "
-    "SpaceXAI, or the Grok Build project."
+    "SpaceXAI, Grok, or the Grok Build project. Independent open source."
 )
 
 REQUIRED_FILES = ("LICENSE", "NOTICE", "THIRD-PARTY-NOTICES", "CREDITS.md")
@@ -47,6 +47,9 @@ def verify_files_present() -> dict[str, Any]:
         "full_apache_license_text": has_full_apache,
         "notice_disclaims_affiliation": notice_ok,
         "not_affiliated": NOT_AFFILIATED,
+        "affiliated_with_xai": False,
+        "affiliated_with_grok": False,
+        "official_xai_client": False,
         "paths": paths(),
     }
 
@@ -57,6 +60,9 @@ def public_blob() -> dict[str, Any]:
         "spdx": SPDX,
         "copyright": COPYRIGHT,
         "not_affiliated": NOT_AFFILIATED,
+        "affiliated_with_xai": False,
+        "affiliated_with_grok": False,
+        "official_xai_client": False,
         "files": paths(),
         "compliance": {
             "ok": v["ok"],

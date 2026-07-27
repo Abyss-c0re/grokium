@@ -24,6 +24,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from grokium import __version__
+from grokium.branding import DISCLAIMER_MEDIUM, status_disclaimer
 from grokium.agent import resume_chat, run_agent
 from grokium.commander import (
     reject_fake_model_authority,
@@ -305,6 +306,9 @@ def handle(name: str, args: dict[str, Any], cfg: dict[str, Any]) -> dict[str, An
             "ok": True,
             "product": "grokium",
             "version": __version__,
+            "affiliated_with_xai": False,
+            "affiliated_with_grok": False,
+            "disclaimer": DISCLAIMER_MEDIUM,
             "telemetry": False,
             "mcp": True,
             "local_first": True,
@@ -497,7 +501,9 @@ def main() -> None:
                             "name": "grokium",
                             "version": __version__,
                             "product": "grokium",
+                            "affiliated_with_xai": False,
                             "not": "grok_model",
+                            "disclaimer": "Not affiliated with xAI or Grok",
                             "telemetry": False,
                         },
                     },

@@ -1,5 +1,10 @@
 # Grokium
 
+> **Not affiliated with xAI or Grok.**  
+> Grokium is an **independent** open-source local agent harness (Apache-2.0).  
+> It is **not** an official xAI product, **not** endorsed by xAI, and **not** Grok Build.  
+> Optional cloud Grok APIs use *your* credentials only — that does not make this software “from xAI.”
+
 **Open-source agent harness** in the spirit of [Grok Build](https://github.com/xai-org/grok-build) —
 the same idea as **VSCodium** vs VS Code: respectful, local-first, **zero telemetry by default**.
 
@@ -12,7 +17,7 @@ the same idea as **VSCodium** vs VS Code: respectful, local-first, **zero teleme
 | Sessions | `~/.grok/sessions` | Catalog + optional copy into `data/import` |
 | Off-box share | product cloud | **State matrix only** (`NEXUS_COORD`) |
 
-Grokium is **not** affiliated with xAI. Upstream Grok Build remains the reference UX for interactive coding.
+**Not affiliated with xAI or Grok** — see NOTICE and disclaimer above. Upstream Grok Build remains the reference UX for interactive coding.
 
 ## API + MCP
 

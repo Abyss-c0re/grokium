@@ -1,7 +1,7 @@
 [project]
 name = "grokium"
 version = "0.2.0"
-description = "Local-first zero-telemetry agent harness (Apache-2.0). Not affiliated with xAI."
+description = "Independent local-first zero-telemetry agent harness (Apache-2.0). Not affiliated with xAI or Grok."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"

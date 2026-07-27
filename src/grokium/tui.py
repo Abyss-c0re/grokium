@@ -19,6 +19,7 @@ import textwrap
 from typing import Any
 
 from . import __version__
+from .branding import DISCLAIMER_SHORT, DISCLAIMER_MEDIUM, banner_lines
 from .agent import resume_chat, run_agent
 from .commander import show as commander_show
 from .config import load
@@ -126,7 +127,8 @@ class GrokiumTUI:
                 pass
         be = get_backend(self.cfg)
         self._add("system", f"Grokium {__version__} · TUI primary · backend={be}")
-        self._add("system", "Not affiliated with xAI. Models ≠ commander. /help · /backend local|grok")
+        self._add("system", DISCLAIMER_MEDIUM)
+        self._add("system", "Models ≠ Grokium commander. /help · /backend local|grok · /model list")
         self._add("system", "Streaming on · Markdown render on · NEXUS_COORD via /coord (realtime SMX)")
         self._add(
             "system",
@@ -173,7 +175,7 @@ class GrokiumTUI:
 
         # === header (like Grok title bar) ===
         be = self._backend_label()
-        title = f" Grokium {__version__} │ {be} │ mode:{self.mode} │ sess:{(self.session_id or 'new')[:12]} │ smx │ tele:off "
+        title = f" Grokium {__version__} │ {be} │ {DISCLAIMER_SHORT} │ mode:{self.mode} │ tele:off "
         try:
             scr.addstr(0, 0, title[: w - 1].ljust(w - 1), A_header())
         except curses.error:
@@ -438,6 +440,9 @@ class GrokiumTUI:
                         "mode": self.mode,
                         "session": self.session_id,
                         "telemetry": False,
+                        "affiliated_with_xai": False,
+                        "affiliated_with_grok": False,
+                        "disclaimer": DISCLAIMER_MEDIUM,
                     },
                     indent=2,
                 ),

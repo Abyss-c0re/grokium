@@ -12,6 +12,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from . import __version__
+from .branding import DISCLAIMER_MEDIUM, status_disclaimer
 from .agent import resume_chat, run_agent
 from .config import load
 from .cube import status as cube_status
@@ -118,6 +119,10 @@ def make_handler(cfg: dict[str, Any]):
                         "ok": True,
                         "product": "grokium",
                         "version": __version__,
+                        "affiliated_with_xai": False,
+                        "affiliated_with_grok": False,
+                        "official_xai_client": False,
+                        "disclaimer": DISCLAIMER_MEDIUM,
                         "telemetry": False,
                         "auth_cloud": bool((cfg.get("auth") or {}).get("enabled")),
                         "local_first": True,

@@ -1,5 +1,12 @@
 # Grokium — Developer Guide
 
+## Not affiliated with xAI or Grok
+
+Grokium is **independent**. It is **not** an xAI product, **not** official Grok Build,
+and **not** endorsed or sponsored by xAI. Trademarks “Grok” / “xAI” appear only where
+needed for optional interoperability (API, session import). See root `NOTICE`.
+
+
 ## Layout
 
 ```

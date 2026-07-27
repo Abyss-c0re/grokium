@@ -1,5 +1,12 @@
 # Grokium — User Guide
 
+## Not affiliated with xAI or Grok
+
+Grokium is **independent**. It is **not** an xAI product, **not** official Grok Build,
+and **not** endorsed or sponsored by xAI. Trademarks “Grok” / “xAI” appear only where
+needed for optional interoperability (API, session import). See root `NOTICE`.
+
+
 **Grokium** is a local-first agent harness (Apache-2.0).  
 It is **not** affiliated with xAI. The **TUI is the main UI**; web is optional.
 
