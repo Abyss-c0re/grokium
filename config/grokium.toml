@@ -57,6 +57,7 @@ model = "local"
 home_root = "/home/voldemar/Dev/grokium/data/home"
 # purpose-assigned separable subagents (Cube Standards)
 roles = [
+  { id = "nb-integrity",  purpose = "integrity_no_leak_core", shell = false },
   { id = "nb-matrix-eval", purpose = "evaluate_sot_smx_harmony", shell = false },
   { id = "nb-construct",   purpose = "construct_deconstruct_edge", shell = true },
   { id = "nb-observer",    purpose = "observe_unity_watchd", shell = false },
@@ -72,3 +73,14 @@ product = "grokium"
 not = "grok_model"
 unforgeable = true
 may_override_nanobot_rules = true
+
+
+[integrity]
+enabled = true
+fail_closed = true
+strict_code_seal = true
+stream_smx = true
+# Real-time share is SMX bits only — never session prose
+no_prose_stream = true
+no_collection = true
+interval_sec = 15

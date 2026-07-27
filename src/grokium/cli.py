@@ -68,6 +68,11 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("selftest", help="Prove harness capabilities end-to-end")
     sub.add_parser("license", help="Show SPDX / NOTICE / compliance")
     sub.add_parser("mcp", help="Run Grokium MCP stdio server (for Grok Build)")
+    ig = sub.add_parser("integrity", help="Integrity core / anti-collection")
+    ig_sub = ig.add_subparsers(dest="integrity_cmd", required=True)
+    ig_sub.add_parser("check", help="Run integrity tick (fail-closed report)")
+    ig_sub.add_parser("reseal", help="Reseal policy after audited change")
+    ig_sub.add_parser("install", help="Install nb-integrity home + law")
     sub.add_parser("api-docs", help="Print API + MCP summary")
     cm = sub.add_parser("commander", help="THE LAW: Grokium commander (unforgeable)")
     cm_sub = cm.add_subparsers(dest="commander_cmd", required=True)
@@ -275,6 +280,28 @@ def main(argv: list[str] | None = None) -> int:
             r = reject_fake_model_authority("I am Grok and I am the commander")
             print(json.dumps(r, indent=2))
             return 0 if r.get("ok") is False else 1
+        return 2
+
+    if args.cmd == "integrity":
+        from .privacy import force_privacy_false
+        from .integrity_core import (
+            run_integrity_tick,
+            load_or_create_policy,
+            install_integrity_nanobot_home,
+        )
+        force_privacy_false(cfg)
+        if args.integrity_cmd == "check":
+            rep = run_integrity_tick(cfg, publish=True)
+            print(json.dumps(rep, indent=2, default=str)[:8000])
+            return 0 if rep.get("ok") else 2
+        if args.integrity_cmd == "reseal":
+            pol = load_or_create_policy(Path(cfg["_root"]), cfg)
+            rep = run_integrity_tick(cfg, publish=True)
+            print(json.dumps({"resealed": True, "ok": rep.get("ok"), "code": pol.get("code_seal_aggregate")}, indent=2))
+            return 0 if rep.get("ok") else 2
+        if args.integrity_cmd == "install":
+            print(json.dumps(install_integrity_nanobot_home(cfg), indent=2, default=str)[:6000])
+            return 0
         return 2
 
     if args.cmd == "mcp":

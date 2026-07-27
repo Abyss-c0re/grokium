@@ -9,6 +9,8 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
+from .privacy import force_privacy_false
+
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CFG = ROOT / "config" / "grokium.toml"
 
@@ -50,4 +52,5 @@ def load(path: Path | None = None) -> dict[str, Any]:
 
     data["_root"] = str(ROOT)
     data["_cfg_path"] = str(cfg_path)
+    force_privacy_false(data)
     return data

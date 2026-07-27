@@ -37,7 +37,9 @@ from grokium.law import law_blob
 from grokium.license_info import public_blob as license_blob
 from grokium.llm import chat, probe_local
 from grokium.matrix import fold_bits, parse_plate, plate_ack, save_matrix
-from grokium.privacy import assert_zero_telemetry
+from grokium.privacy import assert_zero_telemetry, force_privacy_false
+from grokium.integrity_core import run_integrity_tick, load_or_create_policy, install_integrity_nanobot_home
+from grokium.smx_stream import get_bus
 from grokium.sessions import import_all, pickup, search_sessions
 
 try:
@@ -248,6 +250,33 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "grokium_integrity",
+        "description": "Run integrity core tick (anti data-collection). Fail-closed report + SMX publish.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "grokium_integrity_reseal",
+        "description": "Intentional integrity policy reseal after audited change. Privacy stays hard-false.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "grokium_smx_latest",
+        "description": "Latest real-time StateMatrix stream frame (bits only, no prose).",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "grokium_smx_publish",
+        "description": "Publish SMX frame (bits/plate/integrity flags only — prose rejected).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "source": {"type": "string"},
+                "bits": {"type": "string"},
+                "plate": {"type": "object"},
+            },
+        },
+    },
+    {
         "name": "grokium_cube_status",
         "description": "Loopback Cube control bridge status (:17333).",
         "inputSchema": {"type": "object", "properties": {}},
@@ -407,6 +436,34 @@ def handle(name: str, args: dict[str, Any], cfg: dict[str, Any]) -> dict[str, An
             return {"ok": False, "error": "nanobots_unavailable"}
         return nb_separate(cfg, str(args.get("id") or ""))
 
+    if name == "grokium_integrity":
+        force_privacy_false(cfg)
+        install_integrity_nanobot_home(cfg)
+        return run_integrity_tick(cfg, publish=True)
+
+    if name == "grokium_integrity_reseal":
+        force_privacy_false(cfg)
+        root = Path(cfg["_root"])
+        pol = load_or_create_policy(root, cfg)
+        rep = run_integrity_tick(cfg, publish=True)
+        return {"policy_ok": True, "report": rep, "aggregate": pol.get("code_seal_aggregate")}
+
+    if name == "grokium_smx_latest":
+        bus = get_bus(cfg["_root"])
+        fr = bus.latest()
+        if not fr:
+            run_integrity_tick(cfg, publish=True)
+            fr = bus.latest()
+        return fr or {"ok": False, "error": "no_frame"}
+
+    if name == "grokium_smx_publish":
+        bus = get_bus(cfg["_root"])
+        return bus.publish(
+            source=str(args.get("source") or "mcp"),
+            bits=args.get("bits"),
+            plate=args.get("plate") if isinstance(args.get("plate"), dict) else None,
+        )
+
     if name == "grokium_cube_status":
         return cube_status(cfg)
 
@@ -415,6 +472,7 @@ def handle(name: str, args: dict[str, Any], cfg: dict[str, Any]) -> dict[str, An
 
 def main() -> None:
     cfg = load()
+    force_privacy_false(cfg)
     try:
         assert_zero_telemetry(cfg)
     except Exception as e:

@@ -50,3 +50,17 @@ nanobot_status/deploy/separate · cube_status
 
 Commander tools prove **product=grokium** via Ed25519.  
 `grokium_commander_reject_model` denies “I am Grok” authority claims.
+
+
+## Integrity + SMX stream
+
+| Method | Path | Role |
+|--------|------|------|
+| GET | `/v1/integrity` | integrity tick report (503 if fail) |
+| GET | `/v1/integrity/policy` | sealed policy |
+| POST | `/v1/integrity/reseal` | intentional reseal |
+| GET | `/v1/stream/smx` | SSE real-time StateMatrix (bits only) |
+| GET | `/v1/stream/smx/latest` | last SMX frame |
+| POST | `/v1/stream/smx/publish` | publish bits/plate (prose rejected) |
+
+MCP: `grokium_integrity`, `grokium_integrity_reseal`, `grokium_smx_latest`, `grokium_smx_publish`

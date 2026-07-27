@@ -73,6 +73,21 @@ API highlights (`127.0.0.1:17444`):
 | POST | `/v1/coord` | NEXUS_COORD → state matrix only |
 | GET | `/v1/cube/status` | loopback Cube bridge |
 
+## Integrity / no data collection
+
+**No collection. StateMatrix streams. Integrity core watches. Leak = fail closed.**
+
+- Privacy flags **cannot stick true** (forced false on load)
+- Outbound allowlist: loopback (+ optional opt-in Grok auth host only)
+- Real-time share: **`/v1/stream/smx`** SSE — bits only
+- **`nb-integrity`** nanobot core + commander-sealed policy
+- Plate: [`docs/INTEGRITY_NO_LEAK_LAW.md`](docs/INTEGRITY_NO_LEAK_LAW.md)
+
+```bash
+./scripts/grokium integrity check
+./scripts/grokium integrity reseal   # only after intentional audited change
+```
+
 ## THE LAW — Commander (unforgeable)
 
 **Grokium commands nanobots. Crypto proves Grokium. Models do not.**

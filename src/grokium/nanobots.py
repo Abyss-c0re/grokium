@@ -23,8 +23,14 @@ try:
 except Exception:  # pragma: no cover
     install_law_on_home = None  # type: ignore
     sign_override = None  # type: ignore
+try:
+    from .integrity_core import install_integrity_nanobot_home, run_integrity_tick
+except Exception:  # pragma: no cover
+    install_integrity_nanobot_home = None  # type: ignore
+    run_integrity_tick = None  # type: ignore
 
 DEFAULT_ROLES = [
+    {"id": "nb-integrity", "purpose": "integrity_no_leak_core", "shell": False},
     {"id": "nb-matrix-eval", "purpose": "evaluate_sot_smx_harmony", "shell": False},
     {"id": "nb-construct", "purpose": "construct_deconstruct_edge", "shell": True},
     {"id": "nb-observer", "purpose": "observe_unity_watchd", "shell": False},
@@ -143,6 +149,11 @@ def _read_token(home: Path) -> str | None:
 
 def deploy(cfg: dict[str, Any], *, only: list[str] | None = None) -> dict[str, Any]:
     """Deploy purpose-assigned nanobot peers (offline local llama). Separable by id."""
+    if install_integrity_nanobot_home is not None:
+        try:
+            install_integrity_nanobot_home(cfg)
+        except Exception:
+            pass
     binary = _binary(cfg)
     if not binary:
         return {"ok": False, "error": "nanobot_binary_missing", "hint": "build nanobot host or install ~/.local/bin/nanobot"}

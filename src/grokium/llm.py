@@ -10,12 +10,11 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-from .privacy import host_allowed
+from .privacy import guard_url, host_allowed
 
 
-def _post_json(url: str, body: dict[str, Any], timeout: float = 60.0) -> dict[str, Any]:
-    if not host_allowed(url):
-        raise RuntimeError(f"blocked host (telemetry deny): {url}")
+def _post_json(url: str, body: dict[str, Any], timeout: float = 60.0, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
+    guard_url(url, cfg)
     data = json.dumps(body).encode()
     req = urllib.request.Request(
         url,
@@ -31,9 +30,8 @@ def _post_json(url: str, body: dict[str, Any], timeout: float = 60.0) -> dict[st
         return json.loads(resp.read().decode())
 
 
-def _get_json(url: str, timeout: float = 5.0) -> dict[str, Any]:
-    if not host_allowed(url):
-        raise RuntimeError(f"blocked host: {url}")
+def _get_json(url: str, timeout: float = 5.0, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
+    guard_url(url, cfg)
     req = urllib.request.Request(url, headers={"User-Agent": "grokium/0.1 (zero-telemetry)"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode())
@@ -42,7 +40,7 @@ def _get_json(url: str, timeout: float = 5.0) -> dict[str, Any]:
 def probe_local(cfg: dict[str, Any]) -> dict[str, Any]:
     base = (cfg.get("local") or {}).get("base_url", "http://127.0.0.1:1212/v1").rstrip("/")
     try:
-        models = _get_json(f"{base}/models", timeout=3.0)
+        models = _get_json(f"{base}/models", timeout=3.0, cfg=cfg)
         return {"ok": True, "base_url": base, "models": models, "path": "local"}
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as e:
         return {"ok": False, "base_url": base, "error": str(e), "path": "local"}
@@ -88,7 +86,7 @@ def chat(
         "chat_template_kwargs": {"enable_thinking": False},
     }
     try:
-        resp = _post_json(url, body, timeout=120.0)
+        resp = _post_json(url, body, timeout=120.0, cfg=cfg)
         choice = (resp.get("choices") or [{}])[0]
         msg = choice.get("message") or {}
         content = msg.get("content") or ""

@@ -18,7 +18,14 @@ from .cube import status as cube_status
 from .history import build_resume_context
 from .llm import chat, probe_local
 from .matrix import fold_bits, parse_plate, plate_ack, save_matrix
-from .privacy import assert_zero_telemetry
+from .privacy import assert_zero_telemetry, force_privacy_false
+from .integrity_core import (
+    assert_integrity_or_raise,
+    install_integrity_nanobot_home,
+    run_integrity_tick,
+    load_or_create_policy,
+)
+from .smx_stream import get_bus
 from .license_info import public_blob as license_blob, verify_files_present
 from .law import law_blob
 from .commander import show as commander_show, sign_override, verify_override
@@ -41,6 +48,8 @@ def _json_response(handler: BaseHTTPRequestHandler, code: int, obj: Any) -> None
 
 
 def make_handler(cfg: dict[str, Any]):
+    force_privacy_false(cfg)
+
     class H(BaseHTTPRequestHandler):
         def log_message(self, fmt: str, *args) -> None:
             pass
@@ -110,6 +119,9 @@ def make_handler(cfg: dict[str, Any]):
                             "cube_bridge",
                             "commander_law",
                             "nanobot_fleet",
+                            "integrity_core",
+                            "smx_stream",
+                            "no_collection",
                         ],
                         "llama": {"ok": llama.get("ok"), "base_url": llama.get("base_url")},
                         "cube": {"ok": cube.get("ok")},
@@ -209,6 +221,49 @@ def make_handler(cfg: dict[str, Any]):
                     _json_response(self, 404, {"ok": False, "error": "session_not_found"})
                     return
                 _json_response(self, 200, build_resume_context(Path(sp), tail=int((q.get("tail") or ["16"])[0])))
+                return
+
+
+            if path == "/v1/integrity" or path == "/v1/integrity/status":
+                rep = run_integrity_tick(cfg, publish=True)
+                code = 200 if rep.get("ok") else 503
+                _json_response(self, code, rep)
+                return
+
+            if path == "/v1/integrity/policy":
+                root = Path(cfg["_root"])
+                pol = root / "data" / "integrity" / "POLICY.json"
+                if not pol.is_file():
+                    load_or_create_policy(root, cfg)
+                _json_response(self, 200, json.loads(pol.read_text(encoding="utf-8")))
+                return
+
+            if path == "/v1/stream/smx":
+                # SSE real-time StateMatrix — bits only
+                bus = get_bus(cfg["_root"])
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Connection", "keep-alive")
+                self.send_header("X-Grokium-Telemetry", "off")
+                self.send_header("X-Grokium-Share", "state_matrix_only")
+                self.end_headers()
+                try:
+                    for chunk in bus.iter_sse(0.5):
+                        self.wfile.write(chunk.encode())
+                        self.wfile.flush()
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
+                return
+
+            if path == "/v1/stream/smx/latest":
+                bus = get_bus(cfg["_root"])
+                frame = bus.latest()
+                if not frame:
+                    # publish heartbeat integrity frame
+                    run_integrity_tick(cfg, publish=True)
+                    frame = bus.latest()
+                _json_response(self, 200, frame or {"ok": False, "error": "no_frame"})
                 return
 
             if path == "/healthz":
@@ -311,6 +366,31 @@ def make_handler(cfg: dict[str, Any]):
                 _json_response(self, 200 if r.get("ok") else 502, r)
                 return
 
+
+            if path == "/v1/integrity/reseal":
+                # intentional reseal after audited code change — still privacy hard-false
+                force_privacy_false(cfg)
+                root = Path(cfg["_root"])
+                pol = load_or_create_policy(root, cfg)
+                rep = run_integrity_tick(cfg, publish=True)
+                _json_response(self, 200 if rep.get("ok") else 503, {"policy": pol, "report": rep})
+                return
+
+            if path == "/v1/stream/smx/publish":
+                # only flags/bits — refuse prose
+                bus = get_bus(cfg["_root"])
+                try:
+                    frame = bus.publish(
+                        source=str(body.get("source") or "api"),
+                        bits=body.get("bits"),
+                        plate=body.get("plate") if isinstance(body.get("plate"), dict) else None,
+                        integrity=body.get("integrity") if isinstance(body.get("integrity"), dict) else None,
+                        extra_flags=body.get("flags") if isinstance(body.get("flags"), dict) else None,
+                    )
+                    _json_response(self, 200, frame)
+                except Exception as e:
+                    _json_response(self, 400, {"ok": False, "error": str(e)})
+                return
 
             if path == "/v1/commander/sign":
                 try:
