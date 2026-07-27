@@ -1,10 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Grokium contributors
-"""LLM client with runtime backend switch: local (llama.cpp) | grok (opt-in auth).
-
-Default: local. Grok cloud only when explicitly selected AND credentials present.
-Cores stay unmixed — never silently fall back cloud→local for collection.
-"""
+"""LLM client: local llama.cpp | opt-in Grok. Streaming + non-streaming."""
 
 from __future__ import annotations
 
@@ -12,11 +8,10 @@ import json
 import os
 import urllib.error
 import urllib.request
-from typing import Any
+from typing import Any, Callable, Iterator
 
 from .privacy import guard_url
 
-# runtime override: "local" | "grok" | None (use cfg)
 _RUNTIME_BACKEND: str | None = None
 
 
@@ -40,28 +35,55 @@ def get_backend(cfg: dict[str, Any]) -> str:
     return "local"
 
 
+def _auth_header(url: str) -> dict[str, str]:
+    h = {"Content-Type": "application/json", "User-Agent": "grokium/0.4 (zero-telemetry)"}
+    key = os.environ.get("GROK_API_KEY") or os.environ.get("XAI_API_KEY")
+    if key and ("grok.com" in url or "x.ai" in url):
+        h["Authorization"] = f"Bearer {key}"
+    return h
+
+
+def _resolve_endpoint(cfg: dict[str, Any], backend: str | None) -> tuple[str, str, str, dict]:
+    """Returns path, base, model, cfg_for_guard."""
+    auth = cfg.get("auth") or {}
+    local = cfg.get("local") or {}
+    if backend:
+        path = "local" if backend in ("local", "llama") else "grok"
+    else:
+        path = get_backend(cfg)
+
+    cfg2 = dict(cfg)
+    if path == "grok":
+        if not (os.environ.get("GROK_API_KEY") or os.environ.get("XAI_API_KEY")):
+            raise RuntimeError("Grok backend needs GROK_API_KEY or XAI_API_KEY")
+        cfg2["auth"] = dict(auth)
+        cfg2["auth"]["enabled"] = True
+        base = (auth.get("base_url") or "https://cli-chat-proxy.grok.com/v1").rstrip("/")
+        model = auth.get("model") or "grok-4.5"
+    else:
+        path = "local"
+        base = (local.get("base_url") or "http://127.0.0.1:1212/v1").rstrip("/")
+        model = local.get("model") or "local"
+        if model == "local":
+            probe = probe_local(cfg)
+            if probe.get("ok"):
+                data = (probe.get("models") or {}).get("data") or []
+                if data:
+                    model = data[0].get("id") or model
+    return path, base, model, cfg2
+
+
 def _post_json(url: str, body: dict[str, Any], timeout: float = 60.0, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
     guard_url(url, cfg)
     data = json.dumps(body).encode()
-    req = urllib.request.Request(
-        url,
-        data=data,
-        headers={"Content-Type": "application/json", "User-Agent": "grokium/0.3 (zero-telemetry)"},
-        method="POST",
-    )
-    key = os.environ.get("GROK_API_KEY") or os.environ.get("XAI_API_KEY")
-    if key and ("grok.com" in url or "x.ai" in url):
-        req.add_header("Authorization", f"Bearer {key}")
+    req = urllib.request.Request(url, data=data, headers=_auth_header(url), method="POST")
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode())
 
 
 def _get_json(url: str, timeout: float = 5.0, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
     guard_url(url, cfg)
-    req = urllib.request.Request(url, headers={"User-Agent": "grokium/0.3 (zero-telemetry)"})
-    key = os.environ.get("GROK_API_KEY") or os.environ.get("XAI_API_KEY")
-    if key and ("grok.com" in url or "x.ai" in url):
-        req.add_header("Authorization", f"Bearer {key}")
+    req = urllib.request.Request(url, headers=_auth_header(url))
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode())
 
@@ -75,19 +97,6 @@ def probe_local(cfg: dict[str, Any]) -> dict[str, Any]:
         return {"ok": False, "base_url": base, "error": str(e), "path": "local"}
 
 
-def probe_grok(cfg: dict[str, Any]) -> dict[str, Any]:
-    key = os.environ.get("GROK_API_KEY") or os.environ.get("XAI_API_KEY")
-    base = ((cfg.get("auth") or {}).get("base_url") or "https://cli-chat-proxy.grok.com/v1").rstrip("/")
-    if not key:
-        return {"ok": False, "path": "grok", "error": "no GROK_API_KEY or XAI_API_KEY in env", "base_url": base}
-    try:
-        models = _get_json(f"{base}/models", timeout=8.0, cfg=cfg)
-        return {"ok": True, "path": "grok", "base_url": base, "models": models}
-    except Exception as e:
-        # some proxies don't implement /models — still report key present
-        return {"ok": False, "path": "grok", "base_url": base, "error": str(e), "key_present": True}
-
-
 def backend_status(cfg: dict[str, Any]) -> dict[str, Any]:
     b = get_backend(cfg)
     local = probe_local(cfg)
@@ -99,10 +108,102 @@ def backend_status(cfg: dict[str, Any]) -> dict[str, Any]:
             "auth_enabled_cfg": bool((cfg.get("auth") or {}).get("enabled")),
             "base_url": (cfg.get("auth") or {}).get("base_url"),
         },
-        "switch": "/backend local|grok  or  set_backend()",
+        "stream": True,
+        "switch": "/backend local|grok",
         "cores_unmixed": True,
         "telemetry": False,
     }
+
+
+def _extract_delta(chunk: dict[str, Any]) -> str:
+    choices = chunk.get("choices") or []
+    if not choices:
+        return ""
+    c0 = choices[0]
+    delta = c0.get("delta") or {}
+    if delta.get("content"):
+        return str(delta["content"])
+    # some servers put full message on stream
+    msg = c0.get("message") or {}
+    if msg.get("content"):
+        return str(msg["content"])
+    if c0.get("text"):
+        return str(c0["text"])
+    return ""
+
+
+def chat_stream(
+    cfg: dict[str, Any],
+    messages: list[dict[str, str]],
+    *,
+    max_tokens: int = 512,
+    temperature: float = 0.2,
+    backend: str | None = None,
+    on_token: Callable[[str], None] | None = None,
+) -> dict[str, Any]:
+    """Stream tokens. on_token called for each delta. Returns final assembly."""
+    try:
+        path, base, model, cfg2 = _resolve_endpoint(cfg, backend)
+    except RuntimeError as e:
+        return {"ok": False, "error": str(e), "path": backend or get_backend(cfg), "telemetry": False}
+
+    url = f"{base}/chat/completions"
+    body = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "stream": True,
+        "chat_template_kwargs": {"enable_thinking": False},
+    }
+    guard_url(url, cfg2)
+    data = json.dumps(body).encode()
+    req = urllib.request.Request(url, data=data, headers=_auth_header(url), method="POST")
+    parts: list[str] = []
+    try:
+        with urllib.request.urlopen(req, timeout=180.0) as resp:
+            while True:
+                raw = resp.readline()
+                if not raw:
+                    break
+                line = raw.decode("utf-8", "replace").strip()
+                if not line:
+                    continue
+                if line.startswith("data:"):
+                    line = line[5:].strip()
+                if line in ("[DONE]", "data: [DONE]"):
+                    break
+                try:
+                    chunk = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                delta = _extract_delta(chunk)
+                if delta:
+                    parts.append(delta)
+                    if on_token:
+                        on_token(delta)
+        content = "".join(parts).strip()
+        return {
+            "ok": True,
+            "path": path,
+            "model": model,
+            "content": content,
+            "streamed": True,
+            "backend": path,
+            "telemetry": False,
+        }
+    except (urllib.error.URLError, TimeoutError, OSError, RuntimeError) as e:
+        # fallback non-stream if server rejects stream
+        if "stream" in str(e).lower() or True:
+            r = chat(cfg, messages, max_tokens=max_tokens, temperature=temperature, backend=path, prefer_local=(path == "local"))
+            if r.get("ok") and on_token and r.get("content"):
+                # fake stream in chunks for TUI
+                c = r["content"]
+                step = max(8, len(c) // 40)
+                for i in range(0, len(c), step):
+                    on_token(c[i : i + step])
+            return {**r, "streamed": False, "fallback": str(e)}
+        return {"ok": False, "path": path, "error": str(e), "telemetry": False}
 
 
 def chat(
@@ -114,43 +215,15 @@ def chat(
     temperature: float = 0.2,
     backend: str | None = None,
 ) -> dict[str, Any]:
-    """Complete chat. backend overrides runtime/cfg. prefer_local kept for compat."""
-    auth = cfg.get("auth") or {}
-    local = cfg.get("local") or {}
-
-    if backend:
-        path = "local" if backend in ("local", "llama") else "grok"
-    elif prefer_local is False:
-        path = "grok"
-    elif prefer_local is True:
-        path = "local"
-    else:
-        path = get_backend(cfg)
-
-    if path == "grok":
-        if not (os.environ.get("GROK_API_KEY") or os.environ.get("XAI_API_KEY")):
-            return {
-                "ok": False,
-                "path": "grok",
-                "error": "Grok backend selected but no GROK_API_KEY/XAI_API_KEY. /backend local or export key.",
-                "telemetry": False,
-            }
-        # enable auth for allowlist this request only
-        cfg = dict(cfg)
-        cfg["auth"] = dict(auth)
-        cfg["auth"]["enabled"] = True
-        base = (auth.get("base_url") or "https://cli-chat-proxy.grok.com/v1").rstrip("/")
-        model = auth.get("model") or "grok-4.5"
-    else:
-        path = "local"
-        base = (local.get("base_url") or "http://127.0.0.1:1212/v1").rstrip("/")
-        model = local.get("model") or "local"
-        if model == "local":
-            probe = probe_local(cfg)
-            if probe.get("ok"):
-                data = (probe.get("models") or {}).get("data") or []
-                if data:
-                    model = data[0].get("id") or model
+    if backend is None:
+        if prefer_local is False:
+            backend = "grok"
+        elif prefer_local is True:
+            backend = "local"
+    try:
+        path, base, model, cfg2 = _resolve_endpoint(cfg, backend)
+    except RuntimeError as e:
+        return {"ok": False, "error": str(e), "path": "grok", "telemetry": False}
 
     url = f"{base}/chat/completions"
     body = {
@@ -162,7 +235,7 @@ def chat(
         "chat_template_kwargs": {"enable_thinking": False},
     }
     try:
-        resp = _post_json(url, body, timeout=120.0, cfg=cfg)
+        resp = _post_json(url, body, timeout=120.0, cfg=cfg2)
         choice = (resp.get("choices") or [{}])[0]
         msg = choice.get("message") or {}
         content = msg.get("content") or ""
@@ -179,6 +252,7 @@ def chat(
             "usage": resp.get("usage"),
             "telemetry": False,
             "backend": path,
+            "streamed": False,
         }
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError, RuntimeError) as e:
         return {"ok": False, "path": path, "model": model, "error": str(e), "telemetry": False, "backend": path}
