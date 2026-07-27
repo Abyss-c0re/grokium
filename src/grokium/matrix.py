@@ -38,9 +38,28 @@ _PLATE_RE = re.compile(
 
 
 def parse_plate(line: str) -> dict[str, Any]:
-    """Parse NEXUS_COORD v1 | k=v | ... into a dict (state matrix share only)."""
+    """Parse NEXUS_COORD v1 | k=v | ... into a dict (state matrix share only).
+
+    Accepts station wrappers like:
+      NEXUS_COORD from station: NEXUS_COORD v1 | from=BlackCube | ...
+    """
     line = (line or "").strip()
+    # strip common station / KDE share prefixes (not part of plate keys)
+    for pref in (
+        "NEXUS_COORD from station:",
+        "Shared text:",
+        "sent → Shared text:",
+    ):
+        if line.lower().startswith(pref.lower()):
+            line = line[len(pref) :].strip()
+            break
+    # if prefix embedded mid-string, search for the plate
     m = _PLATE_RE.search(line)
+    if m:
+        # re-anchor body to full match start so we don't keep junk prefix keys
+        start = m.start()
+        line = line[start:]
+        m = _PLATE_RE.search(line)
     body = m.group(1) if m else line
     out: dict[str, Any] = {"schema": "nexus_coord.v1", "raw_ok": bool(m)}
     for part in body.split("|"):
@@ -66,6 +85,11 @@ def parse_plate(line: str) -> dict[str, Any]:
             except ValueError:
                 out[k] = v
     out["ts"] = time.time()
+    try:
+        from .sanitize import sanitize_plate_dict
+        out = sanitize_plate_dict(out)
+    except Exception:
+        pass
     return out
 
 

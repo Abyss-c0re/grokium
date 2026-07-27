@@ -67,6 +67,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("llama-test", help="Probe local llama + short completion")
     sub.add_parser("login", help="Grok web auth via original CLI or reuse ~/.grok/auth.json")
     sub.add_parser("auth", help="Show Grok auth status (no secrets)")
+    co = sub.add_parser("copilot", help="Dual-angle fork + algocube SMX compare")
+    co.add_argument("prompt", nargs="+")
+    hv = sub.add_parser("hive", help="Nanobrain hive deploy/pulse")
+    hv.add_argument("action", nargs="?", default="pulse", choices=["pulse", "deploy", "status"])
     cp = sub.add_parser("compat", help="Grok Build reported version (not app version)")
     cp.add_argument("action", nargs="?", default="status", choices=["status", "refresh", "watch"])
     md = sub.add_parser("models", help="List/set configurable llama.cpp models")
@@ -216,6 +220,23 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(start_watcher(), indent=2, default=str))
             return 0
         print(json.dumps(vs(), indent=2, default=str))
+        return 0
+
+    if args.cmd == "copilot":
+        from .copilot import run_copilot
+        prompt = " ".join(args.prompt)
+        print(json.dumps(run_copilot(cfg, prompt), indent=2, default=str)[:12000])
+        return 0
+
+    if args.cmd == "hive":
+        from .nanobrain import deploy_nanobrain, get_nanobrain
+        act = getattr(args, "action", "pulse") or "pulse"
+        if act == "deploy":
+            print(json.dumps(deploy_nanobrain(cfg.get("_root")), indent=2, default=str))
+        elif act == "status":
+            print(json.dumps(get_nanobrain(cfg.get("_root")).status(), indent=2, default=str))
+        else:
+            print(json.dumps(get_nanobrain(cfg.get("_root")).pulse(), indent=2, default=str))
         return 0
 
     if args.cmd == "auth":

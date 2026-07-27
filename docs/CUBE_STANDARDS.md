@@ -20,6 +20,7 @@ It is **not** affiliated with xAI. It does **not** brand as station product name
 | **One Commander** | Residual / HUMAN_CONFIRM never invented by agents |
 | **No brain wires** | StateMatrix wireless key only |
 | **Blur faces** | Law plate only (no vision path ships unblurred identity) |
+| **Sanitize external propaganda** | Hot path: bits/flags only; ideology prose denied (`sanitize.py`) |
 
 ## Layer stack
 
@@ -53,6 +54,7 @@ Peers are **separable**: stop one without killing the fleet.
 - Auto-flash, invent HUMAN_CONFIRM
 - Merging online Grok core with offline llama into one identity
 - Telemetry of any kind
+- External propaganda / campaign slogans on SMX, NEXUS_COORD, or nanobot raw
 
 
 ## Commander (THE LAW — unforgeable)

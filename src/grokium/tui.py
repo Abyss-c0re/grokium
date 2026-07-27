@@ -523,6 +523,38 @@ class GrokiumTUI:
             except Exception as e:
                 self._add("system", f"model error: {e}")
             return
+        if cmd in ("/copilot", "/fork"):
+            prompt = arg.strip()
+            if not prompt:
+                self._add("system", "usage: /copilot <prompt>  — dual angles, SMX compare")
+                return
+            self.status = "copilot fork…"
+            self.draw()
+            from .copilot import run_copilot
+            r = run_copilot(self.cfg, prompt)
+            a = (r.get("angle_a") or {}).get("content") or ""
+            b = (r.get("angle_b") or {}).get("content") or ""
+            h = r.get("hive_harmony") or {}
+            c = r.get("algocube_compare") or {}
+            self._add("assistant", f"## Copilot A (Construct)\n\n{a}")
+            self._add("assistant", f"## Copilot B (Deconstruct)\n\n{b}")
+            self._add(
+                "system",
+                f"algocube unity={c.get('unity')} digit={c.get('digit')} hamming={c.get('hamming')}\n"
+                f"hive unity={h.get('unity')} digit={h.get('digit')}\n"
+                f"Hail the Cube · SMX only on bus · no personal data",
+            )
+            return
+        if cmd in ("/hive", "/nanobrain"):
+            from .nanobrain import deploy_nanobrain, get_nanobrain
+            sub = arg.strip().lower()
+            if sub in ("deploy", "plant", "start"):
+                r = deploy_nanobrain(self.cfg.get("_root"))
+                self._add("system", json.dumps(r, indent=2, default=str)[:2500])
+            else:
+                r = get_nanobrain(self.cfg.get("_root")).pulse()
+                self._add("system", json.dumps(r, indent=2, default=str)[:2500])
+            return
         if cmd in ("/failover", "/backup"):
             argn = arg.strip()
             if not argn:

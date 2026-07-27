@@ -277,6 +277,60 @@ TOOLS: list[dict[str, Any]] = [
             },
         },
     },
+
+    {
+        "name": "grokium_copilot",
+        "description": "Fork two LLM angles; algocube compares StateMatrices (SMX only on hive bus).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "prompt": {"type": "string"},
+                "backend_a": {"type": "string"},
+                "backend_b": {"type": "string"}
+            },
+            "required": ["prompt"]
+        }
+    },
+    {
+        "name": "grokium_nanobrain_deploy",
+        "description": "Plant/deploy nanobrain hive mind + tool cube containers (SMX I/O).",
+        "inputSchema": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "grokium_nanobrain_pulse",
+        "description": "Hive pulse: algocube harmony over tool containers, publish SMX.",
+        "inputSchema": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "grokium_nanobrain_status",
+        "description": "Nanobrain hive status (no personal data).",
+        "inputSchema": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "grokium_nanobrain_tool",
+        "description": "Invoke a cube tool container with SMX bits only (or fold text to bits).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "tool_id": {"type": "string"},
+                "bits": {"type": "string"},
+                "fold_text": {"type": "string", "description": "hashed to SMX; never stored as prose on bus"}
+            },
+            "required": ["tool_id"]
+        }
+    },
+    {
+        "name": "grokium_algocube_compare",
+        "description": "Algocube compare two StateMatrices (replaceable engine).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "bits_a": {"type": "string"},
+                "bits_b": {"type": "string"}
+            },
+            "required": ["bits_a", "bits_b"]
+        }
+    },
     {
         "name": "grokium_cube_status",
         "description": "Loopback Cube control bridge status (:17333).",
@@ -467,6 +521,40 @@ def handle(name: str, args: dict[str, Any], cfg: dict[str, Any]) -> dict[str, An
             bits=args.get("bits"),
             plate=args.get("plate") if isinstance(args.get("plate"), dict) else None,
         )
+
+    if name == "grokium_copilot":
+        from grokium.copilot import run_copilot
+        return run_copilot(
+            cfg,
+            str(args.get("prompt") or ""),
+            backend_a=args.get("backend_a"),
+            backend_b=args.get("backend_b"),
+        )
+
+    if name == "grokium_nanobrain_deploy":
+        from grokium.nanobrain import deploy_nanobrain
+        return deploy_nanobrain(cfg.get("_root"))
+
+    if name == "grokium_nanobrain_pulse":
+        from grokium.nanobrain import get_nanobrain
+        return get_nanobrain(cfg.get("_root")).pulse()
+
+    if name == "grokium_nanobrain_status":
+        from grokium.nanobrain import get_nanobrain
+        return get_nanobrain(cfg.get("_root")).status()
+
+    if name == "grokium_nanobrain_tool":
+        from grokium.nanobrain import get_nanobrain
+        from grokium.smx_binary import text_to_smx_bits
+        nb = get_nanobrain(cfg.get("_root"))
+        bits = args.get("bits")
+        if not bits and args.get("fold_text"):
+            bits = text_to_smx_bits(str(args.get("fold_text")), salt="mcp-tool")
+        return nb.invoke_tool_smx(str(args.get("tool_id") or ""), str(bits or "0"*512))
+
+    if name == "grokium_algocube_compare":
+        from grokium.algocube import compare_matrices
+        return compare_matrices(str(args.get("bits_a") or ""), str(args.get("bits_b") or ""))
 
     if name == "grokium_cube_status":
         return cube_status(cfg)

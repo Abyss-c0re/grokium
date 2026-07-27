@@ -202,3 +202,44 @@ def _format_clanker_result(action: str, result: dict[str, Any]) -> str:
         f"```json\n{json.dumps(result, indent=2, default=str)[:1500]}\n```\n\n"
         f"Check rockctl at ROCKCTL_URL / 192.168.8.209:8080."
     )
+
+
+def resume_chat(
+    cfg: dict[str, Any],
+    session_id: str,
+    user_message: str | None = None,
+    *,
+    max_tokens: int = 400,
+) -> dict[str, Any]:
+    """One-shot local completion with session context (no tool loop)."""
+    pk = pickup(cfg["sessions"]["import_dir"], session_id, tail_chat=2)
+    if not pk.get("ok"):
+        return pk
+    path = Path(pk["path"])
+    ctx = build_resume_context(path, tail=14)
+    messages = [
+        {
+            "role": "system",
+            "content": "You are Grokium local resume. Be concise. Local only. Zero telemetry.",
+        }
+    ]
+    messages.extend(ctx.get("messages") or [])
+    um = user_message or (
+        "Summarize where this session left off and the single next engineering step. "
+        "One short paragraph."
+    )
+    messages.append({"role": "user", "content": um})
+    r = chat(cfg, messages, prefer_local=True, max_tokens=max_tokens)
+    return {
+        "ok": bool(r.get("ok")),
+        "schema": "grokium.resume_chat.v1",
+        "session_id": session_id,
+        "title": pk.get("title"),
+        "context_messages": ctx.get("messages_n"),
+        "user_queries_tail": (ctx.get("user_queries") or [])[-5:],
+        "reply": r.get("content"),
+        "error": r.get("error"),
+        "usage": r.get("usage"),
+        "path": "local",
+        "telemetry": False,
+    }
