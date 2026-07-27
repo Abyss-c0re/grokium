@@ -14,6 +14,20 @@ the same idea as **VSCodium** vs VS Code: respectful, local-first, **zero teleme
 
 Grokium is **not** affiliated with xAI. Upstream Grok Build remains the reference UX for interactive coding.
 
+## API + MCP
+
+```bash
+# HTTP API (loopback)
+./scripts/grokium serve          # http://127.0.0.1:17444
+
+# MCP stdio (Grok Build / Claude / any MCP host)
+./scripts/grokium-mcp
+# or: ./scripts/grokium mcp
+```
+
+Register: `config/mcp.grok.toml.snippet` → `~/.grok/config.toml`  
+Docs: [`docs/API_AND_MCP.md`](docs/API_AND_MCP.md)
+
 ## Quick start
 
 ```bash

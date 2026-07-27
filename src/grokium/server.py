@@ -20,7 +20,13 @@ from .llm import chat, probe_local
 from .matrix import fold_bits, parse_plate, plate_ack, save_matrix
 from .privacy import assert_zero_telemetry
 from .license_info import public_blob as license_blob, verify_files_present
+from .law import law_blob
+from .commander import show as commander_show, sign_override, verify_override
 from .sessions import import_all, pickup, resolve_session_path, search_sessions
+try:
+    from .nanobots import deploy as nb_deploy, status as nb_status, separate as nb_separate
+except Exception:  # pragma: no cover
+    nb_deploy = nb_status = nb_separate = None  # type: ignore
 
 
 def _json_response(handler: BaseHTTPRequestHandler, code: int, obj: Any) -> None:
@@ -92,6 +98,8 @@ def make_handler(cfg: dict[str, Any]):
                         "local_first": True,
                         "capabilities": [
                             "status",
+                            "http_api",
+                            "mcp",
                             "llama_chat",
                             "session_import",
                             "session_search",
@@ -100,6 +108,8 @@ def make_handler(cfg: dict[str, Any]):
                             "agent_tools",
                             "nexus_coord_matrix",
                             "cube_bridge",
+                            "commander_law",
+                            "nanobot_fleet",
                         ],
                         "llama": {"ok": llama.get("ok"), "base_url": llama.get("base_url")},
                         "cube": {"ok": cube.get("ok")},
@@ -114,6 +124,30 @@ def make_handler(cfg: dict[str, Any]):
             if path == "/v1/license":
                 _json_response(self, 200, license_blob())
                 return
+
+            if path == "/v1/law":
+                _json_response(self, 200, law_blob(cfg))
+                return
+
+            if path == "/v1/commander":
+                try:
+                    _json_response(self, 200, commander_show())
+                except Exception as e:
+                    _json_response(self, 500, {"ok": False, "error": str(e)})
+                return
+
+            if path == "/v1/nanobot/status":
+                if not nb_status:
+                    _json_response(self, 501, {"ok": False, "error": "nanobots_unavailable"})
+                else:
+                    _json_response(self, 200, nb_status(cfg))
+                return
+
+            if path == "/v1/mcp/tools":
+                from .mcp_server import TOOLS
+                _json_response(self, 200, {"ok": True, "tools": [x["name"] for x in TOOLS], "transport": "stdio", "entry": "python3 -m grokium.mcp_server"})
+                return
+
 
             if path == "/v1/llama/probe":
                 _json_response(self, 200, probe_local(cfg))
@@ -275,6 +309,35 @@ def make_handler(cfg: dict[str, Any]):
                     max_tokens=int(body.get("max_tokens") or 256),
                 )
                 _json_response(self, 200 if r.get("ok") else 502, r)
+                return
+
+
+            if path == "/v1/commander/sign":
+                try:
+                    r = sign_override(str(body.get("device") or ""), str(body.get("action") or "override_rules"))
+                    _json_response(self, 200, r)
+                except Exception as e:
+                    _json_response(self, 500, {"ok": False, "error": str(e)})
+                return
+
+            if path == "/v1/commander/verify":
+                env = body.get("envelope") or body
+                _json_response(self, 200, verify_override(env if isinstance(env, dict) else {}))
+                return
+
+            if path == "/v1/nanobot/deploy":
+                if not nb_deploy:
+                    _json_response(self, 501, {"ok": False, "error": "nanobots_unavailable"})
+                else:
+                    only = body.get("only")
+                    _json_response(self, 200, nb_deploy(cfg, only=list(only) if only else None))
+                return
+
+            if path == "/v1/nanobot/separate":
+                if not nb_separate:
+                    _json_response(self, 501, {"ok": False, "error": "nanobots_unavailable"})
+                else:
+                    _json_response(self, 200, nb_separate(cfg, str(body.get("id") or "")))
                 return
 
             if path == "/v1/coord":

@@ -1,0 +1,12 @@
+# Paste into ~/.grok/config.toml under [mcp_servers]
+
+[mcp_servers.grokium]
+command = "python3"
+args = ["-m", "grokium.mcp_server"]
+cwd = "/home/voldemar/Dev/grokium"
+# or: command = "/home/voldemar/Dev/grokium/scripts/grokium-mcp"
+
+[mcp_servers.grokium.env]
+PYTHONPATH = "/home/voldemar/Dev/grokium/src"
+GROKIUM_CONFIG = "/home/voldemar/Dev/grokium/config/grokium.toml"
+# no telemetry env vars

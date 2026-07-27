@@ -67,6 +67,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("status", help="Status JSON")
     sub.add_parser("selftest", help="Prove harness capabilities end-to-end")
     sub.add_parser("license", help="Show SPDX / NOTICE / compliance")
+    sub.add_parser("mcp", help="Run Grokium MCP stdio server (for Grok Build)")
+    sub.add_parser("api-docs", help="Print API + MCP summary")
     cm = sub.add_parser("commander", help="THE LAW: Grokium commander (unforgeable)")
     cm_sub = cm.add_subparsers(dest="commander_cmd", required=True)
     cm_sub.add_parser("keygen", help="Generate Ed25519 commander keys")
@@ -274,6 +276,15 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(r, indent=2))
             return 0 if r.get("ok") is False else 1
         return 2
+
+    if args.cmd == "mcp":
+        from .mcp_server import main as mcp_main
+        mcp_main()
+        return 0
+
+    if args.cmd == "api-docs":
+        print((Path(cfg["_root"]) / "docs" / "API_AND_MCP.md").read_text())
+        return 0
 
     if args.cmd == "license":
         print(json.dumps(public_blob(), indent=2))

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Grokium MCP stdio server — zero telemetry
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export PYTHONPATH="${ROOT}/src${PYTHONPATH:+:$PYTHONPATH}"
+export GROKIUM_CONFIG="${GROKIUM_CONFIG:-$ROOT/config/grokium.toml}"
+exec python3 -m grokium.mcp_server "$@"
