@@ -7,19 +7,18 @@
 <style>
 :root {
   color-scheme: dark;
-  --bg: #07090c;
-  --bg2: #0c1016;
-  --panel: #10151c;
-  --line: #1c2530;
-  --fg: #d6dde6;
-  --mut: #6b7785;
-  --acc: #5eead4;
-  --acc2: #38bdf8;
-  --warn: #fbbf24;
-  --bad: #f87171;
+  --bg: #0a0406;
+  --bg2: #14080c;
+  --panel: #1a0c10;
+  --line: #3f151c;
+  --fg: #f5e6e8;
+  --mut: #8a5a62;
+  --acc: #e11d48;
+  --acc2: #fbbf24;
   --ok: #4ade80;
-  --chat-user: #15202b;
-  --chat-bot: #121a14;
+  --bad: #fb7185;
+  --chat-user: #1f0a10;
+  --chat-bot: #12080a;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --sans: "IBM Plex Sans", system-ui, sans-serif;
 }
@@ -185,6 +184,13 @@ aside, section, #rail {
   <span class="pill" id="p-llama">llama · …</span>
   <span class="pill" id="p-int">integrity · …</span>
   <span class="pill" id="p-share">smx share</span>
+  <select id="theme-sel" title="Theme" style="font-size:11px;max-width:9rem">
+    <option value="crimson">Crimson Cube</option>
+    <option value="matrix">Matrix Rain</option>
+    <option value="void">Void Cyan</option>
+    <option value="gold">Commander Gold</option>
+    <option value="mono">Mono</option>
+  </select>
   <button class="ghost" id="btn-refresh" title="Refresh status">↻</button>
 </div>
 <div id="app">
@@ -567,6 +573,27 @@ $('#btn-deploy').onclick = async () => {
   refreshFleet();
 };
 $('#btn-nb-refresh').onclick = refreshFleet;
+
+const THEME_CSS = {
+  crimson: {"--bg":"#0a0406","--bg2":"#14080c","--panel":"#1a0c10","--line":"#3f151c","--fg":"#f5e6e8","--mut":"#8a5a62","--acc":"#e11d48","--acc2":"#fbbf24","--ok":"#4ade80","--bad":"#fb7185","--chat-user":"#1f0a10","--chat-bot":"#12080a"},
+  matrix: {"--bg":"#020805","--bg2":"#04120a","--panel":"#0a1a12","--line":"#14532d","--fg":"#bbf7d0","--mut":"#4d7c5c","--acc":"#22c55e","--acc2":"#86efac","--ok":"#4ade80","--bad":"#f87171","--chat-user":"#052e16","--chat-bot":"#022c22"},
+  void: {"--bg":"#04080f","--bg2":"#0a1220","--panel":"#0f172a","--line":"#1e3a5f","--fg":"#e0f2fe","--mut":"#64748b","--acc":"#22d3ee","--acc2":"#38bdf8","--ok":"#4ade80","--bad":"#f87171","--chat-user":"#0c1929","--chat-bot":"#082f49"},
+  gold: {"--bg":"#0c0a04","--bg2":"#1a1408","--panel":"#221a0c","--line":"#4a3a12","--fg":"#fef3c7","--mut":"#a16207","--acc":"#fbbf24","--acc2":"#f59e0b","--ok":"#4ade80","--bad":"#f87171","--chat-user":"#1c1408","--chat-bot":"#15100a"},
+  mono: {"--bg":"#0b0d10","--bg2":"#11151a","--panel":"#151a21","--line":"#2a3340","--fg":"#c8d0d8","--mut":"#6a7380","--acc":"#c8d0d8","--acc2":"#9aa4b0","--ok":"#c8d0d8","--bad":"#c8d0d8","--chat-user":"#151a21","--chat-bot":"#11151a"}
+};
+function applyTheme(id) {
+  const m = THEME_CSS[id] || THEME_CSS.crimson;
+  const r = document.documentElement;
+  Object.entries(m).forEach(([k,v]) => r.style.setProperty(k, v));
+  localStorage.setItem('grokium_theme', id);
+}
+const _ts = document.getElementById('theme-sel');
+if (_ts) {
+  _ts.onchange = () => applyTheme(_ts.value);
+  const savedTh = localStorage.getItem('grokium_theme') || 'crimson';
+  _ts.value = savedTh;
+  applyTheme(savedTh);
+}
 
 // boot
 (async () => {

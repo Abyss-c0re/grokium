@@ -24,10 +24,29 @@ from .commander import show as commander_show
 from .config import load
 from .integrity_core import run_integrity_tick
 from .law import law_blob
-from .llm import backend_status, chat, get_backend, probe_local, set_backend
+from .llm import backend_status, chat, chat_stream, get_backend, probe_local, set_backend
+from .md_render import render_markdown_lines
+from .matrix import parse_plate, fold_bits, plate_ack, save_matrix
 from .privacy import assert_zero_telemetry, force_privacy_false
 from .sessions import pickup, search_sessions
 from .smx_stream import get_bus
+from .themes import (
+    A_accent,
+    A_div,
+    A_header,
+    A_input,
+    A_side,
+    A_side_sel,
+    A_status,
+    A_sub,
+    attr_for_style,
+    get_theme_id,
+    init_curses_theme,
+    list_themes,
+    load_persisted_theme,
+    persist_theme,
+    set_theme,
+)
 
 HELP = """\
 Grokium TUI  (primary · web optional via `grokium serve`)
@@ -43,8 +62,11 @@ GROK BUILD–LIKE
   /sessions [q]      list/search imported Grok sessions
   /pickup <id>       bind session · mode=resume
   /model             show model/backend
+  /coord <plate>     realtime NEXUS_COORD → SMX stream
   /status            full status
   /help              this help
+  /theme [name]      crimson|matrix|void|gold|mono  (default: crimson)
+  /themes            list themes
   /clear             clear transcript
   /quit              exit
 
@@ -89,12 +111,14 @@ class GrokiumTUI:
         self.session_rows: list[dict[str, Any]] = []
         self.sel_sess = 0
         self.focus = "input"  # input | sessions
+        self.theme = "crimson"
         self._boot()
 
     def _boot(self) -> None:
         be = get_backend(self.cfg)
         self._add("system", f"Grokium {__version__} · TUI primary · backend={be}")
         self._add("system", "Not affiliated with xAI. Models ≠ commander. /help · /backend local|grok")
+        self._add("system", "Streaming on · Markdown render on · NEXUS_COORD via /coord (realtime SMX)")
         self._add(
             "system",
             "Nanobot = integrity/fleet subagents (not chat core). Agent tools are Grokium-local.",
@@ -142,20 +166,19 @@ class GrokiumTUI:
         be = self._backend_label()
         title = f" Grokium {__version__} │ {be} │ mode:{self.mode} │ sess:{(self.session_id or 'new')[:12]} │ smx │ tele:off "
         try:
-            scr.attron(curses.A_REVERSE | curses.A_BOLD)
-            scr.addstr(0, 0, title[: w - 1].ljust(w - 1))
-            scr.attroff(curses.A_REVERSE | curses.A_BOLD)
+            scr.addstr(0, 0, title[: w - 1].ljust(w - 1), A_header())
         except curses.error:
             pass
-        sub = " /help  /backend local|grok  /sessions  /load  /mode agent  /integrity  /fleet  ·  web: optional serve "
+        th = get_theme_id()
+        sub = f" /help · /theme · /backend local|grok · /sessions · theme:{th} · Cube crimson · web optional "
         try:
-            scr.addstr(1, 0, sub[: w - 1].ljust(w - 1), curses.A_DIM)
+            scr.addstr(1, 0, sub[: w - 1].ljust(w - 1), A_sub())
         except curses.error:
             pass
 
         # horizontal rule
         try:
-            scr.addstr(2, 0, "─" * (w - 1), curses.A_DIM)
+            scr.addstr(2, 0, "═" * (w - 1), A_div())
         except curses.error:
             pass
 
@@ -164,7 +187,7 @@ class GrokiumTUI:
 
         # === LEFT: sessions ===
         try:
-            scr.addstr(body_top, 0, " SESSIONS ".ljust(left - 1)[: left - 1], curses.A_BOLD)
+            scr.addstr(body_top, 0, " SESSIONS ".ljust(left - 1)[: left - 1], A_accent())
         except curses.error:
             pass
         for i in range(1, body_h):
@@ -174,7 +197,7 @@ class GrokiumTUI:
                 s = self.session_rows[idx]
                 label = (s.get("title") or s.get("id") or "?")[: left - 3]
                 active = (s.get("id") == self.session_id) or (idx == self.sel_sess and self.focus == "sessions")
-                attr = curses.A_REVERSE if active else curses.A_NORMAL
+                attr = A_side_sel() if active else A_side()
                 try:
                     scr.addstr(row_y, 0, ("›" + label).ljust(left - 1)[: left - 1], attr)
                 except curses.error:
@@ -194,17 +217,26 @@ class GrokiumTUI:
         # === CENTER: transcript ===
         cx = left
         cw = mid - 1
-        wrapped: list[tuple[str, str]] = []
+        wrapped: list[tuple[str, str, str]] = []  # role, style, line
         for role, text in self.lines:
             if role == "user":
                 pref = "you │ "
+                for ln in _wrap(text, cw - 1, pref):
+                    wrapped.append((role, "bold", ln))
             elif role == "assistant":
-                pref = "gk  │ "
+                # markdown-aware
+                segs = render_markdown_lines(text, width=max(20, cw - 6))
+                first = True
+                for style, ln in segs:
+                    p = "gk  │ " if first else "    │ "
+                    first = False
+                    wrapped.append((role, style, (p + ln)[: cw + 20]))
             elif role == "tool":
-                pref = "tool│ "
+                for ln in _wrap(text, cw - 1, "tool│ "):
+                    wrapped.append((role, "dim", ln))
             else:
-                pref = " ·  │ "
-            wrapped.extend((role, ln) for ln in _wrap(text, cw - 1, pref))
+                for ln in _wrap(text, cw - 1, " ·  │ "):
+                    wrapped.append((role, "dim", ln))
 
         if self.scroll:
             end = max(0, len(wrapped) - self.scroll)
@@ -216,8 +248,8 @@ class GrokiumTUI:
         for i in range(body_h):
             y = body_top + i
             if i < len(view):
-                role, line = view[i]
-                attr = curses.A_BOLD if role == "user" else (curses.A_DIM if role == "system" else curses.A_NORMAL)
+                role, style, line = view[i]
+                attr = attr_for_style(style, role)
                 try:
                     scr.addstr(y, cx, line[:cw].ljust(cw)[:cw], attr)
                 except curses.error:
@@ -233,7 +265,7 @@ class GrokiumTUI:
             rx = left + mid
             for y in range(body_top, body_bot):
                 try:
-                    scr.addstr(y, rx - 1, "│", curses.A_DIM)
+                    scr.addstr(y, rx - 1, "║", A_div())
                 except curses.error:
                     pass
             meta = [
@@ -259,13 +291,13 @@ class GrokiumTUI:
                 if body_top + i >= body_bot:
                     break
                 try:
-                    scr.addstr(body_top + i, rx, line[: right - 1].ljust(right - 1)[: right - 1], curses.A_DIM)
+                    scr.addstr(body_top + i, rx, line[: right - 1].ljust(right - 1)[: right - 1], A_status())
                 except curses.error:
                     pass
 
         # === status + input (bottom, Grok-like) ===
         try:
-            scr.addstr(h - 3, 0, (" " + self.status)[: w - 1].ljust(w - 1), curses.A_DIM)
+            scr.addstr(h - 3, 0, (" " + self.status)[: w - 1].ljust(w - 1), A_status())
         except curses.error:
             pass
         prompt = f"› {self.mode}/{self._backend_label()} › "
@@ -273,17 +305,15 @@ class GrokiumTUI:
         if len(shown) > w - 2:
             shown = "…" + shown[-(w - 3) :]
         try:
-            scr.attron(curses.A_REVERSE)
-            scr.addstr(h - 2, 0, shown[: w - 1].ljust(w - 1))
-            scr.attroff(curses.A_REVERSE)
+            scr.addstr(h - 2, 0, shown[: w - 1].ljust(w - 1), A_input())
         except curses.error:
             pass
         try:
             scr.addstr(
                 h - 1,
                 0,
-                " Grokium TUI primary │ web optional │ nanobot=fleet/integrity not chat-core │ /backend local|grok "[: w - 1],
-                curses.A_DIM,
+                f" Crimson Cube energy │ theme:{get_theme_id()} │ TUI primary │ /theme matrix void gold mono "[: w - 1],
+                A_sub(),
             )
         except curses.error:
             pass
@@ -298,6 +328,25 @@ class GrokiumTUI:
             raise SystemExit(0)
         if cmd in ("/h", "/help", "/?"):
             self._add("system", HELP)
+            return
+        if cmd in ("/theme", "/themes"):
+            if cmd == "/themes" or not arg.strip():
+                rows = list_themes()
+                lines = ["themes (Crimson Cube OS default):"]
+                for r in rows:
+                    mark = "★" if r["id"] == get_theme_id() else " "
+                    lines.append(f"  {mark} {r['id']:10} {r['name']} — {r['blurb']}")
+                lines.append("set: /theme crimson|matrix|void|gold|mono")
+                self._add("system", "\n".join(lines))
+                return
+            try:
+                tid = set_theme(arg.strip())
+                init_curses_theme(self.stdscr, tid)
+                persist_theme(str(self.cfg.get("_root") or "."), tid)
+                self.theme = tid
+                self._add("system", f"theme → {tid} · {next(x['name'] for x in list_themes() if x['id']==tid)}")
+            except ValueError as e:
+                self._add("system", str(e))
             return
         if cmd in ("/new",):
             self.lines.clear()
@@ -430,6 +479,36 @@ class GrokiumTUI:
                 f"loaded · {self.session_title}\nmsgs={pk.get('num_messages')} · mode=resume · backend={get_backend(self.cfg)}",
             )
             return
+        if cmd in ("/coord", "/nexus"):
+            line = arg.strip()
+            if not line:
+                self._add("system", "usage: /coord NEXUS_COORD v1 | ...  (realtime SMX fold)")
+                return
+            plate = parse_plate(line)
+            bits = fold_bits(plate)
+            from pathlib import Path
+            save_matrix(Path(self.cfg["_root"]), plate)
+            fr = get_bus(self.cfg.get("_root")).publish(
+                source="nexus_coord_tui", bits=bits, plate=plate,
+                integrity={"realtime": 1, "tui": 1},
+            )
+            llama = probe_local(self.cfg)
+            ack = plate_ack(
+                from_id="Grokium", ref_seq=plate.get("seq"),
+                unity=float(plate.get("unity") or 1.0),
+                llama=1 if llama.get("ok") else 0,
+                ssh=int(plate.get("ssh") or 0),
+                watchd=int(plate.get("watchd") or 0),
+                farm=str(plate.get("farm") or "standby"),
+                hold_flash=1,
+                extra={"grokium": 1, "tui": 1, "stream": 1, "md": 1, "smx": fr.get("seq")},
+            )
+            self._add(
+                "system",
+                "NEXUS_COORD folded realtime\nSMX seq=%s set=%s\n%s"
+                % (fr.get("seq"), fr.get("bits_set"), ack),
+            )
+            return
         if cmd == "/smx":
             bus = get_bus(self.cfg.get("_root"))
             fr = bus.latest()
@@ -449,7 +528,7 @@ class GrokiumTUI:
 
     def send_message(self, text: str) -> None:
         self._add("user", text)
-        self.status = f"thinking ({self._backend_label()})…"
+        self.status = f"streaming ({self._backend_label()})…"
         self.draw()
         be = get_backend(self.cfg)
         try:
@@ -458,14 +537,34 @@ class GrokiumTUI:
                 msgs = [
                     {
                         "role": "system",
-                        "content": "You are Grokium (local-first harness TUI). Concise. Zero telemetry. Product=grokium.",
+                        "content": (
+                            "You are Grokium (local-first harness TUI). "
+                            "Use Markdown (headers, lists, **bold**, `code`, fenced blocks). "
+                            "Concise. Zero telemetry. Product=grokium."
+                        ),
                     }
                 ] + hist
-                r = chat(self.cfg, msgs, max_tokens=600, backend=be)
-                if r.get("ok"):
-                    self._add("assistant", r.get("content") or "(empty)")
+                # live assistant bubble
+                self._add("assistant", "")
+                idx = len(self.lines) - 1
+                buf: list[str] = []
+
+                def on_tok(d: str) -> None:
+                    buf.append(d)
+                    self.lines[idx] = ("assistant", "".join(buf))
+                    self.status = f"streaming… {len(''.join(buf))}c"
+                    self.draw()
+
+                r = chat_stream(self.cfg, msgs, max_tokens=800, backend=be, on_token=on_tok)
+                if not r.get("ok"):
+                    self.lines[idx] = ("system", f"chat error [{r.get('path')}]: {r.get('error')}")
+                elif not (r.get("content") or "".join(buf)).strip():
+                    self.lines[idx] = ("assistant", "(empty)")
                 else:
-                    self._add("system", f"chat error [{r.get('path')}]: {r.get('error')}")
+                    final = r.get("content") or "".join(buf)
+                    self.lines[idx] = ("assistant", final)
+                    flag = "stream" if r.get("streamed") else "batch"
+                    self.status = f"ready · {self._backend_label()} · {flag}"
             elif self.mode == "agent":
                 self._add("system", "agent tools = Grokium local (not nanobot peer core)")
                 r = run_agent(self.cfg, text, session_id=self.session_id, max_steps=6)
@@ -560,8 +659,17 @@ def run_tui(cfg: dict[str, Any] | None = None) -> int:
     cfg = cfg or load()
     force_privacy_false(cfg)
     assert_zero_telemetry(cfg)
+    saved = load_persisted_theme(str(cfg.get("_root") or "."))
+
+    def _main(stdscr: Any) -> None:
+        tid = init_curses_theme(stdscr, saved or "crimson")
+        ui = GrokiumTUI(stdscr, cfg)
+        ui.theme = tid
+        ui._add("system", f"theme → {tid} (Crimson Cube OS energy) · /theme matrix|void|gold|mono")
+        ui.loop()
+
     try:
-        curses.wrapper(lambda stdscr: GrokiumTUI(stdscr, cfg).loop())
+        curses.wrapper(_main)
     except KeyboardInterrupt:
         return 0
     return 0

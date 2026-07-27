@@ -84,3 +84,6 @@ stream_smx = true
 no_prose_stream = true
 no_collection = true
 interval_sec = 15
+
+[ui]
+theme = "crimson"
