@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Grokium contributors
 # Grokium entry — zero telemetry, local-first
+# Primary: TUI  (`grokium` / `grokium tui`)
+# Optional: web+API (`grokium serve` → :17444)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export PYTHONPATH="${ROOT}/src${PYTHONPATH:+:$PYTHONPATH}"

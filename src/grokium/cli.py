@@ -33,9 +33,10 @@ from .commander import (
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="grokium", description="Grokium — capable local-first zero-telemetry harness")
     p.add_argument("--version", action="version", version=f"grokium {__version__}")
-    sub = p.add_subparsers(dest="cmd", required=True)
+    sub = p.add_subparsers(dest="cmd", required=False)
+    sub.add_parser("tui", help="Primary TUI (default) — Grok Build–style terminal")
 
-    sp = sub.add_parser("serve", help="Start local API (127.0.0.1)")
+    sp = sub.add_parser("serve", help="Optional: HTTP API + web UI (TUI is primary)")
     sp.add_argument("--with-grok", action="store_true")
     sp.add_argument("--host", default=None)
     sp.add_argument("--port", type=int, default=None)
@@ -92,6 +93,10 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
     cfg = load()
     assert_zero_telemetry(cfg)
+
+    if args.cmd in (None, "tui"):
+        from .tui import run_tui
+        return run_tui(cfg)
 
     if args.cmd == "serve":
         if args.with_grok:
