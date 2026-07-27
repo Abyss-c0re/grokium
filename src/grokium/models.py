@@ -182,24 +182,47 @@ def resolve_model_id(cfg: dict[str, Any], name: str | None = None) -> dict[str, 
 
 
 def list_all(cfg: dict[str, Any]) -> dict[str, Any]:
+    from .llm import get_backend, get_failover, probe_local
+    from .grok_auth import auth_status
+
     catalog = load_catalog(cfg)
     live = list_live_server_models(cfg)
     active = resolve_model_id(cfg)
+    be = get_backend(cfg)
+    loc = probe_local(cfg)
+    ga = auth_status()
     return {
         "schema": "grokium.models.v1",
         "active": active,
+        "active_backend": be,
+        "failover": get_failover(cfg),
+        "session_safe_switch": True,
+        "backends": {
+            "local": {
+                "label": "llama.cpp",
+                "ok": loc.get("ok"),
+                "base_url": loc.get("base_url"),
+                "live_models": [{"id": x["id"]} for x in live],
+                "select": "/model local  or  /model <alias|gguf-id>",
+            },
+            "grok": {
+                "label": "Grok cloud (opt-in; not xAI product)",
+                "token_present": ga.get("token_present"),
+                "source": ga.get("source"),
+                "email": ga.get("email"),
+                "select": "/model grok  (needs /login or API key)",
+            },
+        },
         "presets": catalog.get("models") or [],
         "defaults": catalog.get("defaults") or {},
         "live_server": [{"id": x["id"], "source": x["source"]} for x in live],
         "env": {
             "GROKIUM_LOCAL_MODEL": os.environ.get("GROKIUM_LOCAL_MODEL"),
             "GROKIUM_MODEL": os.environ.get("GROKIUM_MODEL"),
-            "GROKIUM_MODELS_FILE": os.environ.get("GROKIUM_MODELS_FILE"),
+            "GROKIUM_FAILOVER": os.environ.get("GROKIUM_FAILOVER"),
         },
         "how": {
-            "tui": "/model  |  /model list  |  /model <alias|id>",
-            "cli": "grokium models list | grokium models set <name>",
-            "config": "config/models.toml + [local] model in grokium.toml",
-            "env": "GROKIUM_LOCAL_MODEL=alias_or_id",
+            "tui": "/model list · /model local|grok|<alias> · /failover auto|none",
+            "note": "Switching model/backend does NOT clear the chat session.",
         },
     }

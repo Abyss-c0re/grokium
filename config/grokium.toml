@@ -13,6 +13,8 @@ base_url = "https://cli-chat-proxy.grok.com/v1"
 model = "grok-4.5"
 
 [local]
+# backup when primary fails: auto|none|local_then_grok|grok_then_local
+failover = "auto"
 base_url = "http://127.0.0.1:1212/v1"
 # model: alias from config/models.toml, or "local" (first server model), or full id
 model = "qwen"
@@ -39,6 +41,8 @@ share_mode = "state_matrix_only"
 hold_flash = true
 sot = true
 os_is_way = true
+# BlackCube stim plate (auto-ingest on serve)
+station_coord = "/home/voldemar/Dev/lab/prophecy_cube/state/nexus_coord.json"
 
 [law]
 hold_flash = 1

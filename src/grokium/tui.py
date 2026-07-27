@@ -25,7 +25,7 @@ from .commander import show as commander_show
 from .config import load
 from .integrity_core import run_integrity_tick
 from .law import law_blob
-from .llm import backend_status, chat, chat_stream, get_backend, probe_local, set_backend
+from .llm import backend_status, chat, chat_stream, get_backend, get_failover, probe_local, set_backend, set_failover
 from .lab_context import system_prompt
 from .models import list_all, load_persisted_model, persist_model, resolve_model_id, set_model
 from .grok_auth import auth_status, ensure_token, login_web
@@ -452,37 +452,94 @@ class GrokiumTUI:
             return
         if cmd in ("/model", "/models"):
             argn = arg.strip()
-            if not argn or argn in ("list", "ls"):
+            if not argn or argn.lower() in ("list", "ls", "show", ""):
                 info = list_all(self.cfg)
-                lines = ["models (config/models.toml + live server):", f"active: {info['active']}"]
-                lines.append("presets:")
-                for m in info.get("presets") or []:
-                    lines.append(f"  {m.get('alias','?'):10} backend={m.get('backend')}  {m.get('label') or m.get('id')}")
-                lines.append("live llama-server:")
-                for m in info.get("live_server") or []:
-                    lines.append(f"  {m.get('id')}")
-                if not info.get("live_server"):
-                    lines.append("  (server empty or down — start llama-server)")
-                lines.append("set: /model <alias|id>   backend: /backend local|grok")
+                lines = [
+                    "MODELS — local + grok (switch keeps session)",
+                    f"active_backend={info.get('active_backend')}  failover={info.get('failover')}",
+                    f"active={info.get('active')}",
+                    "",
+                    "LOCAL llama.cpp",
+                ]
+                loc = (info.get("backends") or {}).get("local") or {}
+                lines.append(f"  [{'up' if loc.get('ok') else 'down'}] {loc.get('base_url')}")
+                for mrow in loc.get("live_models") or info.get("live_server") or []:
+                    mid = mrow.get("id") if isinstance(mrow, dict) else mrow
+                    star = "★" if (info.get("active") or {}).get("id") == mid and info.get("active_backend") == "local" else " "
+                    lines.append(f"  {star} {mid}")
+                for pr in info.get("presets") or []:
+                    if pr.get("backend") == "grok":
+                        continue
+                    lines.append(f"     alias {pr.get('alias'):8} {pr.get('label') or ''}")
+                lines.append("")
+                lines.append("GROK cloud (not xAI product)")
+                gr = (info.get("backends") or {}).get("grok") or {}
+                star = "★" if info.get("active_backend") == "grok" else " "
+                lines.append(
+                    f"  {star} grok  token={'yes' if gr.get('token_present') else 'no'}  "
+                    f"src={gr.get('source')}  {gr.get('email') or ''}"
+                )
+                lines.append("")
+                lines.append("switch (session kept): /model local | /model grok | /model <alias>")
+                lines.append("backup on failure: /failover auto  (or none|local_then_grok|grok_then_local)")
                 self._add("system", "\n".join(lines))
                 return
+            low = argn.lower()
+            n_chat = len([1 for r, _ in self.lines if r in ("user", "assistant")])
             try:
+                if low in ("local", "llama", "llama.cpp"):
+                    set_backend("local")
+                    self.cfg.setdefault("auth", {})["enabled"] = False
+                    self._add(
+                        "system",
+                        f"→ local (llama.cpp) · session kept ({n_chat} turns) · failover={get_failover(self.cfg)}",
+                    )
+                    return
+                if low in ("grok", "cloud", "xai"):
+                    st = ensure_token(try_login=False)
+                    set_backend("grok")
+                    self.cfg.setdefault("auth", {})["enabled"] = True
+                    msg = f"→ grok · session kept ({n_chat} turns) · failover={get_failover(self.cfg)}"
+                    if not st.get("ok"):
+                        msg += " · no token yet — /login"
+                    else:
+                        msg += f" · token={st.get('source')}"
+                    self._add("system", msg)
+                    return
                 set_model(argn)
                 persist_model(self.cfg.get("_root") or ".", argn)
                 r = resolve_model_id(self.cfg)
                 if r.get("backend") == "grok":
                     set_backend("grok")
+                    self.cfg.setdefault("auth", {})["enabled"] = True
                 else:
                     set_backend("local")
+                    self.cfg.setdefault("auth", {})["enabled"] = False
                 self._add(
                     "system",
-                    f"model → {r.get('alias') or r.get('id')}\n"
-                    f"id={r.get('id')}\nbackend={r.get('backend')}\nlabel={r.get('label')}",
+                    f"→ {r.get('alias') or r.get('id')} · backend={r.get('backend')} · "
+                    f"session kept ({n_chat} turns) · failover={get_failover(self.cfg)}",
                 )
             except Exception as e:
                 self._add("system", f"model error: {e}")
             return
-
+        if cmd in ("/failover", "/backup"):
+            argn = arg.strip()
+            if not argn:
+                self._add(
+                    "system",
+                    f"failover={get_failover(self.cfg)}\\n"
+                    "auto = try active first, other as backup\\n"
+                    "none | local_then_grok | grok_then_local | auto",
+                )
+                return
+            try:
+                m = set_failover(argn)
+                self.cfg.setdefault("local", {})["failover"] = m
+                self._add("system", f"failover → {m} (live; session kept)")
+            except ValueError as e:
+                self._add("system", str(e))
+            return
         if cmd == "/status":
             st = backend_status(self.cfg)
             ig = run_integrity_tick(self.cfg, publish=True)

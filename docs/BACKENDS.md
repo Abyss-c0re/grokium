@@ -76,3 +76,30 @@ See [USER_GUIDE.md](USER_GUIDE.md) and `config/models.toml`.
 ./scripts/grokium models set qwen
 # TUI: /model list  ·  /model qwen
 ```
+
+
+## Failover / backup (session-safe)
+
+When primary backend is down, Grokium can try the other (default **auto**):
+
+```text
+/failover auto              # active first, other as backup
+/failover none              # no backup
+/failover local_then_grok
+/failover grok_then_local
+```
+
+```bash
+export GROKIUM_FAILOVER=auto
+```
+
+### `/model` shows both
+
+```text
+/model              # list local llama + grok, ★ = active
+/model local        # switch to llama.cpp — chat history kept
+/model grok         # switch to Grok — chat history kept
+/model qwen         # local alias
+```
+
+Switching **does not** run `/new` — conversation continues on the new backend.
