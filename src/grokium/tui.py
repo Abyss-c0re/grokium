@@ -26,6 +26,7 @@ from .config import load
 from .integrity_core import run_integrity_tick
 from .law import law_blob
 from .llm import backend_status, chat, chat_stream, get_backend, probe_local, set_backend
+from .lab_context import system_prompt
 from .models import list_all, load_persisted_model, persist_model, resolve_model_id, set_model
 from .grok_auth import auth_status, ensure_token, login_web
 from .md_render import render_markdown_lines
@@ -610,6 +611,13 @@ class GrokiumTUI:
 
     def send_message(self, text: str) -> None:
         self._add("user", text)
+        low = text.lower()
+        # strong core: device actions use agent/tools, not weak chat hallucination
+        if self.mode == "chat" and any(
+            w in low for w in ("clanker", "vacuum", "play the music", "play music", "rockctl")
+        ):
+            self.mode = "agent"
+            self._add("system", "→ agent mode (Clanker tools; not mpd)")
         self.status = f"streaming ({self._backend_label()})…"
         self.draw()
         be = get_backend(self.cfg)
@@ -619,11 +627,7 @@ class GrokiumTUI:
                 msgs = [
                     {
                         "role": "system",
-                        "content": (
-                            "You are Grokium (local-first harness TUI). "
-                            "Use Markdown (headers, lists, **bold**, `code`, fenced blocks). "
-                            "Concise. Zero telemetry. Product=grokium."
-                        ),
+                        "content": system_prompt(agent=False) + "\nUse light Markdown. Never invent mpd for Clanker.",
                     }
                 ] + hist
                 # live assistant bubble

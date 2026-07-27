@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
@@ -167,6 +168,101 @@ def tool_shell(command: str, *, root: Path = DEFAULT_ROOT, timeout: int = 30) ->
         return {"ok": False, "error": str(e)}
 
 
+
+def _rockctl_base() -> str:
+    return (
+        os.environ.get("ROCKCTL_URL")
+        or os.environ.get("CLANKER_ROCKCTL")
+        or "http://192.168.8.209:8080"
+    ).rstrip("/")
+
+
+def _http_json(method: str, url: str, body: dict | None = None, timeout: float = 20.0) -> dict[str, Any]:
+    data = None if body is None else json.dumps(body).encode()
+    req = urllib.request.Request(url, data=data, method=method)
+    req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", "grokium/0.5 (lab; not-xai)")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read().decode()
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError:
+                return {"ok": True, "raw": raw[:2000]}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "url": url}
+
+
+def tool_clanker_status() -> dict[str, Any]:
+    base = _rockctl_base()
+    r = _http_json("GET", f"{base}/api/v1/status")
+    r["device"] = "clanker_roborock"
+    r["hint"] = "vacuum robot — not mpd"
+    return r
+
+
+def tool_clanker_music(state: str = "on") -> dict[str, Any]:
+    """Robot music feature (rockctl), not host mpd."""
+    base = _rockctl_base()
+    st = (state or "on").strip().lower()
+    if st in ("on", "1", "true", "play", "start"):
+        # try common rockctl music endpoints
+        for path in ("/api/v1/music/on", "/api/v1/assist/music", "/api/v1/music"):
+            r = _http_json("POST", f"{base}{path}", {"state": "on", "action": "on"})
+            if r.get("ok") is not False and "error" not in r:
+                return {"ok": True, "action": "music_on", "via": path, "result": r}
+        # instruct script fallback
+        return tool_clanker_instruct("play music")
+    if st in ("off", "0", "false", "stop"):
+        for path in ("/api/v1/music/off", "/api/v1/assist/music", "/api/v1/music"):
+            r = _http_json("POST", f"{base}{path}", {"state": "off", "action": "off"})
+            if r.get("ok") is not False and "error" not in r:
+                return {"ok": True, "action": "music_off", "via": path, "result": r}
+        return tool_clanker_instruct("stop music")
+    return tool_clanker_instruct(f"music {st}")
+
+
+def tool_clanker_speak(text: str, volume: int | None = None) -> dict[str, Any]:
+    base = _rockctl_base()
+    body: dict[str, Any] = {"text": text or ""}
+    if volume is not None:
+        body["volume"] = volume
+    r = _http_json("POST", f"{base}/api/v1/assist/speak", body)
+    if r.get("ok") is False or r.get("error"):
+        r2 = _http_json("POST", f"{base}/api/v1/speak/test", body)
+        return {"ok": not r2.get("error"), "action": "speak", "result": r2, "fallback": True}
+    return {"ok": True, "action": "speak", "result": r}
+
+
+def tool_clanker_instruct(prompt: str) -> dict[str, Any]:
+    """NL router script used by the lab."""
+    script = Path("/home/voldemar/Dev/clanker/scripts/clanker_instruct.py")
+    if not script.is_file():
+        script = Path("/home/voldemar/Dev/Clanker/scripts/clanker_instruct.py")
+    if not script.is_file():
+        return {"ok": False, "error": "clanker_instruct.py not found"}
+    try:
+        r = subprocess.run(
+            ["python3", str(script), prompt],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            cwd=str(script.parent.parent),
+        )
+        out = (r.stdout or "")[-4000:]
+        err = (r.stderr or "")[-1000:]
+        return {
+            "ok": r.returncode == 0,
+            "returncode": r.returncode,
+            "stdout": out,
+            "stderr": err,
+            "prompt": prompt,
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+
 TOOL_SPECS = [
     {
         "type": "function",
@@ -230,4 +326,12 @@ def dispatch(name: str, args: dict[str, Any], *, root: Path = DEFAULT_ROOT) -> d
         return tool_grep(args.get("pattern") or "", args.get("path") or ".", root=root)
     if name == "shell":
         return tool_shell(args.get("command") or "", root=root)
+    if name == "clanker_status":
+        return tool_clanker_status()
+    if name == "clanker_music":
+        return tool_clanker_music(str(args.get("state") or "on"))
+    if name == "clanker_speak":
+        return tool_clanker_speak(str(args.get("text") or ""), args.get("volume"))
+    if name == "clanker_instruct":
+        return tool_clanker_instruct(str(args.get("prompt") or args.get("command") or ""))
     return {"ok": False, "error": f"unknown_tool:{name}"}

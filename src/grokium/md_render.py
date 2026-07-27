@@ -1,78 +1,87 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Grokium contributors
-"""Lightweight markdown → styled line segments for TUI (curses).
-
-Not a full MD engine — renders what matters in a terminal:
-  # headers, **bold**, `code`, ``` fences, - lists, > quotes
-"""
+"""Markdown → TUI segments (clean headers, fences, lists)."""
 
 from __future__ import annotations
 
 import re
-from typing import Iterator
 
-# styles: normal | bold | dim | header | code | quote | list
-Seg = tuple[str, str]  # (style, text)
+Seg = tuple[str, str]  # style, text
 
 
 def render_markdown_lines(text: str, width: int = 80) -> list[Seg]:
-    """Expand markdown text to (style, line) rows ready for curses."""
     if not text:
         return [("dim", "")]
+    # normalize common model glitches
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"(?m)^[ \t]*\|[ \t]*", "", text)  # strip table pipes used as rules
+    text = re.sub(r"(?m)^[-=]{3,}\s*$", "", text)
+
     lines_out: list[Seg] = []
     in_fence = False
     fence_lang = ""
+
     for raw in text.splitlines():
-        if raw.strip().startswith("```"):
+        stripped = raw.strip()
+        # fence open/close
+        if stripped.startswith("```"):
             if not in_fence:
                 in_fence = True
-                fence_lang = raw.strip()[3:].strip()
-                lines_out.append(("dim", f"┌── {fence_lang or 'code'} "))
+                fence_lang = stripped[3:].strip() or "code"
+                lines_out.append(("dim", f"  ┌ {fence_lang}"))
             else:
                 in_fence = False
-                lines_out.append(("dim", "└──"))
+                lines_out.append(("dim", "  └"))
             continue
         if in_fence:
-            for chunk in _wrap(raw, width - 2):
-                lines_out.append(("code", "│ " + chunk))
+            for chunk in _wrap(raw, max(8, width - 4)):
+                lines_out.append(("code", "  │ " + chunk))
             continue
 
-        s = raw
-        # headers
-        m = re.match(r"^(#{1,6})\s+(.*)$", s)
+        # skip empty
+        if not stripped:
+            lines_out.append(("normal", ""))
+            continue
+
+        # headers — show clean title, not raw ###
+        m = re.match(r"^(#{1,6})\s+(.*)$", stripped)
         if m:
             level = len(m.group(1))
-            title = m.group(2)
-            prefix = "#" * level + " "
-            for i, chunk in enumerate(_wrap(title, width - len(prefix))):
-                lines_out.append(("header", (prefix if i == 0 else " " * len(prefix)) + chunk))
+            title = _inline(m.group(2))
+            mark = "▸" if level <= 2 else "•"
+            for i, chunk in enumerate(_wrap(f"{mark} {title}", width)):
+                lines_out.append(("header", chunk))
             continue
-        # quote
-        if s.lstrip().startswith(">"):
-            body = s.lstrip()[1:].lstrip()
+
+        # quotes
+        if stripped.startswith(">"):
+            body = _inline(stripped.lstrip(">").strip())
             for chunk in _wrap(body, width - 2):
                 lines_out.append(("quote", "│ " + chunk))
             continue
-        # list
-        if re.match(r"^\s*[-*+]\s+", s) or re.match(r"^\s*\d+\.\s+", s):
-            body = re.sub(r"^\s*[-*+]\s+", "• ", s)
-            body = re.sub(r"^\s*\d+\.\s+", lambda m: f"{m.group(0).strip()} ", body)
+
+        # lists
+        if re.match(r"^[-*+]\s+", stripped) or re.match(r"^\d+\.\s+", stripped):
+            body = re.sub(r"^[-*+]\s+", "• ", stripped)
+            body = re.sub(r"^(\d+)\.\s+", r"\1. ", body)
+            body = _inline(body)
             for i, chunk in enumerate(_wrap(body, width - 2)):
                 lines_out.append(("list", chunk if i == 0 else "  " + chunk))
             continue
-        # empty
-        if not s.strip():
-            lines_out.append(("normal", ""))
+
+        # hr junk from models
+        if re.match(r"^[\-\*_]{3,}$", stripped):
             continue
-        # inline bold/code → approximate: strip markers but mark bold lines if whole-line bold
-        plain = _inline_strip(s)
-        style = "bold" if re.match(r"^\*\*.*\*\*$", s.strip()) or re.match(r"^__.*__$", s.strip()) else "normal"
+
+        plain = _inline(stripped)
+        style = "bold" if (stripped.startswith("**") and stripped.endswith("**")) else "normal"
         for chunk in _wrap(plain, width):
             lines_out.append((style, chunk))
+
     return lines_out or [("normal", "")]
 
 
-def _inline_strip(s: str) -> str:
+def _inline(s: str) -> str:
     s = re.sub(r"\*\*(.+?)\*\*", r"\1", s)
     s = re.sub(r"__(.+?)__", r"\1", s)
     s = re.sub(r"`([^`]+)`", r"‹\1›", s)
