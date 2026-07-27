@@ -1,0 +1,39 @@
+# Grokium — configurable llama.cpp / OpenAI-compatible models
+# Select with: /model <id|alias>  or  GROKIUM_LOCAL_MODEL=...  or  [local] model = "..."
+
+[defaults]
+# backend default for local path: alias or full model id served by llama-server
+local_model = "qwen"
+# directory of GGUF files (optional; for documentation + future spawn)
+gguf_dir = "/home/voldemar/Dev/AI/model"
+
+# Named presets — id must match what the OpenAI-compatible server returns
+# (llama-server often uses the full GGUF path as model id).
+
+[[models]]
+alias = "qwen"
+label = "Qwen3.5 9B Uncensored Q4_K_M"
+id = "/home/voldemar/Dev/AI/model/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-Q4_K_M.gguf"
+backend = "local"
+notes = "Default local chat model (must be loaded in llama-server)"
+
+[[models]]
+alias = "local"
+label = "Server default (first /v1/models entry)"
+id = "local"
+backend = "local"
+notes = "Resolves to whatever llama-server has loaded first"
+
+[[models]]
+alias = "grok"
+label = "Grok cloud (opt-in auth)"
+id = "grok-4.5"
+backend = "grok"
+notes = "Requires GROK_API_KEY / XAI_API_KEY or ~/.grok auth token"
+
+# Add more when you load additional models on the server:
+# [[models]]
+# alias = "small"
+# label = "FunctionGemma 270M"
+# id = "/home/voldemar/Dev/AI/model/functiongemma-270m-it-BF16.gguf"
+# backend = "local"

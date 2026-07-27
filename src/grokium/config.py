@@ -36,6 +36,11 @@ def load(path: Path | None = None) -> dict[str, Any]:
     local = data.setdefault("local", {})
     local.setdefault("base_url", "http://127.0.0.1:1212/v1")
     local.setdefault("model", "local")
+    local.setdefault("models_file", str(ROOT / "config" / "models.toml"))
+    local.setdefault("gguf_dir", "/home/voldemar/Dev/AI/model")
+    # env override for default local model alias/id
+    if os.environ.get("GROKIUM_LOCAL_MODEL") or os.environ.get("GROKIUM_MODEL"):
+        local["model"] = (os.environ.get("GROKIUM_LOCAL_MODEL") or os.environ.get("GROKIUM_MODEL") or "").strip()
 
     server = data.setdefault("server", {})
     server.setdefault("host", "127.0.0.1")

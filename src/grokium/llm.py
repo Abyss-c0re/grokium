@@ -12,6 +12,8 @@ from typing import Any, Callable, Iterator
 
 from .privacy import guard_url
 
+# models.resolve used for configurable local ids
+
 _RUNTIME_BACKEND: str | None = None
 
 
@@ -63,13 +65,21 @@ def _resolve_endpoint(cfg: dict[str, Any], backend: str | None) -> tuple[str, st
     else:
         path = "local"
         base = (local.get("base_url") or "http://127.0.0.1:1212/v1").rstrip("/")
-        model = local.get("model") or "local"
-        if model == "local":
-            probe = probe_local(cfg)
-            if probe.get("ok"):
-                data = (probe.get("models") or {}).get("data") or []
-                if data:
-                    model = data[0].get("id") or model
+        try:
+            from .models import resolve_model_id
+            resolved = resolve_model_id(cfg)
+            if resolved.get("backend") == "grok":
+                # user selected grok via model alias
+                return _resolve_endpoint(cfg, "grok")
+            model = resolved.get("id") or local.get("model") or "local"
+        except Exception:
+            model = local.get("model") or "local"
+            if model == "local":
+                probe = probe_local(cfg)
+                if probe.get("ok"):
+                    data = (probe.get("models") or {}).get("data") or []
+                    if data:
+                        model = data[0].get("id") or model
     return path, base, model, cfg2
 
 
@@ -100,8 +110,14 @@ def probe_local(cfg: dict[str, Any]) -> dict[str, Any]:
 def backend_status(cfg: dict[str, Any]) -> dict[str, Any]:
     b = get_backend(cfg)
     local = probe_local(cfg)
+    try:
+        from .models import resolve_model_id
+        active_model = resolve_model_id(cfg)
+    except Exception as e:
+        active_model = {"error": str(e)}
     return {
         "active": b,
+        "active_model": active_model,
         "local": {"ok": local.get("ok"), "base_url": local.get("base_url")},
         "grok": {
             "key_present": bool(os.environ.get("GROK_API_KEY") or os.environ.get("XAI_API_KEY")),

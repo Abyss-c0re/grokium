@@ -25,6 +25,7 @@ from .config import load
 from .integrity_core import run_integrity_tick
 from .law import law_blob
 from .llm import backend_status, chat, chat_stream, get_backend, probe_local, set_backend
+from .models import list_all, load_persisted_model, persist_model, resolve_model_id, set_model
 from .md_render import render_markdown_lines
 from .matrix import parse_plate, fold_bits, plate_ack, save_matrix
 from .privacy import assert_zero_telemetry, force_privacy_false
@@ -61,7 +62,9 @@ GROK BUILD–LIKE
   /load [id|query]   /sessions then pickup  (alias /resume)
   /sessions [q]      list/search imported Grok sessions
   /pickup <id>       bind session · mode=resume
-  /model             show model/backend
+  /model             show active model
+  /model list        presets + live llama.cpp models
+  /model <alias|id>  select model (persisted)
   /coord <plate>     realtime NEXUS_COORD → SMX stream
   /status            full status
   /help              this help
@@ -115,6 +118,12 @@ class GrokiumTUI:
         self._boot()
 
     def _boot(self) -> None:
+        pref = load_persisted_model(self.cfg.get("_root") or ".")
+        if pref:
+            try:
+                set_model(pref)
+            except Exception:
+                pass
         be = get_backend(self.cfg)
         self._add("system", f"Grokium {__version__} · TUI primary · backend={be}")
         self._add("system", "Not affiliated with xAI. Models ≠ commander. /help · /backend local|grok")
@@ -374,20 +383,39 @@ class GrokiumTUI:
             except ValueError as e:
                 self._add("system", str(e))
             return
-        if cmd in ("/model",):
-            st = backend_status(self.cfg)
-            loc = probe_local(self.cfg)
-            mid = "local"
-            if loc.get("ok"):
-                data = (loc.get("models") or {}).get("data") or []
-                if data:
-                    mid = (data[0].get("id") or "local")[-48:]
-            self._add(
-                "system",
-                f"active_backend={st['active']}\nlocal_model={mid}\ngrok_key={st['grok']['key_present']}\n"
-                f"switch: /backend local  or  /backend grok",
-            )
+        if cmd in ("/model", "/models"):
+            argn = arg.strip()
+            if not argn or argn in ("list", "ls"):
+                info = list_all(self.cfg)
+                lines = ["models (config/models.toml + live server):", f"active: {info['active']}"]
+                lines.append("presets:")
+                for m in info.get("presets") or []:
+                    lines.append(f"  {m.get('alias','?'):10} backend={m.get('backend')}  {m.get('label') or m.get('id')}")
+                lines.append("live llama-server:")
+                for m in info.get("live_server") or []:
+                    lines.append(f"  {m.get('id')}")
+                if not info.get("live_server"):
+                    lines.append("  (server empty or down — start llama-server)")
+                lines.append("set: /model <alias|id>   backend: /backend local|grok")
+                self._add("system", "\n".join(lines))
+                return
+            try:
+                set_model(argn)
+                persist_model(self.cfg.get("_root") or ".", argn)
+                r = resolve_model_id(self.cfg)
+                if r.get("backend") == "grok":
+                    set_backend("grok")
+                else:
+                    set_backend("local")
+                self._add(
+                    "system",
+                    f"model → {r.get('alias') or r.get('id')}\n"
+                    f"id={r.get('id')}\nbackend={r.get('backend')}\nlabel={r.get('label')}",
+                )
+            except Exception as e:
+                self._add("system", f"model error: {e}")
             return
+
         if cmd == "/status":
             st = backend_status(self.cfg)
             ig = run_integrity_tick(self.cfg, publish=True)

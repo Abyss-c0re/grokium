@@ -65,6 +65,12 @@ def main(argv: list[str] | None = None) -> int:
     ag.add_argument("--workspace", default="/home/voldemar/Dev")
 
     sub.add_parser("llama-test", help="Probe local llama + short completion")
+    md = sub.add_parser("models", help="List/set configurable llama.cpp models")
+    md_sub = md.add_subparsers(dest="models_cmd", required=False)
+    md_sub.add_parser("list", help="List presets + live server models")
+    mds = md_sub.add_parser("set", help="Set active model (alias or id)")
+    mds.add_argument("name")
+    md_sub.add_parser("show", help="Show resolved active model")
     sub.add_parser("status", help="Status JSON")
     sub.add_parser("selftest", help="Prove harness capabilities end-to-end")
     sub.add_parser("license", help="Show SPDX / NOTICE / compliance")
@@ -171,6 +177,24 @@ def main(argv: list[str] | None = None) -> int:
         }
         print(json.dumps(out, indent=2, default=str)[:12000])
         return 0 if r.get("ok") else 1
+
+    if args.cmd == "models":
+        from .models import list_all, set_model, persist_model, resolve_model_id, load_persisted_model
+        subc = getattr(args, "models_cmd", None) or "list"
+        if subc == "list":
+            print(json.dumps(list_all(cfg), indent=2, default=str))
+            return 0
+        if subc == "show":
+            print(json.dumps(resolve_model_id(cfg), indent=2, default=str))
+            return 0
+        if subc == "set":
+            name = args.name
+            set_model(name)
+            persist_model(cfg.get("_root") or ".", name)
+            print(json.dumps({"ok": True, "set": name, "resolved": resolve_model_id(cfg)}, indent=2, default=str))
+            return 0
+        print(json.dumps(list_all(cfg), indent=2, default=str))
+        return 0
 
     if args.cmd == "llama-test":
         probe = probe_local(cfg)

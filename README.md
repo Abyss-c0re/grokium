@@ -28,11 +28,23 @@ Grokium is **not** affiliated with xAI. Upstream Grok Build remains the referenc
 Register: `config/mcp.grok.toml.snippet` → `~/.grok/config.toml`  
 Docs: [`docs/API_AND_MCP.md`](docs/API_AND_MCP.md)
 
+## Docs
+
+| Guide | |
+|-------|--|
+| **[User Guide](docs/USER_GUIDE.md)** | Install, models, TUI, backends |
+| **[Developer Guide](docs/DEVELOPER.md)** | Architecture, models system, Cube viz |
+| [Models](config/models.toml) | llama.cpp aliases |
+| [Backends](docs/BACKENDS.md) | local vs Grok |
+| [Themes](docs/THEMES.md) | Crimson Cube etc. |
+| [API + MCP](docs/API_AND_MCP.md) | Optional surfaces |
+
 ## Primary surface: **TUI**
 
 Web UI is **optional**. The product interface is the terminal (like Grok Build).
 
 ```bash
+./scripts/grokium models list   # configurable llama.cpp models
 ./scripts/grokium          # TUI (default)
 ./scripts/grokium tui      # same
 # optional web + API:

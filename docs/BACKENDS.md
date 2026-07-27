@@ -37,3 +37,14 @@ model = "grok-4.5"
 
 **Not the chat core.** Chat/agent = Grokium `llm.py` + tools.  
 Nanobot = integrity core + optional fleet peers (`/fleet`, `/integrity`).
+
+
+## Local model selection
+
+See [USER_GUIDE.md](USER_GUIDE.md) and `config/models.toml`.
+
+```bash
+./scripts/grokium models list
+./scripts/grokium models set qwen
+# TUI: /model list  ·  /model qwen
+```

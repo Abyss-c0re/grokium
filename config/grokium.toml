@@ -14,8 +14,13 @@ model = "grok-4.5"
 
 [local]
 base_url = "http://127.0.0.1:1212/v1"
-model = "local"
+# model: alias from config/models.toml, or "local" (first server model), or full id
+model = "qwen"
+models_file = "/home/voldemar/Dev/grokium/config/models.toml"
+gguf_dir = "/home/voldemar/Dev/AI/model"
 llama_server = "/home/voldemar/Dev/AI/llama.cpp/build/bin/llama-server"
+# optional: spawn args documentation only (server is external)
+# llama_args = ["-m", "path.gguf", "--port", "1212"]
 gguf = ""
 
 [server]
