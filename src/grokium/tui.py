@@ -27,6 +27,7 @@ from .integrity_core import run_integrity_tick
 from .law import law_blob
 from .llm import backend_status, chat, chat_stream, get_backend, probe_local, set_backend
 from .models import list_all, load_persisted_model, persist_model, resolve_model_id, set_model
+from .grok_auth import auth_status, ensure_token, login_web
 from .md_render import render_markdown_lines
 from .matrix import parse_plate, fold_bits, plate_ack, save_matrix
 from .privacy import assert_zero_telemetry, force_privacy_false
@@ -57,6 +58,9 @@ BACKENDS (cores unmixed)
   /backend local     llama.cpp  :1212  (default)
   /backend grok      cloud Grok — needs GROK_API_KEY or XAI_API_KEY
   /backend           show active backend
+  /login             use ~/.grok/auth.json token or run `grok login` (web, like original)
+  /auth              show auth status (no secrets)
+  /logout            switch back to local (does not delete auth.json)
 
 GROK BUILD–LIKE
   /new               clear chat (new session context)
@@ -370,18 +374,63 @@ class GrokiumTUI:
             self.lines.clear()
             self._add("system", "cleared")
             return
+        if cmd in ("/auth", "/whoami"):
+            self._add("system", json.dumps(auth_status(), indent=2))
+            return
+        if cmd in ("/login",):
+            self.status = "auth: checking token / login…"
+            self.draw()
+            # reuse existing web session token first (same as original store)
+            st = ensure_token(try_login=False)
+            if st.get("ok"):
+                set_backend("grok")
+                self.cfg.setdefault("auth", {})["enabled"] = True
+                self._add(
+                    "system",
+                    f"Grok auth OK (source={st.get('source')}, email={st.get('email')})\n"
+                    f"backend → grok · not affiliated with xAI\n"
+                    f"token from same ~/.grok/auth.json as original CLI when source=auth.json",
+                )
+                return
+            self._add("system", "No token yet — launching original `grok login` (browser/OIDC)…")
+            self.draw()
+            st = login_web(timeout=300)
+            if st.get("ok"):
+                set_backend("grok")
+                self.cfg.setdefault("auth", {})["enabled"] = True
+                self._add("system", f"login OK · source={st.get('source')} email={st.get('email')}\nbackend → grok")
+            else:
+                self._add("system", f"login failed: {st.get('error') or st}")
+            return
+        if cmd in ("/logout",):
+            set_backend("local")
+            self.cfg.setdefault("auth", {})["enabled"] = False
+            self._add("system", "backend → local (auth.json left intact; use /login to return)")
+            return
         if cmd in ("/backend", "/be"):
             if not arg:
                 self._add("system", json.dumps(backend_status(self.cfg), indent=2))
                 return
             try:
                 b = set_backend(arg)
-                # persist soft preference on cfg auth.enabled
                 if b == "grok":
-                    self.cfg.setdefault("auth", {})["enabled"] = True
+                    st = ensure_token(try_login=False)
+                    if not st.get("ok"):
+                        self._add(
+                            "system",
+                            "backend grok selected but no token — run /login (uses grok login web flow) "
+                            "or export GROK_API_KEY",
+                        )
+                    else:
+                        self.cfg.setdefault("auth", {})["enabled"] = True
+                        self._add(
+                            "system",
+                            f"backend → grok · token source={st.get('source')} email={st.get('email')} "
+                            f"(not xAI product)",
+                        )
                 else:
                     self.cfg.setdefault("auth", {})["enabled"] = False
-                self._add("system", f"backend → {b} (cores unmixed; no silent fallback)")
+                    self._add("system", f"backend → {b} (cores unmixed; no silent fallback)")
             except ValueError as e:
                 self._add("system", str(e))
             return

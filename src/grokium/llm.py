@@ -38,10 +38,13 @@ def get_backend(cfg: dict[str, Any]) -> str:
 
 
 def _auth_header(url: str) -> dict[str, str]:
-    h = {"Content-Type": "application/json", "User-Agent": "grokium/0.4 (zero-telemetry)"}
-    key = os.environ.get("GROK_API_KEY") or os.environ.get("XAI_API_KEY")
-    if key and ("grok.com" in url or "x.ai" in url):
-        h["Authorization"] = f"Bearer {key}"
+    """Bearer from env or ~/.grok/auth.json (same store as original grok login)."""
+    from .grok_auth import bearer_headers, get_access_token
+
+    # Always attach JSON content-type; only add Bearer for grok/xai hosts
+    if "grok.com" in url or "x.ai" in url or "cli-chat-proxy" in url:
+        return bearer_headers()
+    h = {"Content-Type": "application/json", "User-Agent": "grokium/0.5 (zero-telemetry; not-xai)"}
     return h
 
 
@@ -56,8 +59,14 @@ def _resolve_endpoint(cfg: dict[str, Any], backend: str | None) -> tuple[str, st
 
     cfg2 = dict(cfg)
     if path == "grok":
-        if not (os.environ.get("GROK_API_KEY") or os.environ.get("XAI_API_KEY")):
-            raise RuntimeError("Grok backend needs GROK_API_KEY or XAI_API_KEY")
+        from .grok_auth import get_access_token
+
+        tok = get_access_token()
+        if not tok.get("ok"):
+            raise RuntimeError(
+                tok.get("error")
+                or "Grok backend needs token: run `grok login` (web) or set GROK_API_KEY"
+            )
         cfg2["auth"] = dict(auth)
         cfg2["auth"]["enabled"] = True
         base = (auth.get("base_url") or "https://cli-chat-proxy.grok.com/v1").rstrip("/")
@@ -107,6 +116,23 @@ def probe_local(cfg: dict[str, Any]) -> dict[str, Any]:
         return {"ok": False, "base_url": base, "error": str(e), "path": "local"}
 
 
+def _grok_status_blob(cfg: dict[str, Any]) -> dict[str, Any]:
+    from .grok_auth import auth_status
+
+    st = auth_status()
+    return {
+        "token_present": st.get("token_present"),
+        "source": st.get("source"),
+        "email": st.get("email"),
+        "auth_json_exists": st.get("auth_json_exists"),
+        "env_key_set": st.get("env_key_set"),
+        "auth_enabled_cfg": bool((cfg.get("auth") or {}).get("enabled")),
+        "base_url": (cfg.get("auth") or {}).get("base_url"),
+        "login": st.get("login"),
+        "affiliated_with_xai": False,
+    }
+
+
 def backend_status(cfg: dict[str, Any]) -> dict[str, Any]:
     b = get_backend(cfg)
     local = probe_local(cfg)
@@ -119,11 +145,7 @@ def backend_status(cfg: dict[str, Any]) -> dict[str, Any]:
         "active": b,
         "active_model": active_model,
         "local": {"ok": local.get("ok"), "base_url": local.get("base_url")},
-        "grok": {
-            "key_present": bool(os.environ.get("GROK_API_KEY") or os.environ.get("XAI_API_KEY")),
-            "auth_enabled_cfg": bool((cfg.get("auth") or {}).get("enabled")),
-            "base_url": (cfg.get("auth") or {}).get("base_url"),
-        },
+        "grok": _grok_status_blob(cfg),
         "stream": True,
         "switch": "/backend local|grok",
         "cores_unmixed": True,

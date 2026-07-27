@@ -65,6 +65,8 @@ def main(argv: list[str] | None = None) -> int:
     ag.add_argument("--workspace", default="/home/voldemar/Dev")
 
     sub.add_parser("llama-test", help="Probe local llama + short completion")
+    sub.add_parser("login", help="Grok web auth via original CLI or reuse ~/.grok/auth.json")
+    sub.add_parser("auth", help="Show Grok auth status (no secrets)")
     md = sub.add_parser("models", help="List/set configurable llama.cpp models")
     md_sub = md.add_subparsers(dest="models_cmd", required=False)
     md_sub.add_parser("list", help="List presets + live server models")
@@ -195,6 +197,22 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         print(json.dumps(list_all(cfg), indent=2, default=str))
         return 0
+
+    if args.cmd == "auth":
+        from .grok_auth import auth_status
+        print(json.dumps(auth_status(), indent=2))
+        return 0
+
+    if args.cmd == "login":
+        from .grok_auth import ensure_token, login_web, auth_status
+        st = ensure_token(try_login=False)
+        if st.get("ok"):
+            print(json.dumps({**st, "hint": "already have token; /backend grok or GROKIUM_GROK_AUTH=1"}, indent=2))
+            return 0
+        print(json.dumps({"action": "starting_grok_login_web"}, indent=2))
+        st = login_web(timeout=300)
+        print(json.dumps(st, indent=2))
+        return 0 if st.get("ok") else 1
 
     if args.cmd == "llama-test":
         probe = probe_local(cfg)

@@ -1,3 +1,31 @@
+## Auth tokens (optional Grok cloud)
+
+ (same token store as original CLI)
+
+Grokium is **not** xAI software. For optional cloud Grok it reuses the **same**
+credential store as the original Grok Build CLI:
+
+| Step | What happens |
+|------|----------------|
+| Already logged in with `grok login` | Grokium reads `~/.grok/auth.json` automatically |
+| Or API key | `export GROK_API_KEY=...` |
+| Need browser login | TUI `/login` or `./scripts/grokium login` runs **`grok login`** (original web/OIDC flow) |
+
+```bash
+# status (never prints the token)
+./scripts/grokium auth
+
+# reuse existing web session or open browser via original CLI
+./scripts/grokium login
+
+# TUI
+/auth
+/login
+/backend grok
+/logout          # back to llama.cpp; does not delete auth.json
+```
+
+
 # Backends: llama.cpp vs Grok auth
 
 ## Switch (TUI)

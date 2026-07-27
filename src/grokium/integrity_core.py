@@ -123,12 +123,22 @@ def network_allowlist(cfg: dict[str, Any]) -> list[str]:
     ch = urlparse(cube).hostname
     if ch:
         allow.append(ch)
-    # optional Grok cloud only if auth explicitly enabled
+    # optional Grok cloud hosts when auth enabled OR a token exists (same as original CLI store)
     auth = cfg.get("auth") or {}
-    if auth.get("enabled"):
-        ah = urlparse(auth.get("base_url") or "").hostname
-        if ah:
-            allow.append(ah)
+    try:
+        from .grok_auth import get_access_token
+        has_tok = bool(get_access_token().get("ok"))
+    except Exception:
+        has_tok = False
+    if auth.get("enabled") or has_tok:
+        for host in (
+            urlparse(auth.get("base_url") or "https://cli-chat-proxy.grok.com/v1").hostname,
+            "cli-chat-proxy.grok.com",
+            "auth.x.ai",
+            "accounts.x.ai",
+        ):
+            if host and host not in allow:
+                allow.append(host)
     # unique
     out = []
     for a in allow:
