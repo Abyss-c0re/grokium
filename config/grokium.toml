@@ -79,7 +79,7 @@ roles = [
 
 [commander]
 # THE LAW: Grokium commander identity (Ed25519). Not the Grok model.
-law_dir = "/home/voldemar/Dev/grokium/data/law"
+law_dir = "data/law"
 domain = "GROKIUM-COMMANDER-v1"
 product = "grokium"
 not = "grok_model"
