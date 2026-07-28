@@ -71,6 +71,24 @@ def main(argv: list[str] | None = None) -> int:
     co.add_argument("prompt", nargs="+")
     hv = sub.add_parser("hive", help="Nanobrain hive deploy/pulse")
     hv.add_argument("action", nargs="?", default="pulse", choices=["pulse", "deploy", "status"])
+    # fleet: external nanobot binary (https://github.com/Abyss-c0re/nanobot) — not vendored
+    nb = sub.add_parser(
+        "nanobot",
+        help="Deploy/manage nanobot peer fleet (needs nanobot binary on PATH)",
+    )
+    nb_sub = nb.add_subparsers(dest="nanobot_cmd", required=False)
+    nb_sub.add_parser("status", help="Fleet status + binary discovery")
+    nbd = nb_sub.add_parser("deploy", help="Start purpose-assigned peer processes")
+    nbd.add_argument(
+        "--only",
+        action="append",
+        default=[],
+        help="Deploy only this bot id (repeatable); default = all roles",
+    )
+    nbs = nb_sub.add_parser("separate", help="Stop one peer without killing others")
+    nbs.add_argument("id", help="Bot id (e.g. nb-integrity)")
+    nb_sub.add_parser("stop-all", help="Stop every fleet peer")
+    nb_sub.add_parser("binary", help="Show resolved nanobot executable")
     cp = sub.add_parser("compat", help="Grok Build reported version (not app version)")
     cp.add_argument("action", nargs="?", default="status", choices=["status", "refresh", "watch"])
     md = sub.add_parser("models", help="List/set configurable llama.cpp models")
@@ -237,6 +255,50 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(get_nanobrain(cfg.get("_root")).status(), indent=2, default=str))
         else:
             print(json.dumps(get_nanobrain(cfg.get("_root")).pulse(), indent=2, default=str))
+        return 0
+
+    if args.cmd == "nanobot":
+        from . import nanobots as fleet
+
+        act = getattr(args, "nanobot_cmd", None) or "status"
+        if act == "binary":
+            b = fleet._binary(cfg)
+            print(
+                json.dumps(
+                    {
+                        "ok": bool(b),
+                        "binary": b,
+                        "hint": None
+                        if b
+                        else "install: curl -fsSL https://raw.githubusercontent.com/Abyss-c0re/nanobot/main/scripts/install.sh | bash -s -- --user",
+                        "pin": "NANOBOT_PIN.txt / docs/NANOBOT_FLEET.md",
+                    },
+                    indent=2,
+                )
+            )
+            return 0 if b else 1
+        if act == "deploy":
+            only = list(args.only or []) or None
+            r = fleet.deploy(cfg, only=only)
+            print(json.dumps(r, indent=2, default=str)[:12000])
+            return 0 if r.get("ok") else 1
+        if act == "separate":
+            r = fleet.separate(cfg, args.id)
+            print(json.dumps(r, indent=2, default=str))
+            return 0 if r.get("ok") else 1
+        if act == "stop-all":
+            r = fleet.stop_all(cfg)
+            print(json.dumps(r, indent=2, default=str))
+            return 0 if r.get("ok") else 1
+        # status
+        st = fleet.status(cfg)
+        st["binary"] = fleet._binary(cfg)
+        if not st.get("binary"):
+            st["hint"] = (
+                "nanobot binary missing — "
+                "curl -fsSL https://raw.githubusercontent.com/Abyss-c0re/nanobot/main/scripts/install.sh | bash -s -- --user"
+            )
+        print(json.dumps(st, indent=2, default=str)[:12000])
         return 0
 
     if args.cmd == "auth":
