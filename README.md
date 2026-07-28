@@ -45,7 +45,25 @@ Docs: [`docs/API_AND_MCP.md`](docs/API_AND_MCP.md)
 | [API + MCP](docs/API_AND_MCP.md) | Optional surfaces |
 
 
-## Nanobot fleet (separate product)
+
+## Install (one line)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Abyss-c0re/grokium/main/scripts/install.sh | bash
+```
+
+```bash
+# with nanobot fleet binary (separate repo)
+curl -fsSL https://raw.githubusercontent.com/Abyss-c0re/grokium/main/scripts/install.sh | bash -s -- --with-nanobot
+
+# non-interactive user install
+curl -fsSL https://raw.githubusercontent.com/Abyss-c0re/grokium/main/scripts/install.sh | bash -s -- -y --user
+```
+
+Installs under `~/.local/src/grokium` and links `~/.local/bin/grokium`.  
+Nanobot peer is **optional** (`--with-nanobot` / auto if missing): [Abyss-c0re/nanobot](https://github.com/Abyss-c0re/nanobot).
+
+## Nanobot fleet (separate repo)
 
 Grokium **does not ship** the nanobot C binary. Fleet control lives in
 [`src/grokium/nanobots.py`](src/grokium/nanobots.py); the peer is
