@@ -16,7 +16,7 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/local/grokium"
+Homepage = "https://github.com/Abyss-c0re/grokium"
 License = "https://www.apache.org/licenses/LICENSE-2.0"
 Upstream-Inspiration = "https://github.com/xai-org/grok-build"
 

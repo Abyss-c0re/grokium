@@ -51,19 +51,22 @@ face_blur = 1
 state_matrix_key = 1
 cores_unmixed = 1
 commander_only_residual = 1
-blueprint = "/home/voldemar/Dev/grokium/data/blueprint/LAW_BLUEPRINT.json"
+# optional law blueprint (relative to grokium root or absolute)
+blueprint = "data/blueprint/LAW_BLUEPRINT.json"
 
 [nanobot]
 enabled = true
-# Abyss-c0re nanobot peer (MIT) — host binary, not vendored source
-binary = "/home/voldemar/.local/bin/nanobot"
-fallback_binary = "/home/voldemar/Dev/nanobot/build/host/nanobot"
+# Host binary from https://github.com/Abyss-c0re/nanobot — NOT vendored in grokium.
+# Leave binary empty to use PATH / NANOBOT_BINARY / ~/.local/bin/nanobot.
+binary = ""
+fallback_binary = ""
 base_port = 28800
 # offline local llama only for fleet (cores unmixed default)
 offline = true
 base_url = "http://127.0.0.1:1212/v1"
 model = "local"
-home_root = "/home/voldemar/Dev/grokium/data/home"
+# fleet homes under grokium data/ (gitignored runtime)
+home_root = "data/home"
 # purpose-assigned separable subagents (Cube Standards)
 roles = [
   { id = "nb-integrity",  purpose = "integrity_no_leak_core", shell = false },

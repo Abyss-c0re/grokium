@@ -44,6 +44,28 @@ Docs: [`docs/API_AND_MCP.md`](docs/API_AND_MCP.md)
 | [Themes](docs/THEMES.md) | Crimson Cube etc. |
 | [API + MCP](docs/API_AND_MCP.md) | Optional surfaces |
 
+
+## Nanobot fleet (separate product)
+
+Grokium **does not ship** the nanobot C binary. Fleet control lives in
+[`src/grokium/nanobots.py`](src/grokium/nanobots.py); the peer is
+**[Abyss-c0re/nanobot](https://github.com/Abyss-c0re/nanobot)** (MIT).
+
+| Doc | |
+|-----|--|
+| Pin | [`NANOBOT_PIN.txt`](NANOBOT_PIN.txt) |
+| How-to | [`docs/NANOBOT_FLEET.md`](docs/NANOBOT_FLEET.md) |
+
+```bash
+# 1) install nanobot (once)
+git clone https://github.com/Abyss-c0re/nanobot.git && cd nanobot && make host
+install -m755 build/host/nanobot ~/.local/bin/nanobot
+
+# 2) run grokium (fleet uses PATH / [nanobot].binary)
+cd /path/to/grokium && ./scripts/grokium serve
+curl -s http://127.0.0.1:17444/v1/nanobot/status
+```
+
 ## Primary surface: **TUI**
 
 Web UI is **optional**. The product interface is the terminal (like Grok Build).

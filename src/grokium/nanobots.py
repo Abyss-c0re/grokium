@@ -64,14 +64,36 @@ def _roles(cfg: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _binary(cfg: dict[str, Any]) -> str | None:
+    """Resolve host nanobot executable (never vendored in this repo).
+
+    Order: config binary / fallback_binary → NANOBOT_BINARY env → PATH
+    → common install prefixes → optional lab clone paths under $HOME/Dev.
+    """
     nb = _nb_cfg(cfg)
     for key in ("binary", "fallback_binary"):
         p = nb.get(key)
-        if p and Path(p).is_file() and os.access(p, os.X_OK):
+        if p and Path(p).expanduser().is_file() and os.access(Path(p).expanduser(), os.X_OK):
+            return str(Path(p).expanduser())
+    env = os.environ.get("NANOBOT_BINARY") or os.environ.get("NANOBOT_BIN")
+    if env and Path(env).expanduser().is_file() and os.access(Path(env).expanduser(), os.X_OK):
+        return str(Path(env).expanduser())
+    which = subprocess.run(
+        ["sh", "-c", "command -v nanobot"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if which.returncode == 0 and which.stdout.strip():
+        p = Path(which.stdout.strip())
+        if p.is_file() and os.access(p, os.X_OK):
             return str(p)
+    home = Path.home()
     for cand in (
-        Path.home() / ".local/bin/nanobot",
-        Path("/home/voldemar/Dev/nanobot/build/host/nanobot"),
+        home / ".local/bin/nanobot",
+        Path("/usr/local/bin/nanobot"),
+        Path("/usr/bin/nanobot"),
+        home / "Dev/AI/nanobot/build/host/nanobot",
+        home / "Dev/nanobot/build/host/nanobot",
     ):
         if cand.is_file() and os.access(cand, os.X_OK):
             return str(cand)
