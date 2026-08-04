@@ -15,7 +15,9 @@
 | resume | `/mode resume` honesty + `/pickup <id>` meta only |
 
 ## Slash commands
-`/help` `/status` `/settings` `/model` `/backend` `/clear` `/quit`  
+`/help` `/settings` `/model` `/backend` `/clear` `/quit`  
+`/status` — dual-wire honesty plate (fleet kill(0) + matrix bits; SMX2 ≠ peer HTTP)  
+`/hub [start|stop]` — LLM request hub (sched status)  
 `/coord <NEXUS_COORD|01-bits>` — fold plate via SMX filter (fail-closed; prose denied)  
 `/smx` (or `/matrix`) — latest StateMatrix plate (`data/matrix/LATEST.json` or ability)  
 `/sessions [q]` — imported session **metas** only (`data/import/*.meta.json`)  

@@ -21,6 +21,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <time.h>
+#include <signal.h>
 
 extern char root[];
 extern char cubalc_bin[];
@@ -912,6 +913,105 @@ static void cmd_law_show(void) {
   log_add("  integrity=/integrity · commander=/commander · fleet=/fleet");
 }
 
+/* Honest fleet counts from FLEET.json + kill(0). */
+static void tui_fleet_probe(int *n_out, int *alive_out) {
+  char path[PATH_MAX], body[16384];
+  FILE *f;
+  size_t nread;
+  const char *p;
+  int n = 0, alive = 0;
+  if (n_out) *n_out = 0;
+  if (alive_out) *alive_out = 0;
+  snprintf(path, sizeof path, "%s/data/home/FLEET.json", root);
+  f = fopen(path, "r");
+  if (!f) return;
+  nread = fread(body, 1, sizeof body - 1, f);
+  body[nread] = 0;
+  fclose(f);
+  for (p = body; (p = strstr(p, "\"purpose\"")) != NULL; p += 9)
+    n++;
+  for (p = body; (p = strstr(p, "\"pid\"")) != NULL;) {
+    const char *q = p + 5;
+    long pid;
+    p = q;
+    while (*q == ' ' || *q == '\t' || *q == '\n' || *q == '\r') q++;
+    if (*q != ':') continue;
+    q++;
+    while (*q == ' ' || *q == '\t') q++;
+    if (*q == 'n' || *q == 'N' || *q == '"') continue;
+    pid = strtol(q, NULL, 10);
+    if (pid > 1) {
+      if (kill((pid_t)pid, 0) == 0 || errno == EPERM)
+        alive++;
+    }
+  }
+  if (n_out) *n_out = n;
+  if (alive_out) *alive_out = alive;
+}
+
+static void tui_matrix_probe(unsigned *bits_out, char *grade, size_t gcap) {
+  char path[PATH_MAX], body[8192];
+  FILE *f;
+  size_t nread;
+  const char *p, *bits;
+  unsigned cnt = 0;
+  if (bits_out) *bits_out = 0;
+  if (grade && gcap) snprintf(grade, gcap, "EMPTY");
+  snprintf(path, sizeof path, "%s/data/matrix/LATEST.json", root);
+  f = fopen(path, "r");
+  if (!f) return;
+  nread = fread(body, 1, sizeof body - 1, f);
+  body[nread] = 0;
+  fclose(f);
+  bits = strstr(body, "\"sot_bits\"");
+  if (bits) {
+    bits = strchr(bits, ':');
+    if (bits) {
+      bits++;
+      while (*bits == ' ' || *bits == '\t') bits++;
+      if (*bits == '"') {
+        bits++;
+        for (p = bits; *p && *p != '"'; p++)
+          if (*p == '1') cnt++;
+      }
+    }
+  }
+  if (bits_out) *bits_out = cnt;
+  if (grade && gcap) {
+    if (cnt == 0)
+      snprintf(grade, gcap, "EMPTY");
+    else if (cnt < 16)
+      snprintf(grade, gcap, "SPARSE");
+    else
+      snprintf(grade, gcap, "OK");
+  }
+}
+
+/* Dual-wire honesty status plate (matches host CLI / HTTP /v1/status shape). */
+static void cmd_status_show(void) {
+  char line[280], grade[32], hub[240];
+  int fleet_n = 0, fleet_alive = 0;
+  unsigned matrix_bits = 0;
+  tui_fleet_probe(&fleet_n, &fleet_alive);
+  tui_matrix_probe(&matrix_bits, grade, sizeof grade);
+  log_add("--- status (dual-wire honesty · pure C) ---");
+  log_add("  product_wire=smx2 · peer_http=lab_ops_only · peer_http_is_product_bus=0");
+  log_add("  share=state_matrix_only · hold_flash=1 · telemetry=off");
+  log_add("  Commander=Ed25519 · llm_is_commander=0 · llm_on_hot_path=0");
+  snprintf(line, sizeof line, "  fleet_n=%d fleet_alive=%d · matrix_bits=%u grade=%s",
+           fleet_n, fleet_alive, matrix_bits, grade);
+  log_add(line);
+  snprintf(line, sizeof line, "  backend=%s model=%s tools=%d",
+           cfg.active_backend, cfg.active_model, cfg.agent_tools);
+  log_add(line);
+  hub[0] = 0;
+  gkx_hub_status(hub, sizeof hub);
+  if (hub[0]) {
+    snprintf(line, sizeof line, "  hub: %s", hub);
+    log_add(line);
+  }
+}
+
 /* Mode is host UX: chat/agent toggle tools; resume = meta pickup honesty. */
 static void cmd_mode(const char *arg) {
   char line[200];
@@ -1095,7 +1195,9 @@ static void do_command(const char *raw) {
     log_add("  /pickup|/load <id>  session meta pickup");
     log_add("  /mode chat|agent|resume  tools toggle · resume=meta only");
     log_add("  /law            Cube Standards plate (share=state_matrix_only)");
+    log_add("  /status         dual-wire honesty (fleet+matrix · SMX2≠peer HTTP)");
     log_add("  /fleet [status…]  pure-C plate (honest pid · peer HTTP lab_ops)");
+    log_add("  /hub [start|stop]  LLM request hub");
     log_add("  /integrity      CODE_SEAL + privacy fail-closed tick");
     log_add("  /commander      Ed25519 law fingerprint (≠ model)");
     log_add("  /attach /viz · ! shell · /model · /settings · /q");
@@ -1309,7 +1411,11 @@ static void do_command(const char *raw) {
     log_add(line);
     return;
   }
-  if (strcmp(cmd, "status") == 0 || strcmp(cmd, "compat") == 0 || strcmp(cmd, "hub") == 0) {
+  if (strcmp(cmd, "status") == 0) {
+    cmd_status_show();
+    return;
+  }
+  if (strcmp(cmd, "compat") == 0 || strcmp(cmd, "hub") == 0) {
     char line[240];
     gkx_hub_status(line, sizeof line);
     log_add(line);

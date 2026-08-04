@@ -157,6 +157,7 @@ Cores stay **unmixed** (no silent cloud fallback).
 | `/backend …` | local / grok |
 | `/theme crimson\|matrix\|void\|gold\|mono` | Look |
 | `/law` | Cube Standards plate (share=state_matrix_only) |
+| `/status` | Dual-wire honesty (fleet + matrix; SMX2 ≠ peer HTTP) |
 | `/fleet [status…]` | Pure-C fleet plate (honest pid; peer HTTP lab_ops) |
 | `/integrity` | CODE_SEAL + privacy fail-closed tick |
 | `/commander` | Ed25519 law fingerprint (≠ model) |

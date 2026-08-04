@@ -3,7 +3,7 @@
   "product": "grokium",
   "language": "C",
   "note": "pure-C product seal; intentional reseal",
-  "aggregate": "3a73d5422ae98ccdb6f77cae91f24cec5c504ce863dfc5d3135df812c78074dc",
+  "aggregate": "5bca04521d74783c1bcf249fec5e2fdd2a7c77c0edb5718a9c0d091f25936a3a",
   "n_files": 61,
   "files": {
     ".agents/laws/00-THE_LAW.md": "71c47cd5f1873bb446f157dcbc7e081a919ae092d5bbbc6d6a73094934868f14",
@@ -53,7 +53,7 @@
     "host/src/grokium_hub.c": "40f0ec58fd35324f4b49bf92fa10d5627883badf3856556bb1f075ec0e975934",
     "host/src/grokium_main.c": "a99198077424a167bc4090d1a23ccbef8501850d2abd7493c3f670f9f465c96a",
     "host/src/grokium_media.c": "044dbaa52a82a554836990f29688eee0207699a28d58431fe67ccb3e751fabf4",
-    "host/src/grokium_tui.c": "0df2df1d5617ff511cd193dd77f7c1726a211d3de238177c86529dc35ea54995",
+    "host/src/grokium_tui.c": "76e48c0677c750806309fa7a2ffe5041a2d35d706fe3bcac13f8c73f361f7db7",
     "host/src/grokium_version.c": "73cab08325b1dad0330182f2c17a65509c973dccff5782c166358fa9a10c041a",
     "scripts/hive/contract_form.sh": "0af710d0a18c33519c109b6d663af0fed3bf8354b0b0f2e91fdfbf8c3f8cc45d",
     "scripts/hive/contract_validate.sh": "2c13187f7adabf08b637d2b6e39f5f889969830f1ad54b17a0e105bde8c4f835",
@@ -68,5 +68,5 @@
     "scripts/sync_upstream_surface.sh": "0e7dbe4443842659ffdc3667010c916c6c1b0f0758a767db73e98e281e4f2363",
     "scripts/test.sh": "850b189feb81bae87b947461c3ca2d0347ce09f14b54313623be1e7a7ead3542"
   },
-  "ts": 1785860817
+  "ts": 1785861583
 }
