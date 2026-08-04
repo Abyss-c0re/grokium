@@ -811,11 +811,15 @@ static void json_fleet(gk_fleet *F, char *out, size_t cap) {
   size_t used;
   if (!F || !out || cap < 64) return;
   alive = fleet_status(F);
+  /* product_wire (not wire_product) — same key as host/status/fleet plates. */
   used = (size_t)snprintf(out, cap,
                           "{\"schema\":\"grokium.nanobot_status.v1\","
-                          "\"alive\":%d,\"n\":%d,\"nb_manager\":true,"
-                          "\"wire_product\":\"smx2\","
+                          "\"ok\":true,\"alive\":%d,\"n\":%d,"
+                          "\"nb_manager\":true,"
+                          "\"product_wire\":\"smx2\","
                           "\"peer_http\":\"lab_ops_only\","
+                          "\"peer_http_is_product_bus\":false,"
+                          "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
                           "\"bots\":[",
                           alive, F->n);
   for (i = 0; i < F->n && used + 128 < cap; i++) {
