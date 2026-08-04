@@ -3,7 +3,7 @@
   "product": "grokium",
   "language": "C",
   "note": "pure-C product seal; intentional reseal",
-  "aggregate": "590db075fa00177a48dcc28378f935ceb3f67ace2713bf1fbbc173bf75cc21bb",
+  "aggregate": "b44621aadbc41241f11c2b1a420433249bfcd959d67a1e76e63e90e10e7076d4",
   "n_files": 63,
   "files": {
     ".agents/laws/00-THE_LAW.md": "71c47cd5f1873bb446f157dcbc7e081a919ae092d5bbbc6d6a73094934868f14",
@@ -13,7 +13,7 @@
     ".agents/laws/04-CUBE_STANDARDS.md": "7f51769e85bfb6885cf3ba8cb15be2cd22875edee145b0eb82740438df11d845",
     ".agents/laws/05-BRAINCELL_HIVE.md": "48e85b0b338a42b2f4605cf6fe9934f1a7c72bf1bc2ed0b6b43830c761b03db5",
     ".agents/laws/06-HIVE_MIND_CORE.md": "ebcffde12b446d50c34f4b545b63500f6576287c996a1c07d140a591534dfe84",
-    "c_core/Makefile": "e67c3cf225633dd7bfeb0a94779462224b6c20ce49372af1106559fc832a1a3b",
+    "c_core/Makefile": "ed13ce6e8850fadd9f5f75750e49fe86f884ec51cd6a1bec9c6909794b555510",
     "c_core/include/grokium_algocube.h": "b9bbd2b7cecffea4fe079d776c4dbce2091857fbfab93395b560358ce51827f9",
     "c_core/include/grokium_commander.h": "bba0da826b61dcdadd5b841805106e24f25345ebd8dab7cf03dccfa30776fd2f",
     "c_core/include/grokium_consolidator.h": "c7c72c4f5277437b6adcae57d5d19c32616d8cc775993678781ee3ad9e59e2ba",
@@ -29,8 +29,8 @@
     "c_core/src/commander_cli.c": "0376019e2a7911435fbdf4008b3592f552dc4c08c29f42db4bccc61ca2e57682",
     "c_core/src/consolidator.c": "e9cea7123670f2d03b333c4542016d16725138cd98e83fe75a1bf37587bb8e85",
     "c_core/src/consolidator_cli.c": "0e1e3de59c98b6fd16c825e39167328babd41aef970f5b19b39bbf24112050c8",
-    "c_core/src/fleet.c": "b69cf7cc29623e4cfd33ff6684aeb7c86e841683b398f617875688c1988413fd",
-    "c_core/src/fleet_cli.c": "2a41e2e9003a4667debcf6748782584f4af164ab702b902b18892d362374ff57",
+    "c_core/src/fleet.c": "faf86abb9a33b7bf24a3266cb00e91a2e2715ef370c084f16bae2dbd9adeec8a",
+    "c_core/src/fleet_cli.c": "5a1b36bd0f6e6d5358586f4441c770db6fab5b23b31298971465db54d02f5b2a",
     "c_core/src/http.c": "1e8a343626b60165aa30329ee023453c8777599e752c0db00845e830108758f8",
     "c_core/src/http_cli.c": "7658d27da58ac79e6c2b02c7de11ccba4f18b3e6fe28db2d2bc7ccfca6031184",
     "c_core/src/integrity.c": "a35babfcbb82c6148ff42a13b04e6edfbda83077ee6823867c6b6d3b36d65160",
@@ -70,5 +70,5 @@
     "scripts/sync_upstream_surface.sh": "0e7dbe4443842659ffdc3667010c916c6c1b0f0758a767db73e98e281e4f2363",
     "scripts/test.sh": "850b189feb81bae87b947461c3ca2d0347ce09f14b54313623be1e7a7ead3542"
   },
-  "ts": 1785868581
+  "ts": 1785870190
 }

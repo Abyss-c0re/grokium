@@ -4,21 +4,123 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 static void usage(void) {
   fprintf(stderr,
           "grokium-fleet defaults|deploy|save [path]|status [path]|"
           "spawn ID [path]|spawn-all [path]|"
-          "note-pid ID PID [path]|separate ID [path]|stop-all [path]\n"
+          "note-pid ID PID [path]|separate ID [path]|stop-all [path]|"
+          "selftest\n"
           "  defaults  — print roles including nb-manager\n"
           "  deploy    — mkdir homes; clear live pids on plate\n"
           "  save      — write honest FLEET.json (loads plate first)\n"
-          "  status    — load plate, kill(0) probe, alive count\n"
+          "  status    — load plate, kill(0) probe, rewrite honest plate\n"
           "  spawn     — fork/exec NANOBOT_BIN (peer HTTP = lab_ops)\n"
           "  spawn-all — spawn every role\n"
           "  note-pid  — record spawn pid; preserves other bots\n"
           "  separate  — SIGTERM bot if live; mark separated\n"
-          "  stop-all  — SIGTERM all live bots\n");
+          "  stop-all  — SIGTERM all live bots\n"
+          "  selftest  — pure-C pid/status honesty (no spawn)\n");
+}
+
+/* Pure-C plate honesty: defaults, note-pid, dead-pid clear, dual-wire fields. */
+static int fleet_selftest(void) {
+  gk_fleet F;
+  char dir[] = "/tmp/gk_fleet_selftest_XXXXXX";
+  char path[320], body[8192];
+  char *td;
+  FILE *f;
+  size_t n;
+  int alive, i, self_pid, has_mgr = 0, dead = 999999999;
+  int live_bot = -1;
+
+  td = mkdtemp(dir);
+  if (!td) {
+    fprintf(stderr, "selftest: mkdtemp failed\n");
+    return 1;
+  }
+  snprintf(path, sizeof path, "%s/FLEET.json", td);
+  fleet_default_roles(&F);
+  if (F.n < 6) {
+    fprintf(stderr, "selftest: expected >=6 default roles\n");
+    return 1;
+  }
+  for (i = 0; i < F.n; i++)
+    if (!strcmp(F.bots[i].id, "nb-manager")) has_mgr = 1;
+  if (!has_mgr) {
+    fprintf(stderr, "selftest: nb-manager missing from defaults\n");
+    return 1;
+  }
+  if (fleet_deploy(&F) != 0 || fleet_save(&F, path) != 0) {
+    fprintf(stderr, "selftest: deploy/save failed\n");
+    return 1;
+  }
+  self_pid = (int)getpid();
+  if (fleet_note_pid(&F, "nb-manager", self_pid) != 0) {
+    fprintf(stderr, "selftest: note-pid live failed\n");
+    return 1;
+  }
+  if (fleet_note_pid(&F, "nb-host", dead) != 0) {
+    fprintf(stderr, "selftest: note-pid dead failed\n");
+    return 1;
+  }
+  /* dead pid must clear immediately */
+  for (i = 0; i < F.n; i++) {
+    if (!strcmp(F.bots[i].id, "nb-host") && F.bots[i].pid > 0) {
+      fprintf(stderr, "selftest: dead pid not cleared on note\n");
+      return 1;
+    }
+    if (!strcmp(F.bots[i].id, "nb-manager")) {
+      if (F.bots[i].pid != self_pid || !F.bots[i].running) {
+        fprintf(stderr, "selftest: live self pid not running\n");
+        return 1;
+      }
+      live_bot = i;
+    }
+  }
+  if (live_bot < 0) {
+    fprintf(stderr, "selftest: nb-manager not found after note\n");
+    return 1;
+  }
+  if (fleet_save(&F, path) != 0) {
+    fprintf(stderr, "selftest: save after note failed\n");
+    return 1;
+  }
+  memset(&F, 0, sizeof F);
+  if (fleet_load(&F, path) != 0) {
+    fprintf(stderr, "selftest: reload failed\n");
+    return 1;
+  }
+  alive = fleet_status(&F);
+  if (alive != 1) {
+    fprintf(stderr, "selftest: expected alive=1 got %d\n", alive);
+    return 1;
+  }
+  /* rewrite honest plate (status path) */
+  if (fleet_save(&F, path) != 0) return 1;
+  f = fopen(path, "r");
+  if (!f) {
+    fprintf(stderr, "selftest: reopen plate failed\n");
+    return 1;
+  }
+  n = fread(body, 1, sizeof body - 1, f);
+  body[n] = 0;
+  fclose(f);
+  if (!strstr(body, "\"share\": \"state_matrix_only\"") ||
+      !strstr(body, "nb-manager") || !strstr(body, "peer_http")) {
+    fprintf(stderr, "selftest: plate missing honesty fields\n");
+    return 1;
+  }
+  /* ensure dead pid not serialized as positive */
+  if (strstr(body, "999999999")) {
+    fprintf(stderr, "selftest: dead pid leaked onto plate\n");
+    return 1;
+  }
+  printf("FLEET_SELFTEST_OK n=%d alive=1 nb_manager=1 product_wire=smx2 "
+         "peer_http=lab_ops_only\n",
+         F.n);
+  return 0;
 }
 
 int main(int argc, char **argv) {
@@ -58,11 +160,19 @@ int main(int argc, char **argv) {
     if (argc > 2) path = argv[2];
     fleet_load(&F, path);
     alive = fleet_status(&F);
-    printf("{\"alive\":%d,\"n\":%d,\"nb_manager\":true,\"probed\":true,"
+    /* Persist kill(0) result so on-disk plate stays honest. */
+    (void)fleet_save(&F, path);
+    printf("{\"schema\":\"grokium.fleet_status.v1\",\"ok\":true,"
+           "\"alive\":%d,\"n\":%d,\"nb_manager\":true,\"probed\":true,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
            "\"path\":\"%s\"}\n",
            alive, F.n, path);
     return 0;
   }
+  if (!strcmp(argv[1], "selftest"))
+    return fleet_selftest();
   if (!strcmp(argv[1], "spawn")) {
     int i;
     if (argc < 3) {

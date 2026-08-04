@@ -18,7 +18,7 @@ HTTP_SRC := src/http_cli.c src/http.c src/consolidator.c src/fleet.c \
 INT_SRC := src/integrity_cli.c src/integrity.c src/sha256.c
 
 .PHONY: all clean test-commander test-filter hive test-consolidate test-serve \
-	test-integrity
+	test-integrity test-fleet
 
 all: $(BIN_CMD) $(BIN_FILTER) $(BUILD)/grokium-fleet $(BUILD)/grokium-consolidate \
 	$(BUILD)/grokium-serve $(BUILD)/grokium-integrity
@@ -92,8 +92,11 @@ test-integrity: $(BUILD)/grokium-integrity
 	$(BUILD)/grokium-integrity policy .. | grep -q state_matrix_only; \
 	echo INTEGRITY_OK
 
+test-fleet: $(BUILD)/grokium-fleet
+	@$(BUILD)/grokium-fleet selftest
+
 hive: test-filter test-consolidate test-serve test-commander test-integrity \
-	$(BUILD)/grokium-fleet
+	test-fleet $(BUILD)/grokium-fleet
 	@$(BUILD)/grokium-fleet defaults | grep -q nb-manager
 	@set -e; \
 	$(BIN_FILTER) allow-check "$$(cat ../compat/nexus_coord.v1.plate)" | grep -q '"allow":true'; \
