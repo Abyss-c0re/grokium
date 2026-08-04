@@ -73,7 +73,12 @@ chat-only and returns **501** if `tools:true`.
 
 Session routes return **meta only** (id/title/updated/model counts) from
 `{data_root}/import/*.meta.json` — no chat transcripts on the lab/ops wire.
-Full resume/import of messages stays host TUI / nanobot.
+Pickup plates include `resume_available` when `chat_history.jsonl` exists under
+the import path (boolean only — history bytes stay host-local). Full message
+resume is TUI `/pickup` (host-local turns); never the SMX product bus.
+
+Host CLI: `sessions [q]`, `pickup|load <id>` — same meta + `resume_available`
+honesty plate (no transcript dump).
 
 `GET /ui` is a static-ish lab/ops HTML plate (live matrix/fleet counts), not a
 product chat UI. `POST /v1/chat` and chat-only `POST /v1/agent` never elevate

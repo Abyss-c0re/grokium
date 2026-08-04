@@ -454,16 +454,57 @@ static void json_escape(const char *in, char *out, size_t cap) {
   out[o] = 0;
 }
 
+/* Detect host-local chat_history without reading transcripts onto the wire. */
+static int session_resume_available(const char *id, const char *meta,
+                                    char *hist_out, size_t hcap) {
+  char import_path[PATH_MAX], try[PATH_MAX];
+  const char *h;
+  size_t hl;
+  if (hist_out && hcap) hist_out[0] = 0;
+  if (!id || !id[0]) return 0;
+  import_path[0] = 0;
+  if (meta) {
+    meta_get_str(meta, "import_path", import_path, sizeof import_path);
+    if (!import_path[0])
+      meta_get_str(meta, "source", import_path, sizeof import_path);
+  }
+  h = getenv("HOME");
+  hl = (h && h[0]) ? strlen(h) : 0;
+  if (import_path[0] == '/') {
+    int allow = 0;
+    if (hl && strncmp(import_path, h, hl) == 0 &&
+        (import_path[hl] == '/' || import_path[hl] == 0))
+      allow = 1;
+    snprintf(try, sizeof try, "%s/data", root);
+    if (!allow && strncmp(import_path, try, strlen(try)) == 0)
+      allow = 1;
+    if (allow) {
+      snprintf(try, sizeof try, "%s/chat_history.jsonl", import_path);
+      if (access(try, R_OK) == 0) {
+        if (hist_out && hcap) snprintf(hist_out, hcap, "%s", try);
+        return 1;
+      }
+    }
+  }
+  snprintf(try, sizeof try, "%s/data/import/%s/chat_history.jsonl", root, id);
+  if (access(try, R_OK) == 0) {
+    if (hist_out && hcap) snprintf(hist_out, hcap, "%s", try);
+    return 1;
+  }
+  return 0;
+}
+
 static int cmd_session_pickup(const char *id) {
-  char path[PATH_MAX], meta[2048];
+  char path[PATH_MAX], meta[2048], hist[PATH_MAX];
   char title[96], updated[48], model[96];
-  char te[128], ue[64], me[128];
+  char te[128], ue[64], me[128], he[PATH_MAX * 2];
   FILE *f;
   size_t nread;
+  int resume_ok;
   if (!session_id_safe(id)) {
     fprintf(stderr,
             "usage: grokium pickup|load <session-id>\n"
-            "  meta only from data/import/*.meta.json (no transcripts)\n");
+            "  meta plate + resume_available (no transcripts on wire)\n");
     return 2;
   }
   snprintf(path, sizeof path, "%s/data/import/%s.meta.json", root, id);
@@ -471,28 +512,32 @@ static int cmd_session_pickup(const char *id) {
   if (!f) {
     printf("{\"schema\":\"grokium.session_pickup.v1\",\"ok\":false,"
            "\"error\":\"not_found\",\"id\":\"%s\",\"content\":\"meta_only\","
-           "\"share\":\"state_matrix_only\",\"hint\":\"import meta only; "
-           "full resume stays host/nanobot path\"}\n",
+           "\"share\":\"state_matrix_only\",\"resume_available\":false,"
+           "\"hint\":\"import meta only; TUI /pickup resumes host-local\"}\n",
            id);
     return 1;
   }
   nread = fread(meta, 1, sizeof meta - 1, f);
   meta[nread] = 0;
   fclose(f);
-  title[0] = updated[0] = model[0] = 0;
+  title[0] = updated[0] = model[0] = hist[0] = 0;
   meta_get_str(meta, "title", title, sizeof title);
   meta_get_str(meta, "updated_at", updated, sizeof updated);
   meta_get_str(meta, "model", model, sizeof model);
+  resume_ok = session_resume_available(id, meta, hist, sizeof hist);
   json_escape(title, te, sizeof te);
   json_escape(updated, ue, sizeof ue);
   json_escape(model, me, sizeof me);
+  json_escape(hist, he, sizeof he);
   printf("{\"schema\":\"grokium.session_pickup.v1\",\"ok\":true,"
          "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
          "\"peer_http\":\"lab_ops_only\",\"share\":\"state_matrix_only\","
-         "\"telemetry\":\"off\",\"resume\":\"host_path\","
+         "\"telemetry\":\"off\",\"resume\":\"host_tui\","
+         "\"resume_available\":%s,\"resume_hist\":\"%s\","
+         "\"hint\":\"TUI /pickup loads last turns host-local only\","
          "\"session\":{\"id\":\"%s\",\"title\":\"%s\",\"updated_at\":\"%s\","
          "\"model\":\"%s\"}}\n",
-         id, te, ue, me);
+         resume_ok ? "true" : "false", he, id, te, ue, me);
   return 0;
 }
 

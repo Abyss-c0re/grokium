@@ -1042,16 +1042,50 @@ static void sessions_search(const char *root, const char *q, char *out,
              matched, scanned, total_meta, GK_SESSIONS_MAX);
 }
 
+/* Presence of chat_history only — never load transcript onto lab/ops wire. */
+static int session_resume_available(const char *root, const char *id,
+                                    const char *meta, size_t nmeta) {
+  char import_path[400], hist[480];
+  const char *h;
+  size_t hl;
+  if (!id || !id[0]) return 0;
+  import_path[0] = 0;
+  if (meta && nmeta)
+    json_get_str(meta, nmeta, "import_path", import_path, sizeof import_path);
+  if (!import_path[0] && meta && nmeta)
+    json_get_str(meta, nmeta, "source", import_path, sizeof import_path);
+  h = getenv("HOME");
+  hl = (h && h[0]) ? strlen(h) : 0;
+  if (import_path[0] == '/') {
+    int allow = 0;
+    if (hl && strncmp(import_path, h, hl) == 0 &&
+        (import_path[hl] == '/' || import_path[hl] == 0))
+      allow = 1;
+    /* also allow under data root parent when absolute path is repo-local */
+    if (!allow && root && root[0] && strstr(import_path, "/data/import/"))
+      allow = 1;
+    if (allow) {
+      snprintf(hist, sizeof hist, "%s/chat_history.jsonl", import_path);
+      if (access(hist, R_OK) == 0) return 1;
+    }
+  }
+  snprintf(hist, sizeof hist, "%s/import/%s/chat_history.jsonl",
+           root && root[0] ? root : "data", id);
+  return access(hist, R_OK) == 0 ? 1 : 0;
+}
+
 static int session_pickup(const char *root, const char *id, char *out,
                           size_t cap) {
   char path[480], meta[2048], entry[320];
   FILE *f;
   size_t nread;
+  int resume_ok;
   if (!out || cap < 64 || !session_id_safe(id)) {
     if (out && cap)
       snprintf(out, cap,
                "{\"ok\":false,\"error\":\"bad_session_id\","
-               "\"content\":\"meta_only\",\"share\":\"state_matrix_only\"}");
+               "\"content\":\"meta_only\",\"share\":\"state_matrix_only\","
+               "\"resume_available\":false}");
     return -1;
   }
   snprintf(path, sizeof path, "%s/import/%s.meta.json",
@@ -1060,8 +1094,9 @@ static int session_pickup(const char *root, const char *id, char *out,
   if (!f) {
     snprintf(out, cap,
              "{\"ok\":false,\"error\":\"not_found\",\"id\":\"%s\","
-             "\"content\":\"meta_only\",\"hint\":\"import meta only; "
-             "resume messages via host TUI\",\"share\":\"state_matrix_only\"}",
+             "\"content\":\"meta_only\",\"resume_available\":false,"
+             "\"hint\":\"import meta only; resume messages via host TUI\","
+             "\"share\":\"state_matrix_only\"}",
              id);
     return -1;
   }
@@ -1071,17 +1106,20 @@ static int session_pickup(const char *root, const char *id, char *out,
   if (session_compact_from_meta(meta, nread, entry, sizeof entry) != 0) {
     snprintf(out, cap,
              "{\"ok\":false,\"error\":\"bad_meta\",\"id\":\"%s\","
-             "\"share\":\"state_matrix_only\"}",
+             "\"share\":\"state_matrix_only\",\"resume_available\":false}",
              id);
     return -1;
   }
+  resume_ok = session_resume_available(root, id, meta, nread);
   snprintf(out, cap,
            "{\"schema\":\"grokium.session_pickup.v1\",\"ok\":true,"
            "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
            "\"peer_http\":\"lab_ops_only\",\"share\":\"state_matrix_only\","
            "\"telemetry\":\"off\",\"resume\":\"host_tui_pickup\","
+           "\"resume_available\":%s,"
+           "\"hint\":\"TUI /pickup loads host-local history only\","
            "\"session\":%s}",
-           entry);
+           resume_ok ? "true" : "false", entry);
   return 0;
 }
 

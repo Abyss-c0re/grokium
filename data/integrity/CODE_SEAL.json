@@ -3,7 +3,7 @@
   "product": "grokium",
   "language": "C",
   "note": "pure-C product seal; intentional reseal",
-  "aggregate": "252f0b1d9784008abff83b0e248261e55d9b1bf0c149b2eeae6ebdfccc947961",
+  "aggregate": "ca651fe980ee8a6e911462afed52a299228ad99ea015a86bda6546c00a71298f",
   "n_files": 61,
   "files": {
     ".agents/laws/00-THE_LAW.md": "71c47cd5f1873bb446f157dcbc7e081a919ae092d5bbbc6d6a73094934868f14",
@@ -31,7 +31,7 @@
     "c_core/src/consolidator_cli.c": "0e1e3de59c98b6fd16c825e39167328babd41aef970f5b19b39bbf24112050c8",
     "c_core/src/fleet.c": "b69cf7cc29623e4cfd33ff6684aeb7c86e841683b398f617875688c1988413fd",
     "c_core/src/fleet_cli.c": "2a41e2e9003a4667debcf6748782584f4af164ab702b902b18892d362374ff57",
-    "c_core/src/http.c": "d5d9c9adf3f977bdac75cde357f2fc0fcdd5668c5f4080324d5e72e8e5e89a45",
+    "c_core/src/http.c": "b27e2c258b012cbefbb81d9e91846baeb653f784f263bc226a2a076da4babb54",
     "c_core/src/http_cli.c": "d449144086cba1dfbad1b275bcccbadc6e9c310e2d016c319a72d5a04ee2510c",
     "c_core/src/integrity.c": "a35babfcbb82c6148ff42a13b04e6edfbda83077ee6823867c6b6d3b36d65160",
     "c_core/src/integrity_cli.c": "126b35b177953920cbf20f95f2c29f3be9c4f570a6274d0313a547c647235ef7",
@@ -51,7 +51,7 @@
     "host/src/grokium_chat.c": "a5bb0be8f6f21df8563f479ed95205b45240be96e5e4e1da2d5a9d96f5141448",
     "host/src/grokium_config.c": "8999d6bf2e643f76e8739707abbebb506458d017068b1fac79696ee06e9b9924",
     "host/src/grokium_hub.c": "40f0ec58fd35324f4b49bf92fa10d5627883badf3856556bb1f075ec0e975934",
-    "host/src/grokium_main.c": "a99198077424a167bc4090d1a23ccbef8501850d2abd7493c3f670f9f465c96a",
+    "host/src/grokium_main.c": "446a1b41f6a31b6af8f1f42f50b9a90adb94e70718b61554e076ba89519631f3",
     "host/src/grokium_media.c": "044dbaa52a82a554836990f29688eee0207699a28d58431fe67ccb3e751fabf4",
     "host/src/grokium_tui.c": "9f64462f15a96da18225d35cdf7fbac6ed8f1d5320d53c5fd5d3e07181f635b5",
     "host/src/grokium_version.c": "73cab08325b1dad0330182f2c17a65509c973dccff5782c166358fa9a10c041a",
@@ -68,5 +68,5 @@
     "scripts/sync_upstream_surface.sh": "0e7dbe4443842659ffdc3667010c916c6c1b0f0758a767db73e98e281e4f2363",
     "scripts/test.sh": "850b189feb81bae87b947461c3ca2d0347ce09f14b54313623be1e7a7ead3542"
   },
-  "ts": 1785862434
+  "ts": 1785863168
 }
