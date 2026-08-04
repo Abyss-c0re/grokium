@@ -6,6 +6,7 @@
 #include "grokium_version.h"
 #include "grokium_hub.h"
 #include "grokium_media.h"
+#include "grokium_status.h"
 #include "util.h"
 #include "ng_sched.h"
 #include "shell.h"
@@ -21,7 +22,6 @@
 #include <ctype.h>
 #include <errno.h>
 #include <time.h>
-#include <signal.h>
 
 extern char root[];
 extern char cubalc_bin[];
@@ -1132,87 +1132,13 @@ static void cmd_law_show(void) {
   log_add("  integrity=/integrity · commander=/commander · fleet=/fleet");
 }
 
-/* Honest fleet counts from FLEET.json + kill(0). */
-static void tui_fleet_probe(int *n_out, int *alive_out) {
-  char path[PATH_MAX], body[16384];
-  FILE *f;
-  size_t nread;
-  const char *p;
-  int n = 0, alive = 0;
-  if (n_out) *n_out = 0;
-  if (alive_out) *alive_out = 0;
-  snprintf(path, sizeof path, "%s/data/home/FLEET.json", root);
-  f = fopen(path, "r");
-  if (!f) return;
-  nread = fread(body, 1, sizeof body - 1, f);
-  body[nread] = 0;
-  fclose(f);
-  for (p = body; (p = strstr(p, "\"purpose\"")) != NULL; p += 9)
-    n++;
-  for (p = body; (p = strstr(p, "\"pid\"")) != NULL;) {
-    const char *q = p + 5;
-    long pid;
-    p = q;
-    while (*q == ' ' || *q == '\t' || *q == '\n' || *q == '\r') q++;
-    if (*q != ':') continue;
-    q++;
-    while (*q == ' ' || *q == '\t') q++;
-    if (*q == 'n' || *q == 'N' || *q == '"') continue;
-    pid = strtol(q, NULL, 10);
-    if (pid > 1) {
-      if (kill((pid_t)pid, 0) == 0 || errno == EPERM)
-        alive++;
-    }
-  }
-  if (n_out) *n_out = n;
-  if (alive_out) *alive_out = alive;
-}
-
-static void tui_matrix_probe(unsigned *bits_out, char *grade, size_t gcap) {
-  char path[PATH_MAX], body[8192];
-  FILE *f;
-  size_t nread;
-  const char *p, *bits;
-  unsigned cnt = 0;
-  if (bits_out) *bits_out = 0;
-  if (grade && gcap) snprintf(grade, gcap, "EMPTY");
-  snprintf(path, sizeof path, "%s/data/matrix/LATEST.json", root);
-  f = fopen(path, "r");
-  if (!f) return;
-  nread = fread(body, 1, sizeof body - 1, f);
-  body[nread] = 0;
-  fclose(f);
-  bits = strstr(body, "\"sot_bits\"");
-  if (bits) {
-    bits = strchr(bits, ':');
-    if (bits) {
-      bits++;
-      while (*bits == ' ' || *bits == '\t') bits++;
-      if (*bits == '"') {
-        bits++;
-        for (p = bits; *p && *p != '"'; p++)
-          if (*p == '1') cnt++;
-      }
-    }
-  }
-  if (bits_out) *bits_out = cnt;
-  if (grade && gcap) {
-    if (cnt == 0)
-      snprintf(grade, gcap, "EMPTY");
-    else if (cnt < 16)
-      snprintf(grade, gcap, "SPARSE");
-    else
-      snprintf(grade, gcap, "OK");
-  }
-}
-
-/* Dual-wire honesty status plate (matches host CLI / HTTP /v1/status shape). */
+/* Dual-wire honesty status plate (shared probes with host CLI). */
 static void cmd_status_show(void) {
-  char line[280], grade[32], hub[240];
+  char line[280], grade[32], hub[240], plate[512];
   int fleet_n = 0, fleet_alive = 0;
   unsigned matrix_bits = 0;
-  tui_fleet_probe(&fleet_n, &fleet_alive);
-  tui_matrix_probe(&matrix_bits, grade, sizeof grade);
+  gkx_status_fleet_probe(root, &fleet_n, &fleet_alive);
+  gkx_status_matrix_probe(root, &matrix_bits, grade, sizeof grade);
   log_add("--- status (dual-wire honesty · pure C) ---");
   log_add("  product_wire=smx2 · peer_http=lab_ops_only · peer_http_is_product_bus=0");
   log_add("  share=state_matrix_only · hold_flash=1 · telemetry=off");
@@ -1223,6 +1149,8 @@ static void cmd_status_show(void) {
   snprintf(line, sizeof line, "  backend=%s model=%s tools=%d",
            cfg.active_backend, cfg.active_model, cfg.agent_tools);
   log_add(line);
+  if (gkx_status_plate_json(root, "host_tui", plate, sizeof plate) == 0)
+    log_add_block(plate);
   hub[0] = 0;
   gkx_hub_status(hub, sizeof hub);
   if (hub[0]) {

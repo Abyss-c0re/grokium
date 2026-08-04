@@ -31,7 +31,7 @@ endif
 
 SRCS := src/grokium_main.c src/grokium_tui.c src/grokium_chat.c \
 	src/grokium_config.c src/grokium_version.c src/grokium_hub.c \
-	src/grokium_media.c
+	src/grokium_media.c src/grokium_status.c
 
 .PHONY: all clean nanobot install
 
@@ -44,7 +44,7 @@ nanobot:
 	  $(MAKE) -C "$(NANOBOT_ROOT)" host; \
 	fi
 
-out/grokium: $(SRCS) include/grokium.h include/grokium_chat.h include/grokium_config.h include/grokium_version.h include/grokium_hub.h include/grokium_media.h
+out/grokium: $(SRCS) include/grokium.h include/grokium_chat.h include/grokium_config.h include/grokium_version.h include/grokium_hub.h include/grokium_media.h include/grokium_status.h
 	@mkdir -p out
 	$(CC) $(CFLAGS) -o $@ $(SRCS) $(LIBS)
 
