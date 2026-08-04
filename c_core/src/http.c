@@ -65,6 +65,64 @@ static void http_reply(int fd, int code, const char *ctype, const char *body) {
   if (body && blen) (void)write(fd, body, blen);
 }
 
+/* SSE helpers — lab/ops only; product bus remains SMX2. Bits only. */
+static void http_sse_headers(int fd) {
+  static const char hdr[] =
+      "HTTP/1.1 200 OK\r\n"
+      "Content-Type: text/event-stream\r\n"
+      "Cache-Control: no-cache\r\n"
+      "Connection: close\r\n"
+      "X-Grokium-Telemetry: off\r\n"
+      "X-Grokium-Share: state_matrix_only\r\n"
+      "X-Grokium-Product-Wire: smx2\r\n"
+      "X-Grokium-Peer-HTTP: lab_ops_only\r\n"
+      "\r\n";
+  (void)write(fd, hdr, sizeof hdr - 1);
+}
+
+static void http_sse_event(int fd, const char *event, const char *data) {
+  char line[GK_HTTP_RESP_MAX + 64];
+  int n;
+  if (!data) data = "";
+  if (event && event[0]) {
+    n = snprintf(line, sizeof line, "event: %s\ndata: %s\n\n", event, data);
+  } else {
+    n = snprintf(line, sizeof line, "data: %s\n\n", data);
+  }
+  if (n > 0) (void)write(fd, line, (size_t)n);
+}
+
+static void json_matrix(const gk_consolidator *C, char *out, size_t cap);
+
+/* Snapshot SSE of latest matrix. Sequential serve: short-lived by design
+ * so lab/ops does not starve other loopback clients. Real multi-peer talk
+ * stays on the product SMX2 bus. */
+static void smx_sse_snapshot(int fd, const gk_consolidator *C) {
+  char payload[GK_HTTP_RESP_MAX];
+  char end[192];
+  static const char note[] =
+      ": grokium smx stream bits-only state_matrix_only\n\n";
+  http_sse_headers(fd);
+  (void)write(fd, note, sizeof note - 1);
+  if (!C) {
+    http_sse_event(fd, "error",
+                   "{\"ok\":false,\"error\":\"no_matrix\","
+                   "\"share\":\"state_matrix_only\"}");
+    http_sse_event(fd, "end",
+                   "{\"ok\":false,\"mode\":\"snapshot\","
+                   "\"share\":\"state_matrix_only\"}");
+    return;
+  }
+  json_matrix(C, payload, sizeof payload);
+  http_sse_event(fd, "smx", payload);
+  snprintf(end, sizeof end,
+           "{\"ok\":true,\"mode\":\"snapshot\",\"seq\":%llu,"
+           "\"share\":\"state_matrix_only\",\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\"}",
+           (unsigned long long)C->matrix.seq);
+  http_sse_event(fd, "end", end);
+}
+
 static int read_request(int fd, char *buf, size_t cap, size_t *out_n) {
   size_t n = 0;
   ssize_t r;
@@ -671,6 +729,18 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     return;
   }
 
+  /* SSE snapshot of latest SMX (bits only). Not long-lived fan-out;
+   * sequential accept loop; product multi-peer bus remains SMX2. */
+  if (!strcmp(path, "/v1/stream/smx")) {
+    if (strcmp(method, "GET") != 0) {
+      http_reply(cfd, 405, "application/json",
+                 "{\"ok\":false,\"error\":\"method\"}");
+      return;
+    }
+    smx_sse_snapshot(cfd, C);
+    return;
+  }
+
   if (!strcmp(path, "/v1/ability")) {
     if (strcmp(method, "GET") != 0) {
       http_reply(cfd, 405, "application/json",
@@ -1060,7 +1130,8 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
   http_reply(cfd, 404, "application/json",
              "{\"ok\":false,\"error\":\"not_found\","
              "\"hint\":\"/healthz /v1/status /v1/commander /v1/coord "
-             "/v1/contract/form /v1/manager/tick /v1/nanobot/status\"}");
+             "/v1/stream/smx /v1/contract/form /v1/manager/tick "
+             "/v1/nanobot/status\"}");
 }
 
 int grokium_serve(const char *host, int port, gk_consolidator *C, gk_fleet *F,

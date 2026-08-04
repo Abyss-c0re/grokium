@@ -27,6 +27,7 @@ make -C c_core all
 | POST | `/v1/stream/smx/publish` | same as coord |
 | GET | `/v1/matrix/latest` | last SMX |
 | GET | `/v1/stream/smx/latest` | same as matrix/latest |
+| GET | `/v1/stream/smx` | SSE snapshot of latest SMX (bits only; short-lived) |
 | GET | `/v1/nanobot/status` | fleet plate (honest pid/status) |
 | POST | `/v1/nanobot/deploy` | deploy homes + FLEET.json |
 | POST | `/v1/nanobot/spawn` | fork/exec bot(s); body = id, `{"id":…}`, or empty=all |
@@ -63,7 +64,6 @@ Host CLI: `contract`, `manager-tick`, `commander`, `llama`, `integrity tick|rese
 | GET/POST | `/v1/sessions/*` | search/pickup/resume/import |
 | GET | `/v1/cube/status` | Cube bridge |
 | GET | `/ui` | minimal UI |
-| GET | `/v1/stream/smx` | SSE stream |
 
 ## MCP (stdio)
 
@@ -93,7 +93,7 @@ Commander tools prove **product=grokium** via Ed25519.
 | GET | `/v1/integrity` | integrity tick report (503 if fail) |
 | GET | `/v1/integrity/policy` | sealed policy |
 | POST | `/v1/integrity/reseal` | intentional reseal |
-| GET | `/v1/stream/smx` | SSE real-time StateMatrix (bits only) |
+| GET | `/v1/stream/smx` | SSE snapshot of latest StateMatrix (bits only; sequential lab/ops) |
 | GET | `/v1/stream/smx/latest` | last SMX frame |
 | POST | `/v1/stream/smx/publish` | publish bits/plate (prose rejected) |
 

@@ -9,6 +9,7 @@
  * Product talk remains SMX2; this HTTP surface is lab/ops only.
  * Bind is forced to 127.0.0.1; non-loopback host is refused.
  * Coord/publish paths sanitize via SMX filter (prose denied).
+ * GET /v1/stream/smx — short SSE snapshot of latest matrix (bits only).
  * GROKIUM_SERVE_MAX=N exits after N requests (selftest).
  */
 int grokium_serve(const char *host, int port,

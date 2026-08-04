@@ -91,7 +91,7 @@ static int selftest(void) {
   char resp[4096];
   const char *b;
   int st, fails = 0;
-  setenv("GROKIUM_SERVE_MAX", "18", 1);
+  setenv("GROKIUM_SERVE_MAX", "20", 1);
   {
     gk_commander cmd;
     const char *law = "/tmp/gk_law_serve";
@@ -176,6 +176,15 @@ static int selftest(void) {
     fails++;
   else if (!strstr(body_of(resp), "\"share\":\"state_matrix_only\""))
     fails++;
+  if (http_get("127.0.0.1", port, "/v1/stream/smx", resp, sizeof resp) < 0)
+    fails++;
+  else if (!strstr(resp, "text/event-stream") ||
+           !strstr(resp, "event: smx") ||
+           !strstr(body_of(resp), "\"share\":\"state_matrix_only\"") ||
+           !strstr(resp, "event: end")) {
+    fprintf(stderr, "selftest: smx SSE fail: %.400s\n", resp);
+    fails++;
+  }
   if (http_post("127.0.0.1", port, "/v1/contract/form",
                 "{\"assignee\":\"nb-worker-1\",\"task\":\"map tool loop\","
                 "\"min_set\":1}",
@@ -241,7 +250,7 @@ static int selftest(void) {
     return 1;
   }
   printf("LOOPBACK_HTTP_OK port=%d dual_wire=honest smx_filter=on "
-         "contracts=on commander=on llama_probe=on\n",
+         "contracts=on commander=on llama_probe=on smx_sse=on\n",
          port);
   return 0;
 }
