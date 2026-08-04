@@ -13,6 +13,7 @@
  * GET /v1/cube/status — AlgoCube bridge plate (digit/blueprint, dual-wire).
  * GET/POST /v1/sessions[/search|/pickup|/id] — import metas only (no transcripts).
  * GET /ui — minimal lab/ops HTML plate (dual-wire honesty; not product chat).
+ * POST /v1/agent — lab/ops chat-only agent (tools:false; tools → host nanobot).
  * GROKIUM_SERVE_MAX=N exits after N requests (selftest).
  */
 int grokium_serve(const char *host, int port,

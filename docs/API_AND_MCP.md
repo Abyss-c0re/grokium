@@ -49,6 +49,7 @@ make -C c_core all
 | POST | `/v1/commander/reject_model` | deny “I am Grok” authority claims |
 | GET | `/v1/llama/probe` | local llama.cpp reachability (`llm_is_commander:false`) |
 | POST | `/v1/chat` | local-first completion via loopback llama only (`llm_is_commander:false`) |
+| POST | `/v1/agent` | lab/ops agent-lite (chat only; `tools:false`; tools → host nanobot) |
 | GET | `/v1/integrity` | code seal + privacy tick (503 if fail) |
 | GET | `/v1/integrity/policy` | integrity policy plate |
 | POST | `/v1/integrity/reseal` | intentional CODE_SEAL rewrite |
@@ -64,17 +65,17 @@ Host CLI: `contract`, `manager-tick`, `commander`, `llama`, `integrity tick|rese
 
 ### Planned / not yet in pure-C serve
 
-| Method | Path | Role |
-|--------|------|------|
-| POST | `/v1/agent` | tool agent (host TUI / nanobot path today) |
+None for the loopback serve surface listed above. Rich tool loops (shell,
+browser, multi-step) remain host TUI / nanobot — pure-C `/v1/agent` is
+chat-only and returns **501** if `tools:true`.
 
 Session routes return **meta only** (id/title/updated/model counts) from
 `{data_root}/import/*.meta.json` — no chat transcripts on the lab/ops wire.
 Full resume/import of messages stays host TUI / nanobot.
 
 `GET /ui` is a static-ish lab/ops HTML plate (live matrix/fleet counts), not a
-product chat UI. `POST /v1/chat` is short non-streaming loopback completion.
-Neither elevates the LLM to Commander. Multi-peer product talk stays SMX2.
+product chat UI. `POST /v1/chat` and chat-only `POST /v1/agent` never elevate
+the LLM to Commander. Multi-peer product talk stays SMX2.
 
 ## MCP (stdio)
 

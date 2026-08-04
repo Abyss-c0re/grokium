@@ -46,8 +46,31 @@ static const char *reason_phrase(int code) {
   case 405: return "Method Not Allowed";
   case 413: return "Payload Too Large";
   case 500: return "Internal Server Error";
+  case 501: return "Not Implemented";
+  case 502: return "Bad Gateway";
+  case 503: return "Service Unavailable";
   default: return "Error";
   }
+}
+
+/* Detect tools:true / tools:1 / use_tools:true in JSON body (ops honesty). */
+static int body_requests_tools(const char *body, size_t n) {
+  char tmp[GK_HTTP_BODY_MAX + 1];
+  size_t i;
+  if (!body || n == 0) return 0;
+  if (n >= sizeof tmp) n = sizeof tmp - 1;
+  memcpy(tmp, body, n);
+  tmp[n] = 0;
+  for (i = 0; tmp[i]; i++) {
+    if (tmp[i] >= 'A' && tmp[i] <= 'Z') tmp[i] = (char)(tmp[i] + 32);
+  }
+  if (strstr(tmp, "\"tools\":true") || strstr(tmp, "\"tools\": true"))
+    return 1;
+  if (strstr(tmp, "\"tools\":1") || strstr(tmp, "\"tools\": 1")) return 1;
+  if (strstr(tmp, "\"use_tools\":true") || strstr(tmp, "\"use_tools\": true"))
+    return 1;
+  if (strstr(tmp, "\"tool_agent\":true")) return 1;
+  return 0;
 }
 
 static void http_reply(int fd, int code, const char *ctype, const char *body) {
@@ -1151,9 +1174,9 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
         "<li><a href=\"/v1/commander\"><code>/v1/commander</code></a></li>\n"
         "<li><a href=\"/v1/integrity\"><code>/v1/integrity</code></a></li>\n"
         "</ul>\n"
-        "<p class=\"muted\">POST <code>/v1/chat</code> and <code>/v1/coord</code> "
-        "from clients; tool agent remains host TUI / nanobot. "
-        "HOLD_FLASH ack_held.</p>\n"
+        "<p class=\"muted\">POST <code>/v1/chat</code> / <code>/v1/agent</code> "
+        "(chat-only) and <code>/v1/coord</code>; shell tools remain host TUI / "
+        "nanobot. HOLD_FLASH ack_held.</p>\n"
         "</body></html>\n",
         C ? C->matrix.bits_set : 0, C ? C->grade : "EMPTY", F ? F->n : 0,
         L ? L->hold_flash : 1);
@@ -1659,6 +1682,111 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     return;
   }
 
+  /*
+   * Lab/ops agent-lite: local chat only. Shell/tool loops stay on host
+   * nanobot (embeddable core). Never elevates LLM to Commander.
+   */
+  if (!strcmp(path, "/v1/agent")) {
+    char msg[2048], chat[GK_HTTP_RESP_MAX], content[2048], content_esc[2560];
+    char errf[96];
+    int code, ok;
+    if (strcmp(method, "POST") != 0) {
+      http_reply(cfd, 405, "application/json",
+                 "{\"ok\":false,\"error\":\"method\","
+                 "\"tools\":false,\"llm_is_commander\":false}");
+      return;
+    }
+    if (body_requests_tools(body, body_n)) {
+      http_reply(cfd, 501, "application/json",
+                 "{\"schema\":\"grokium.agent.v1\",\"ok\":false,"
+                 "\"error\":\"tools_not_on_lab_ops\",\"tools\":false,"
+                 "\"tool_agent\":\"host_nanobot\","
+                 "\"agent_mode\":\"lab_ops_chat_only\","
+                 "\"hint\":\"use host TUI / nanobot for shell tools;"
+                 " POST /v1/agent without tools for local chat\","
+                 "\"llm_is_commander\":false,\"commander_is_model\":false,"
+                 "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+                 "\"share\":\"state_matrix_only\",\"telemetry\":\"off\"}");
+      return;
+    }
+    msg[0] = 0;
+    if (body && body_n > 0) {
+      if (body[0] == '{') {
+        if (json_get_str(body, body_n, "message", msg, sizeof msg) != 0 &&
+            json_get_str(body, body_n, "content", msg, sizeof msg) != 0 &&
+            json_get_str(body, body_n, "prompt", msg, sizeof msg) != 0 &&
+            json_get_str(body, body_n, "task", msg, sizeof msg) != 0)
+          msg[0] = 0;
+      } else {
+        size_t n = body_n < sizeof msg - 1 ? body_n : sizeof msg - 1;
+        memcpy(msg, body, n);
+        msg[n] = 0;
+        while (n > 0 && (msg[n - 1] == '\n' || msg[n - 1] == '\r'))
+          msg[--n] = 0;
+      }
+    }
+    if (!msg[0]) {
+      http_reply(cfd, 400, "application/json",
+                 "{\"schema\":\"grokium.agent.v1\",\"ok\":false,"
+                 "\"error\":\"need_message\",\"tools\":false,"
+                 "\"tool_agent\":\"host_nanobot\","
+                 "\"llm_is_commander\":false,\"share\":\"state_matrix_only\"}");
+      return;
+    }
+    if (grokium_llama_chat(msg, chat, sizeof chat) != 0) {
+      http_reply(cfd, 500, "application/json",
+                 "{\"schema\":\"grokium.agent.v1\",\"ok\":false,"
+                 "\"error\":\"agent_chat_failed\",\"tools\":false,"
+                 "\"llm_is_commander\":false}");
+      return;
+    }
+    ok = strstr(chat, "\"ok\":true") != NULL;
+    content[0] = errf[0] = 0;
+    if (ok) {
+      if (extract_json_string_field(chat, "content", content, sizeof content) !=
+          0)
+        content[0] = 0;
+    } else {
+      if (extract_json_string_field(chat, "error", errf, sizeof errf) != 0)
+        snprintf(errf, sizeof errf, "chat_failed");
+    }
+    json_escape(content, content_esc, sizeof content_esc);
+    if (ok) {
+      snprintf(resp, sizeof resp,
+               "{\"schema\":\"grokium.agent.v1\",\"ok\":true,"
+               "\"tools\":false,\"tool_agent\":\"host_nanobot\","
+               "\"agent_mode\":\"lab_ops_chat_only\","
+               "\"content\":\"%s\",\"llm_is_commander\":false,"
+               "\"commander_is_model\":false,\"product_wire\":\"smx2\","
+               "\"peer_http\":\"lab_ops_only\",\"share\":\"state_matrix_only\","
+               "\"local_first\":true,\"telemetry\":\"off\"}",
+               content_esc);
+      code = 200;
+    } else if (strstr(chat, "\"reachable\":false")) {
+      snprintf(resp, sizeof resp,
+               "{\"schema\":\"grokium.agent.v1\",\"ok\":false,"
+               "\"tools\":false,\"tool_agent\":\"host_nanobot\","
+               "\"agent_mode\":\"lab_ops_chat_only\","
+               "\"error\":\"%s\",\"llm_is_commander\":false,"
+               "\"commander_is_model\":false,\"product_wire\":\"smx2\","
+               "\"peer_http\":\"lab_ops_only\",\"share\":\"state_matrix_only\","
+               "\"local_first\":true}",
+               errf[0] ? errf : "unreachable");
+      code = 503;
+    } else {
+      snprintf(resp, sizeof resp,
+               "{\"schema\":\"grokium.agent.v1\",\"ok\":false,"
+               "\"tools\":false,\"tool_agent\":\"host_nanobot\","
+               "\"agent_mode\":\"lab_ops_chat_only\","
+               "\"error\":\"%s\",\"llm_is_commander\":false,"
+               "\"product_wire\":\"smx2\",\"share\":\"state_matrix_only\"}",
+               errf[0] ? errf : "no_content");
+      code = 502;
+    }
+    http_reply(cfd, code, "application/json", resp);
+    return;
+  }
+
   if (!strcmp(path, "/v1/integrity") || !strcmp(path, "/v1/integrity/tick")) {
     int rc;
     const char *rroot = getenv("GROKIUM_ROOT");
@@ -1850,7 +1978,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
   http_reply(cfd, 404, "application/json",
              "{\"ok\":false,\"error\":\"not_found\","
              "\"hint\":\"/ui /healthz /v1/status /v1/cube/status /v1/sessions "
-             "/v1/commander /v1/chat /v1/coord /v1/stream/smx "
+             "/v1/commander /v1/chat /v1/agent /v1/coord /v1/stream/smx "
              "/v1/contract/form /v1/manager/tick /v1/nanobot/status\"}");
 }
 

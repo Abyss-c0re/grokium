@@ -91,7 +91,7 @@ static int selftest(void) {
   char resp[4096];
   const char *b;
   int st, fails = 0;
-  setenv("GROKIUM_SERVE_MAX", "32", 1);
+  setenv("GROKIUM_SERVE_MAX", "36", 1);
   {
     gk_commander cmd;
     const char *law = "/tmp/gk_law_serve";
@@ -312,6 +312,34 @@ static int selftest(void) {
       fails++;
     }
   }
+  /* agent-lite: tools refused; empty denied; message plate is tools:false */
+  if (http_post("127.0.0.1", port, "/v1/agent",
+                "{\"message\":\"x\",\"tools\":true}", resp, sizeof resp) < 0)
+    fails++;
+  else if (!strstr(resp, "501") &&
+           !strstr(body_of(resp), "tools_not_on_lab_ops")) {
+    fprintf(stderr, "selftest: agent tools should 501: %.300s\n", resp);
+    fails++;
+  }
+  if (http_post("127.0.0.1", port, "/v1/agent", "", resp, sizeof resp) < 0)
+    fails++;
+  else if (!strstr(resp, "400") && !strstr(body_of(resp), "need_message")) {
+    fprintf(stderr, "selftest: agent empty should 400: %.200s\n", resp);
+    fails++;
+  }
+  if (http_post("127.0.0.1", port, "/v1/agent", "{\"message\":\"ping\"}", resp,
+                sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if (!strstr(b, "\"schema\":\"grokium.agent.v1\"") ||
+        !strstr(b, "\"tools\":false") ||
+        !strstr(b, "tool_agent\":\"host_nanobot") ||
+        !strstr(b, "llm_is_commander\":false")) {
+      fprintf(stderr, "selftest: agent honesty fail: %.400s\n", resp);
+      fails++;
+    }
+  }
 
   kill(child, SIGTERM);
   waitpid(child, &st, 0);
@@ -321,7 +349,7 @@ static int selftest(void) {
   }
   printf("LOOPBACK_HTTP_OK port=%d dual_wire=honest smx_filter=on "
          "contracts=on commander=on llama_probe=on smx_sse=on chat=on "
-         "cube_status=on sessions=on ui=on\n",
+         "cube_status=on sessions=on ui=on agent=on\n",
          port);
   return 0;
 }
