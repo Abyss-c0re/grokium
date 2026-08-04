@@ -91,7 +91,7 @@ static int selftest(void) {
   char resp[4096];
   const char *b;
   int st, fails = 0;
-  setenv("GROKIUM_SERVE_MAX", "26", 1);
+  setenv("GROKIUM_SERVE_MAX", "30", 1);
   {
     gk_commander cmd;
     const char *law = "/tmp/gk_law_serve";
@@ -155,6 +155,34 @@ static int selftest(void) {
       fprintf(stderr, "selftest: cube status fail: %.400s\n", resp);
       fails++;
     }
+  }
+  /* sessions: meta-only plate; may be empty if import dir missing */
+  if (http_get("127.0.0.1", port, "/v1/sessions", resp, sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if (!strstr(b, "\"schema\":\"grokium.sessions.v1\"") ||
+        !strstr(b, "\"content\":\"meta_only\"") ||
+        !strstr(b, "\"share\":\"state_matrix_only\"")) {
+      fprintf(stderr, "selftest: sessions list fail: %.400s\n", resp);
+      fails++;
+    }
+  }
+  if (http_get("127.0.0.1", port, "/v1/sessions/search?q=grokium", resp,
+                sizeof resp) < 0)
+    fails++;
+  else if (!strstr(body_of(resp), "\"content\":\"meta_only\"")) {
+    fprintf(stderr, "selftest: sessions search fail: %.300s\n", resp);
+    fails++;
+  }
+  if (http_get("127.0.0.1", port, "/v1/sessions/pickup?id=not-a-real-id", resp,
+                sizeof resp) < 0)
+    fails++;
+  else if (!strstr(resp, "404") && !strstr(body_of(resp), "not_found") &&
+           !strstr(body_of(resp), "bad_session_id")) {
+    fprintf(stderr, "selftest: sessions pickup miss should fail: %.200s\n",
+            resp);
+    fails++;
   }
   if (http_get("127.0.0.1", port, "/v1/law", resp, sizeof resp) < 0)
     fails++;
@@ -283,7 +311,7 @@ static int selftest(void) {
   }
   printf("LOOPBACK_HTTP_OK port=%d dual_wire=honest smx_filter=on "
          "contracts=on commander=on llama_probe=on smx_sse=on chat=on "
-         "cube_status=on\n",
+         "cube_status=on sessions=on\n",
          port);
   return 0;
 }

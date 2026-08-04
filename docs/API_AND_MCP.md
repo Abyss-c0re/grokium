@@ -22,6 +22,10 @@ make -C c_core all
 | GET | `/healthz` | liveness |
 | GET | `/v1/status` | law + dual-wire honesty (`product_wire=smx2`) |
 | GET | `/v1/cube/status` | AlgoCube bridge plate (digit/blueprint, dual-wire) |
+| GET/POST | `/v1/sessions` | list imported session metas (`?q=` optional) |
+| GET/POST | `/v1/sessions/search` | same; body/query `q` |
+| GET/POST | `/v1/sessions/pickup` | meta for `id` (query/body); resume messages = host TUI |
+| GET | `/v1/sessions/{id}` | meta pickup by id |
 | GET | `/v1/law` | law plate |
 | GET | `/v1/ability` | consolidator ability card |
 | POST | `/v1/coord` | NEXUS_COORD → matrix (**SMX filter sanitize**) |
@@ -62,8 +66,11 @@ Host CLI: `contract`, `manager-tick`, `commander`, `llama`, `integrity tick|rese
 | Method | Path | Role |
 |--------|------|------|
 | POST | `/v1/agent` | tool agent (host TUI / nanobot path today) |
-| GET/POST | `/v1/sessions/*` | search/pickup/resume/import |
 | GET | `/ui` | minimal UI |
+
+Session routes return **meta only** (id/title/updated/model counts) from
+`{data_root}/import/*.meta.json` — no chat transcripts on the lab/ops wire.
+Full resume/import of messages stays host TUI / nanobot.
 
 `POST /v1/chat` is implemented as a short non-streaming loopback completion
 (lab/ops). It never elevates the LLM to Commander. Multi-peer product talk
