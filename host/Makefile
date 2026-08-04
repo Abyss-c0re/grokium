@@ -33,7 +33,7 @@ SRCS := src/grokium_main.c src/grokium_tui.c src/grokium_chat.c \
 	src/grokium_config.c src/grokium_version.c src/grokium_hub.c \
 	src/grokium_media.c src/grokium_status.c
 
-.PHONY: all clean nanobot install
+.PHONY: all clean nanobot install test-status test
 
 all: nanobot out/grokium
 
@@ -48,8 +48,19 @@ out/grokium: $(SRCS) include/grokium.h include/grokium_chat.h include/grokium_co
 	@mkdir -p out
 	$(CC) $(CFLAGS) -o $@ $(SRCS) $(LIBS)
 
+# Dual-wire status probes only — no nanobot/ncurses link.
+out/status_probe_selftest: tests/status_probe_selftest.c src/grokium_status.c \
+	include/grokium_status.h
+	@mkdir -p out
+	$(CC) $(CFLAGS) -o $@ tests/status_probe_selftest.c src/grokium_status.c
+
+test-status: out/status_probe_selftest
+	@./out/status_probe_selftest
+
+test: test-status
+
 clean:
-	rm -f out/grokium
+	rm -f out/grokium out/status_probe_selftest
 
 install: all
 	install -m755 out/grokium $(HOME)/.local/bin/grokium
