@@ -92,20 +92,25 @@ Fleet peers should use the same lock env (or talk to hub `POST /peer/v1/prompt` 
 ./scripts/grokium -p 'hello'   # streamed, gated
 ```
 
-## BrainCube + braincells (coding hive)
+## BrainCube mini-hive + external nanobots
+
+BrainCube is an **internal mini-hive** (decision lattice + local cell routing).  
+It is not the whole fleet — it **can** reach **external nanobots** on the peer bus.
 
 | Piece | Role |
 |-------|------|
-| `deps/braincube` | LHLAM decision core (`lhlam_cube_decide*`) |
-| `deps/nanobot` | Agent + **braincells** (explore / plan / implement subagents) |
-| `NANOBOT_BRAINCELLS=1` | Enable hive (Grokium sets this) |
+| `deps/braincube` | LHLAM mini-hive core (`lhlam_cube_decide*`) — route/fuse only |
+| `deps/nanobot` | Host: local **braincells** (subagents) + peer HTTP for external bots |
+| `NANOBOT_BRAINCELLS=1` | Enable mini-hive (Grokium desktop default) |
+| `NANOBOT_PEER_URL` | Optional external peer base URL (hive signals / remote capacity) |
 
 Flow for non-trivial coding prompts:
 
-1. Core routes **SOLO** vs **HIVE**
-2. HIVE: spawn explore + plan cells → publish under `$NANOBOT_HOME/braincells/`
-3. Core fuses reports → implement cell
-4. Final text returns to TUI; tool results still loop back
+1. Mini-hive routes **SOLO** vs **HIVE**
+2. **HIVE (internal):** spawn explore + plan cells → `$NANOBOT_HOME/braincells/*.json`
+3. Core fuses reports → implement cell (still local unless peer policy says otherwise)
+4. **External (optional):** publish cell events to `NANOBOT_PEER_URL` peer API (token-gated)
+5. Final text returns to TUI; tool results still loop back
 
 ```bash
 ./scripts/sync_braincube.sh
@@ -114,7 +119,8 @@ make host
 ```
 
 Submodules: see `.gitmodules` (`deps/nanobot`, `deps/braincube`, `deps/cubalc`).  
-Local dev may use sibling symlinks via the sync scripts.
+Local dev may use sibling symlinks via the sync scripts.  
+Law: [`.agents/laws/05-BRAINCELL_HIVE.md`](../.agents/laws/05-BRAINCELL_HIVE.md).
 
 ## Long-running agents
 

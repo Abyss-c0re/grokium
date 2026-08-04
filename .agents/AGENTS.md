@@ -16,7 +16,7 @@ Not affiliated with xAI. Product: **Grokium**. Core: **nanobot** (embeddable C).
 |-------|------|------|
 | Host TUI | `host/` | Desktop UX, config, hub, version watch |
 | Agent core | `deps/nanobot` | Chat, tools, MCP, LLM gate, **braincells** |
-| Decision core | `deps/braincube` | LHLAM BrainCube — hive route/fuse |
+| Decision core | `deps/braincube` | LHLAM BrainCube — **internal mini-hive** (route/fuse); talks to local cells + optional external nanobots |
 | Board | `cubalc/programs/` | Optional fleet/law CubalC |
 | Config | `config/` | Local llama + hub slots |
 
@@ -28,7 +28,7 @@ Not affiliated with xAI. Product: **Grokium**. Core: **nanobot** (embeddable C).
 - **No xAI branding as product** — interop only, honest User-Agent.
 - **Commander ≠ model** — only Ed25519 under `data/law/commander.pk`.
 - **nanobot stays embeddable** — no ncurses in core; tidy commits only.
-- **BrainCube decides; nanobots are braincells** — see laws/05-BRAINCELL_HIVE.md.
+- **BrainCube = internal mini-hive; nanobots = cells (local or external peers)** — see laws/05-BRAINCELL_HIVE.md.
 - **py=0** — no Python product path.
 
 ## Secrets
