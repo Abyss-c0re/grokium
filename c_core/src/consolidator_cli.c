@@ -10,6 +10,17 @@
 #include <string.h>
 #include <time.h>
 
+/*
+ * External ingest deny plate — same dual-wire honesty as loopback /v1/coord.
+ * Host TUI/CLI surface this via grokium-consolidate (SMX sanitize gate).
+ */
+static const char k_filter_deny[] =
+    "{\"schema\":\"grokium.consolidator_ingest.v1\",\"ok\":false,"
+    "\"error\":\"smx_filter_deny\",\"share\":\"state_matrix_only\","
+    "\"hold_flash\":1,\"product_wire\":\"smx2\","
+    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
+    "\"llm_on_hot_path\":false,\"llm_is_commander\":false}";
+
 /* External ingest path: prose / hold_flash=0 / non-SMX denied (law). */
 static int ingest_external(gk_consolidator *C, grokium_law *L, const char *id,
                            const char *data, double now) {
@@ -17,10 +28,7 @@ static int ingest_external(gk_consolidator *C, grokium_law *L, const char *id,
   if (!C || !L || !data || !data[0]) return -1;
   n = strlen(data);
   if (!grokium_smx_filter_allow_frame(L, (const uint8_t *)data, n, 1)) {
-    fprintf(stderr,
-            "{\"ok\":false,\"error\":\"smx_filter_deny\","
-            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-            "\"product_wire\":\"smx2\"}\n");
+    fprintf(stderr, "%s\n", k_filter_deny);
     return -1;
   }
   return gk_ingest(C, id, data, n, now);
@@ -64,6 +72,16 @@ int main(int argc, char **argv) {
       fprintf(stderr, "dedup fail n=%d\n", C.n_items);
       return 1;
     }
+    /* deny plate dual-wire honesty (host sanitize path) */
+    if (!strstr(k_filter_deny, "\"product_wire\":\"smx2\"") ||
+        !strstr(k_filter_deny, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(k_filter_deny, "\"peer_http_is_product_bus\":false") ||
+        !strstr(k_filter_deny, "\"llm_is_commander\":false") ||
+        !strstr(k_filter_deny, "\"hold_flash\":1") ||
+        !strstr(k_filter_deny, "\"share\":\"state_matrix_only\"")) {
+      fprintf(stderr, "selftest: filter deny dual-wire plate fail\n");
+      return 1;
+    }
     /* prose must not enter lattice */
     if (ingest_external(&C, &L, "bad", prose, now) >= 0 || C.n_items != 2) {
       fprintf(stderr, "selftest: prose should be denied\n");
@@ -105,8 +123,12 @@ int main(int argc, char **argv) {
     }
     if (!got) {
       fprintf(stderr,
-              "{\"ok\":false,\"error\":\"nothing_ingested\","
-              "\"share\":\"state_matrix_only\"}\n");
+              "{\"schema\":\"grokium.consolidator_ingest.v1\",\"ok\":false,"
+              "\"error\":\"nothing_ingested\",\"share\":\"state_matrix_only\","
+              "\"hold_flash\":1,\"product_wire\":\"smx2\","
+              "\"peer_http\":\"lab_ops_only\","
+              "\"peer_http_is_product_bus\":false,"
+              "\"llm_is_commander\":false}\n");
       return 1;
     }
     gk_consolidate(&C, now);
@@ -127,7 +149,13 @@ int main(int argc, char **argv) {
               56, now);
     gk_consolidate(&C, now);
     if (gk_save_dir(&C, dir) != 0) return 1;
-    printf("{\"ok\":true,\"dir\":\"%s\",\"grade\":\"%s\"}\n", dir, C.grade);
+    printf("{\"schema\":\"grokium.consolidator_save.v1\",\"ok\":true,"
+           "\"dir\":\"%s\",\"grade\":\"%s\",\"share\":\"state_matrix_only\","
+           "\"hold_flash\":1,\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false}\n",
+           dir, C.grade);
     return 0;
   }
   return 2;
