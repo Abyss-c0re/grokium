@@ -271,6 +271,11 @@ static int write_latest(const char *root, int ok, const char *agg,
           "  \"product\": \"grokium\",\n"
           "  \"not\": \"data_collector\",\n"
           "  \"share\": \"state_matrix_only\",\n"
+          "  \"hold_flash\": 1,\n"
+          "  \"product_wire\": \"smx2\",\n"
+          "  \"peer_http\": \"lab_ops_only\",\n"
+          "  \"peer_http_is_product_bus\": false,\n"
+          "  \"llm_is_commander\": false,\n"
           "  \"findings\": [\n"
           "    {\"id\": \"privacy_flags\", \"ok\": %s},\n"
           "    {\"id\": \"code_seal\", \"ok\": %s, \"n_files\": %d, "
@@ -296,8 +301,14 @@ int gk_integrity_tick(const char *repo_root, char *json_out, size_t cap) {
   if (load_seal_expected(root, exp, &n, exp_agg) != 0) {
     if (json_out && cap)
       snprintf(json_out, cap,
-               "{\"ok\":false,\"error\":\"no_code_seal\","
-               "\"hint\":\"grokium integrity reseal\"}");
+               "{\"schema\":\"grokium.integrity_report.v1\",\"ok\":false,"
+               "\"error\":\"no_code_seal\","
+               "\"hint\":\"grokium integrity reseal\","
+               "\"fail_closed\":true,\"share\":\"state_matrix_only\","
+               "\"hold_flash\":1,\"product_wire\":\"smx2\","
+               "\"peer_http\":\"lab_ops_only\","
+               "\"peer_http_is_product_bus\":false,"
+               "\"llm_is_commander\":false}");
     return -1;
   }
   lines[0] = 0;
@@ -342,7 +353,10 @@ int gk_integrity_tick(const char *repo_root, char *json_out, size_t cap) {
              "\"n_files\":%d,\"mismatches\":%d,\"aggregate\":\"%s\","
              "\"expected_aggregate\":\"%s\",\"product\":\"grokium\","
              "\"not\":\"data_collector\",\"share\":\"state_matrix_only\","
-             "\"bad_prefix\":\"%.120s\"}",
+             "\"hold_flash\":1,\"product_wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"bad_prefix\":\"%.120s\"}",
              ok ? "true" : "false", priv ? "true" : "false",
              seal_ok ? "true" : "false", n, bad, live_agg, exp_agg,
              lines[0] ? lines : "");
@@ -357,8 +371,13 @@ int gk_integrity_policy(const char *repo_root, char *json_out, size_t cap) {
   root_join(root, "data/integrity/POLICY.json", path, sizeof path);
   if (read_file_str(path, json_out, cap) != 0) {
     snprintf(json_out, cap,
-             "{\"ok\":false,\"error\":\"no_policy\","
-             "\"path\":\"data/integrity/POLICY.json\"}");
+             "{\"schema\":\"grokium.integrity_policy.v1\",\"ok\":false,"
+             "\"error\":\"no_policy\","
+             "\"path\":\"data/integrity/POLICY.json\","
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false}");
     return -1;
   }
   return 0;
@@ -374,7 +393,12 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
   char fullp[512];
   if (collect_product(ents, &n, root) <= 0) {
     if (json_out && cap)
-      snprintf(json_out, cap, "{\"ok\":false,\"error\":\"no_files\"}");
+      snprintf(json_out, cap,
+               "{\"schema\":\"grokium.integrity_reseal.v1\",\"ok\":false,"
+               "\"error\":\"no_files\",\"share\":\"state_matrix_only\","
+               "\"hold_flash\":1,\"product_wire\":\"smx2\","
+               "\"peer_http_is_product_bus\":false,"
+               "\"llm_is_commander\":false}");
     return -1;
   }
   aggregate_hex(ents, n, agg);
@@ -387,7 +411,12 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
   f = fopen(path, "w");
   if (!f) {
     if (json_out && cap)
-      snprintf(json_out, cap, "{\"ok\":false,\"error\":\"write_seal\"}");
+      snprintf(json_out, cap,
+               "{\"schema\":\"grokium.integrity_reseal.v1\",\"ok\":false,"
+               "\"error\":\"write_seal\",\"share\":\"state_matrix_only\","
+               "\"hold_flash\":1,\"product_wire\":\"smx2\","
+               "\"peer_http_is_product_bus\":false,"
+               "\"llm_is_commander\":false}");
     return -1;
   }
   fprintf(f,
@@ -441,8 +470,13 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
   (void)write_latest(root, 1, agg, privacy_ok(root), 1, n, 0);
   if (json_out && cap)
     snprintf(json_out, cap,
-             "{\"ok\":true,\"resealed\":true,\"n_files\":%d,\"aggregate\":\"%s\","
-             "\"path\":\"data/integrity/CODE_SEAL.json\",\"product\":\"grokium\"}",
+             "{\"schema\":\"grokium.integrity_reseal.v1\",\"ok\":true,"
+             "\"resealed\":true,\"n_files\":%d,\"aggregate\":\"%s\","
+             "\"path\":\"data/integrity/CODE_SEAL.json\",\"product\":\"grokium\","
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false}",
              n, agg);
   return 0;
 }

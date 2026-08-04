@@ -95,8 +95,15 @@ test-serve: $(BUILD)/grokium-serve
 
 test-integrity: $(BUILD)/grokium-integrity
 	@set -e; \
-	$(BUILD)/grokium-integrity reseal .. >/dev/null; \
-	$(BUILD)/grokium-integrity tick .. | grep -q '"ok":true'; \
+	R=$$($(BUILD)/grokium-integrity reseal ..); \
+	echo "$$R" | grep -q '"ok":true'; \
+	echo "$$R" | grep -q '"product_wire":"smx2"'; \
+	T=$$($(BUILD)/grokium-integrity tick ..); \
+	echo "$$T" | grep -q '"ok":true'; \
+	echo "$$T" | grep -q '"product_wire":"smx2"'; \
+	echo "$$T" | grep -q '"peer_http_is_product_bus":false'; \
+	echo "$$T" | grep -q '"llm_is_commander":false'; \
+	echo "$$T" | grep -q '"hold_flash":1'; \
 	$(BUILD)/grokium-integrity policy .. | grep -q state_matrix_only; \
 	echo INTEGRITY_OK
 

@@ -555,8 +555,13 @@ static int selftest(void) {
         !strstr(b, "\"fail_closed\":true") ||
         !strstr(b, "\"share\":\"state_matrix_only\"") ||
         !strstr(b, "\"not\":\"data_collector\"") ||
-        !strstr(b, "\"privacy_ok\":true")) {
-      fprintf(stderr, "selftest: integrity tick plate fail: %.400s\n", resp);
+        !strstr(b, "\"privacy_ok\":true") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"hold_flash\":1")) {
+      fprintf(stderr, "selftest: integrity tick dual-wire fail: %.400s\n", resp);
       fails++;
     } else if (strstr(b, "\"ok\":true")) {
       if (!strstr(b, "\"code_seal_ok\":true") ||
