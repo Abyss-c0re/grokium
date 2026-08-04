@@ -108,6 +108,35 @@ int main(int argc, char **argv) {
               ability);
       return 1;
     }
+    /* CONSOLIDATE.json on save must carry dual-wire honesty too */
+    {
+      char body[1024];
+      FILE *f;
+      size_t n;
+      if (gk_save_dir(&C, "/tmp/gk_consolidate_selftest") != 0) {
+        fprintf(stderr, "selftest: save_dir failed\n");
+        return 1;
+      }
+      f = fopen("/tmp/gk_consolidate_selftest/CONSOLIDATE.json", "r");
+      if (!f) {
+        fprintf(stderr, "selftest: CONSOLIDATE.json missing\n");
+        return 1;
+      }
+      n = fread(body, 1, sizeof body - 1, f);
+      body[n] = 0;
+      fclose(f);
+      if (!strstr(body, "\"schema\":\"grokium.consolidate.v1\"") ||
+          !strstr(body, "\"product_wire\":\"smx2\"") ||
+          !strstr(body, "\"peer_http\":\"lab_ops_only\"") ||
+          !strstr(body, "\"peer_http_is_product_bus\":false") ||
+          !strstr(body, "\"llm_is_commander\":false") ||
+          !strstr(body, "\"share\":\"state_matrix_only\"") ||
+          !strstr(body, "\"hold_flash\":1")) {
+        fprintf(stderr, "selftest: CONSOLIDATE.json dual-wire fail: %s\n",
+                body);
+        return 1;
+      }
+    }
     printf("CONSOLIDATOR_OK grade=%s concepts=%d bits=%u smx_filter=on "
            "dual_wire=honest\n",
            C.grade, C.n_concepts, C.matrix.bits_set);

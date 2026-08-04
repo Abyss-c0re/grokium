@@ -187,10 +187,16 @@ int gk_save_dir(const gk_consolidator *C, const char *dir) {
   snprintf(path, sizeof path, "%s/CONSOLIDATE.json", dir);
   f = fopen(path, "w");
   if (!f) return -1;
+  /* On-disk consolidator plate: dual-wire honesty (lab/ops ≠ product bus). */
   fprintf(f,
-          "{\"schema\":\"grokium.consolidate.v1\",\"grade\":\"%s\","
-          "\"n_items\":%d,\"n_concepts\":%d,\"bits_set\":%u,"
-          "\"sha256\":\"%s\",\"pack_seq\":%llu,\"seal_ok\":%s}\n",
+          "{\"schema\":\"grokium.consolidate.v1\",\"ok\":true,"
+          "\"grade\":\"%s\",\"n_items\":%d,\"n_concepts\":%d,"
+          "\"bits_set\":%u,\"sha256\":\"%s\",\"pack_seq\":%llu,"
+          "\"seal_ok\":%s,\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+          "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+          "\"peer_http_is_product_bus\":false,"
+          "\"llm_is_commander\":false,\"llm_on_hot_path\":false,"
+          "\"python\":0}\n",
           C->grade, C->n_items, C->n_concepts, C->matrix.bits_set, hex,
           (unsigned long long)C->pack_seq, C->seal_ok ? "true" : "false");
   fclose(f);
