@@ -272,6 +272,8 @@ int fleet_save(gk_fleet *F, const char *path) {
           "  \"product_wire\": \"smx2\",\n"
           "  \"peer_http\": \"lab_ops_only\",\n"
           "  \"peer_http_is_product_bus\": false,\n"
+          "  \"llm_is_commander\": false,\n"
+          "  \"commander_is_model\": false,\n"
           "  \"observer\": \"NexusCore\",\n"
           "  \"bots\": {\n",
           F->home_root, F->binary, F->base_url, F->model);

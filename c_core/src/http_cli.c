@@ -336,6 +336,8 @@ static int selftest(void) {
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"commander_is_model\":false") ||
         strstr(b, "\"wire_product\"")) {
       fprintf(stderr, "selftest: nanobot status dual-wire fail: %.400s\n", b);
       fails++;

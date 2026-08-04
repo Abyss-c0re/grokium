@@ -111,6 +111,8 @@ static int fleet_selftest(void) {
       !strstr(body, "\"product_wire\": \"smx2\"") ||
       !strstr(body, "\"peer_http\": \"lab_ops_only\"") ||
       !strstr(body, "\"peer_http_is_product_bus\": false") ||
+      !strstr(body, "\"llm_is_commander\": false") ||
+      !strstr(body, "\"commander_is_model\": false") ||
       !strstr(body, "\"hold_flash\": 1") || !strstr(body, "nb-manager")) {
     fprintf(stderr, "selftest: plate missing dual-wire honesty fields\n");
     return 1;

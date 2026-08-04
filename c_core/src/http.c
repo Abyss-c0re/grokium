@@ -864,6 +864,8 @@ static void json_fleet(gk_fleet *F, char *out, size_t cap) {
                           "\"product_wire\":\"smx2\","
                           "\"peer_http\":\"lab_ops_only\","
                           "\"peer_http_is_product_bus\":false,"
+                          "\"llm_is_commander\":false,"
+                          "\"commander_is_model\":false,"
                           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
                           "\"bots\":[",
                           alive, F->n);
