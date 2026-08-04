@@ -223,6 +223,7 @@ static void usage(void) {
           "  manager-tick [DIR]     motivate incomplete contracts\n"
           "  commander show|sign|verify|…  Ed25519 law (≠ model)\n"
           "  llama|llama-probe      local llama.cpp reachability\n"
+          "  integrity tick|policy|reseal  code seal / privacy fail-closed\n"
           "  board|selftest         CubalC board (optional)\n"
           "  product_wire=smx2  peer_http=lab_ops_only  Not affiliated with xAI.\n",
           GROKIUM_VERSION, GROKIUM_TOK);
@@ -420,6 +421,13 @@ int main(int argc, char **argv) {
     }
     return run_c_core("grokium-commander", argc - ai - 1, argv + ai + 1);
   }
+  if (strcmp(cmd, "integrity") == 0) {
+    if (ai + 1 >= argc) {
+      fprintf(stderr, "usage: grokium integrity tick|policy|reseal\n");
+      return 2;
+    }
+    return run_c_core("grokium-integrity", argc - ai - 1, argv + ai + 1);
+  }
   if (strcmp(cmd, "fleet") == 0 || strcmp(cmd, "nanobot") == 0) {
     const char *sub = (ai + 1 < argc) ? argv[ai + 1] : "defaults";
     /* opt into CubalC board fleet when asked; default is c_core plate */
@@ -538,7 +546,8 @@ int main(int argc, char **argv) {
           strcmp(cmd, "smx-filter") != 0 && strcmp(cmd, "fleet") != 0 &&
           strcmp(cmd, "contract") != 0 && strcmp(cmd, "manager") != 0 &&
           strcmp(cmd, "manager-tick") != 0 &&
-          strcmp(cmd, "commander") != 0) {
+          strcmp(cmd, "commander") != 0 &&
+          strcmp(cmd, "integrity") != 0) {
         /* Prefer TUI for bare `grokium`; multi-word → prompt */
         if (argc > 2 || (argc == 2 && strchr(argv[1], ' ')))
           return cmd_prompt(&cfg, msg);

@@ -41,6 +41,9 @@ make -C c_core all
 | POST | `/v1/commander/sign` | loopback + local `commander.sk` only |
 | POST | `/v1/commander/reject_model` | deny “I am Grok” authority claims |
 | GET | `/v1/llama/probe` | local llama.cpp reachability (`llm_is_commander:false`) |
+| GET | `/v1/integrity` | code seal + privacy tick (503 if fail) |
+| GET | `/v1/integrity/policy` | integrity policy plate |
+| POST | `/v1/integrity/reseal` | intentional CODE_SEAL rewrite |
 
 Headers: `X-Grokium-Telemetry: off`, `X-Grokium-Product-Wire: smx2`,
 `X-Grokium-Peer-HTTP: lab_ops_only`. Share: **state matrix only**.
@@ -49,7 +52,7 @@ Fleet plate load preserves pids across `note-pid` / `status` / `separate`.
 
 Law dir: `GROKIUM_LAW_DIR` or `{data_root}/law`.  
 Llama base: `GROKIUM_LLAMA_BASE` / `NANOBOT_BASE_URL` (loopback only).  
-Host CLI: `grokium contract …`, `manager-tick`, `commander …`, `llama` / `serve probe`.
+Host CLI: `contract`, `manager-tick`, `commander`, `llama`, `integrity tick|reseal`.
 
 ### Planned / not yet in pure-C serve
 
@@ -60,7 +63,6 @@ Host CLI: `grokium contract …`, `manager-tick`, `commander …`, `llama` / `se
 | GET/POST | `/v1/sessions/*` | search/pickup/resume/import |
 | GET | `/v1/cube/status` | Cube bridge |
 | GET | `/ui` | minimal UI |
-| GET | `/v1/integrity*` | integrity tick / reseal |
 | GET | `/v1/stream/smx` | SSE stream |
 
 ## MCP (stdio)

@@ -6,6 +6,7 @@
 #include "grokium_http.h"
 #include "grokium_algocube.h"
 #include "grokium_commander.h"
+#include "grokium_integrity.h"
 #include "grokium_smx_filter.h"
 #include "sha256.h"
 #include <arpa/inet.h>
@@ -862,6 +863,52 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     if (grokium_llama_probe(resp, sizeof resp) != 0) {
       http_reply(cfd, 500, "application/json",
                  "{\"ok\":false,\"error\":\"probe_failed\"}");
+      return;
+    }
+    http_reply(cfd, 200, "application/json", resp);
+    return;
+  }
+
+  if (!strcmp(path, "/v1/integrity") || !strcmp(path, "/v1/integrity/tick")) {
+    int rc;
+    const char *rroot = getenv("GROKIUM_ROOT");
+    if (strcmp(method, "GET") != 0) {
+      http_reply(cfd, 405, "application/json",
+                 "{\"ok\":false,\"error\":\"method\"}");
+      return;
+    }
+    if (!rroot || !rroot[0]) rroot = ".";
+    rc = gk_integrity_tick(rroot, resp, sizeof resp);
+    http_reply(cfd, rc == 1 ? 200 : 503, "application/json", resp);
+    return;
+  }
+
+  if (!strcmp(path, "/v1/integrity/policy")) {
+    const char *rroot = getenv("GROKIUM_ROOT");
+    if (strcmp(method, "GET") != 0) {
+      http_reply(cfd, 405, "application/json",
+                 "{\"ok\":false,\"error\":\"method\"}");
+      return;
+    }
+    if (!rroot || !rroot[0]) rroot = ".";
+    if (gk_integrity_policy(rroot, resp, sizeof resp) != 0) {
+      http_reply(cfd, 404, "application/json", resp);
+      return;
+    }
+    http_reply(cfd, 200, "application/json", resp);
+    return;
+  }
+
+  if (!strcmp(path, "/v1/integrity/reseal")) {
+    const char *rroot = getenv("GROKIUM_ROOT");
+    if (strcmp(method, "POST") != 0) {
+      http_reply(cfd, 405, "application/json",
+                 "{\"ok\":false,\"error\":\"method\"}");
+      return;
+    }
+    if (!rroot || !rroot[0]) rroot = ".";
+    if (gk_integrity_reseal(rroot, resp, sizeof resp) != 0) {
+      http_reply(cfd, 500, "application/json", resp);
       return;
     }
     http_reply(cfd, 200, "application/json", resp);
