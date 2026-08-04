@@ -91,7 +91,7 @@ static int selftest(void) {
   char resp[4096];
   const char *b;
   int st, fails = 0;
-  setenv("GROKIUM_SERVE_MAX", "20", 1);
+  setenv("GROKIUM_SERVE_MAX", "24", 1);
   {
     gk_commander cmd;
     const char *law = "/tmp/gk_law_serve";
@@ -242,6 +242,24 @@ static int selftest(void) {
     fprintf(stderr, "selftest: llama probe fail: %.300s\n", resp);
     fails++;
   }
+  /* chat: empty body denied; non-empty always asserts LLM ≠ commander */
+  if (http_post("127.0.0.1", port, "/v1/chat", "", resp, sizeof resp) < 0)
+    fails++;
+  else if (!strstr(resp, "400") && !strstr(body_of(resp), "need_message")) {
+    fprintf(stderr, "selftest: chat empty should 400: %.200s\n", resp);
+    fails++;
+  }
+  if (http_post("127.0.0.1", port, "/v1/chat", "{\"message\":\"ping\"}", resp,
+                sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if (!strstr(b, "llm_is_commander\":false") ||
+        !strstr(b, "\"share\":\"state_matrix_only\"")) {
+      fprintf(stderr, "selftest: chat honesty fail: %.400s\n", resp);
+      fails++;
+    }
+  }
 
   kill(child, SIGTERM);
   waitpid(child, &st, 0);
@@ -250,7 +268,7 @@ static int selftest(void) {
     return 1;
   }
   printf("LOOPBACK_HTTP_OK port=%d dual_wire=honest smx_filter=on "
-         "contracts=on commander=on llama_probe=on smx_sse=on\n",
+         "contracts=on commander=on llama_probe=on smx_sse=on chat=on\n",
          port);
   return 0;
 }
@@ -272,11 +290,24 @@ int main(int argc, char **argv) {
     return 0;
   }
 
+  if (argc >= 2 && !strcmp(argv[1], "chat")) {
+    char buf[4096];
+    const char *msg = argc >= 3 ? argv[2] : "";
+    if (!msg[0]) {
+      fprintf(stderr, "usage: grokium-serve chat \"message\"\n");
+      return 2;
+    }
+    if (grokium_llama_chat(msg, buf, sizeof buf) != 0) return 1;
+    puts(buf);
+    return strstr(buf, "\"ok\":true") ? 0 : 1;
+  }
+
   if (argc >= 2 && !strcmp(argv[1], "help")) {
     fprintf(stderr,
-            "grokium-serve [port]|selftest|probe\n"
+            "grokium-serve [port]|selftest|probe|chat MSG\n"
             "  loopback-only control plane (default 127.0.0.1:17444)\n"
             "  probe — GET local llama /v1/models (LLM ≠ commander)\n"
+            "  chat MSG — local-first completion (LLM ≠ commander)\n"
             "  product_wire=smx2; peer_http=lab_ops_only\n"
             "  GROKIUM_SERVE_MAX=N exits after N requests (tests)\n");
     return 0;

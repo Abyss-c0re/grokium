@@ -426,6 +426,254 @@ done:
   return 0;
 }
 
+/* Escape for JSON string value; drops other C0 controls. */
+static size_t json_escape(const char *in, char *out, size_t cap) {
+  size_t o = 0;
+  if (!out || cap < 2) return 0;
+  out[0] = 0;
+  if (!in) return 0;
+  for (; *in && o + 2 < cap; in++) {
+    unsigned char c = (unsigned char)*in;
+    if (c == '"' || c == '\\') {
+      if (o + 3 >= cap) break;
+      out[o++] = '\\';
+      out[o++] = (char)c;
+    } else if (c == '\n') {
+      if (o + 3 >= cap) break;
+      out[o++] = '\\';
+      out[o++] = 'n';
+    } else if (c == '\r') {
+      if (o + 3 >= cap) break;
+      out[o++] = '\\';
+      out[o++] = 'r';
+    } else if (c == '\t') {
+      if (o + 3 >= cap) break;
+      out[o++] = '\\';
+      out[o++] = 't';
+    } else if (c < 0x20) {
+      continue;
+    } else {
+      out[o++] = (char)c;
+    }
+  }
+  out[o] = 0;
+  return o;
+}
+
+/* Pull first non-empty JSON string field "key":"..." from body. */
+static int extract_json_string_field(const char *raw, const char *key, char *out,
+                                     size_t cap) {
+  const char *p;
+  size_t klen;
+  if (!raw || !key || !out || cap < 2) return -1;
+  out[0] = 0;
+  klen = strlen(key);
+  p = raw;
+  while ((p = strstr(p, key)) != NULL) {
+    const char *v;
+    size_t o = 0;
+    /* require "key" form */
+    if (p > raw && p[-1] != '"') {
+      p += klen;
+      continue;
+    }
+    if (p[klen] != '"') {
+      p += klen;
+      continue;
+    }
+    v = p + klen + 1;
+    while (*v == ' ' || *v == '\t' || *v == '\n' || *v == '\r') v++;
+    if (*v != ':') {
+      p += klen;
+      continue;
+    }
+    v++;
+    while (*v == ' ' || *v == '\t') v++;
+    if (*v == 'n' && !strncmp(v, "null", 4)) {
+      p = v + 4;
+      continue;
+    }
+    if (*v != '"') {
+      p += klen;
+      continue;
+    }
+    v++;
+    while (*v && o + 1 < cap) {
+      if (*v == '\\' && v[1]) {
+        v++;
+        if (*v == 'n')
+          out[o++] = '\n';
+        else if (*v == 'r')
+          out[o++] = '\r';
+        else if (*v == 't')
+          out[o++] = '\t';
+        else
+          out[o++] = *v;
+        v++;
+        continue;
+      }
+      if (*v == '"') break;
+      out[o++] = *v++;
+    }
+    out[o] = 0;
+    if (o > 0) return 0;
+    p = v;
+  }
+  return -1;
+}
+
+/* OpenAI-style content; fall back to reasoning_content (thinking models). */
+static int extract_chat_content(const char *raw, char *out, size_t cap) {
+  if (extract_json_string_field(raw, "content", out, cap) == 0) return 0;
+  if (extract_json_string_field(raw, "reasoning_content", out, cap) == 0)
+    return 0;
+  if (extract_json_string_field(raw, "text", out, cap) == 0) return 0;
+  return -1;
+}
+
+/*
+ * Local-first chat: POST loopback llama /v1/chat/completions only.
+ * LLM is never commander. Product multi-peer talk remains SMX2.
+ * Returns 0 and fills json_out always (ok true/false inside).
+ */
+int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
+  const char *base;
+  char host[64], path_models[128], esc[2048], req_body[3072], req[3584];
+  char buf[8192], content[2048], content_esc[2560];
+  int port = 1212, fd = -1, code = 0;
+  struct sockaddr_in addr;
+  struct timeval tv;
+  size_t n = 0, blen;
+  ssize_t r;
+  const char *err = NULL;
+
+  if (!json_out || cap < 64) return -1;
+  if (!message || !message[0]) {
+    snprintf(json_out, cap,
+             "{\"ok\":false,\"error\":\"empty_message\","
+             "\"llm_is_commander\":false,\"commander_is_model\":false,"
+             "\"product_wire\":\"smx2\",\"share\":\"state_matrix_only\"}");
+    return 0;
+  }
+
+  base = getenv("GROKIUM_LLAMA_BASE");
+  if (!base || !base[0]) base = getenv("NANOBOT_BASE_URL");
+  if (!base || !base[0]) base = "http://127.0.0.1:1212/v1";
+  if (parse_llama_base(base, host, sizeof host, &port, path_models,
+                       sizeof path_models) != 0) {
+    snprintf(json_out, cap,
+             "{\"ok\":false,\"reachable\":false,\"error\":\"non_loopback_base\","
+             "\"llm_is_commander\":false,\"commander_is_model\":false,"
+             "\"product_wire\":\"smx2\",\"share\":\"state_matrix_only\"}");
+    return 0;
+  }
+  (void)path_models;
+  if (!json_escape(message, esc, sizeof esc)) {
+    snprintf(json_out, cap,
+             "{\"ok\":false,\"error\":\"message_escape\","
+             "\"llm_is_commander\":false,\"share\":\"state_matrix_only\"}");
+    return 0;
+  }
+
+  /* Short local completion — not a tool agent; host TUI still owns agent path.
+   * max_tokens modest: thinking models may fill reasoning_content first. */
+  blen = (size_t)snprintf(
+      req_body, sizeof req_body,
+      "{\"model\":\"local\",\"stream\":false,\"max_tokens\":96,"
+      "\"messages\":[{\"role\":\"user\",\"content\":\"%s\"}]}",
+      esc);
+  if (blen >= sizeof req_body) {
+    snprintf(json_out, cap,
+             "{\"ok\":false,\"error\":\"message_too_long\","
+             "\"llm_is_commander\":false,\"share\":\"state_matrix_only\"}");
+    return 0;
+  }
+
+  fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (fd < 0) {
+    err = "socket";
+    goto fail;
+  }
+  tv.tv_sec = 3;
+  tv.tv_usec = 0;
+  setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
+  setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv);
+  memset(&addr, 0, sizeof addr);
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons((uint16_t)port);
+  if (inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr) != 1) {
+    err = "pton";
+    goto fail;
+  }
+  if (connect(fd, (struct sockaddr *)&addr, sizeof addr) < 0) {
+    err = "connect";
+    goto fail;
+  }
+  snprintf(req, sizeof req,
+           "POST /v1/chat/completions HTTP/1.1\r\n"
+           "Host: 127.0.0.1:%d\r\n"
+           "Content-Type: application/json\r\n"
+           "Content-Length: %zu\r\n"
+           "Connection: close\r\n\r\n%s",
+           port, blen, req_body);
+  if (write(fd, req, strlen(req)) < 0) {
+    err = "write";
+    goto fail;
+  }
+  while (n + 1 < sizeof buf) {
+    r = read(fd, buf + n, sizeof buf - 1 - n);
+    if (r < 0) {
+      if (errno == EINTR) continue;
+      if (n > 0) break; /* partial after timeout */
+      err = "read";
+      goto fail;
+    }
+    if (r == 0) break;
+    n += (size_t)r;
+  }
+  buf[n] = 0;
+  close(fd);
+  fd = -1;
+  if (n == 0) {
+    err = "empty";
+    goto fail;
+  }
+  if (!strncmp(buf, "HTTP/", 5)) {
+    const char *sp = strchr(buf, ' ');
+    if (sp) code = atoi(sp + 1);
+  }
+  content[0] = 0;
+  if (extract_chat_content(buf, content, sizeof content) != 0) {
+    snprintf(json_out, cap,
+             "{\"ok\":false,\"reachable\":true,\"http_code\":%d,"
+             "\"error\":\"no_content\",\"llm_is_commander\":false,"
+             "\"commander_is_model\":false,\"product_wire\":\"smx2\","
+             "\"share\":\"state_matrix_only\",\"local_first\":true}",
+             code);
+    return 0;
+  }
+  json_escape(content, content_esc, sizeof content_esc);
+  snprintf(json_out, cap,
+           "{\"ok\":true,\"reachable\":true,\"http_code\":%d,"
+           "\"content\":\"%s\",\"llm_is_commander\":false,"
+           "\"commander_is_model\":false,\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\",\"share\":\"state_matrix_only\","
+           "\"local_first\":true,\"telemetry\":\"off\"}",
+           code, content_esc);
+  return 0;
+
+fail:
+  if (fd >= 0) close(fd);
+  snprintf(json_out, cap,
+           "{\"ok\":false,\"reachable\":false,\"error\":\"%s\","
+           "\"base_url\":\"http://127.0.0.1:%d/v1/chat/completions\","
+           "\"llm_is_commander\":false,\"commander_is_model\":false,"
+           "\"product_wire\":\"smx2\",\"share\":\"state_matrix_only\","
+           "\"local_first\":true}",
+           err ? err : "down", port);
+  return 0;
+}
+
 static int law_dir_for(const char *data_root, char *out, size_t cap) {
   const char *e = getenv("GROKIUM_LAW_DIR");
   if (e && e[0]) {
@@ -939,6 +1187,55 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     return;
   }
 
+  /* Local-first chat (lab/ops). LLM ≠ commander. Tool agent remains host path. */
+  if (!strcmp(path, "/v1/chat")) {
+    char msg[2048];
+    int code;
+    if (strcmp(method, "POST") != 0) {
+      http_reply(cfd, 405, "application/json",
+                 "{\"ok\":false,\"error\":\"method\","
+                 "\"llm_is_commander\":false}");
+      return;
+    }
+    msg[0] = 0;
+    if (body && body_n > 0) {
+      if (body[0] == '{') {
+        if (json_get_str(body, body_n, "message", msg, sizeof msg) != 0 &&
+            json_get_str(body, body_n, "content", msg, sizeof msg) != 0 &&
+            json_get_str(body, body_n, "prompt", msg, sizeof msg) != 0)
+          msg[0] = 0;
+      } else {
+        size_t n = body_n < sizeof msg - 1 ? body_n : sizeof msg - 1;
+        memcpy(msg, body, n);
+        msg[n] = 0;
+        /* trim trailing CR/LF */
+        while (n > 0 && (msg[n - 1] == '\n' || msg[n - 1] == '\r'))
+          msg[--n] = 0;
+      }
+    }
+    if (!msg[0]) {
+      http_reply(cfd, 400, "application/json",
+                 "{\"ok\":false,\"error\":\"need_message\","
+                 "\"hint\":\"{\\\"message\\\":\\\"…\\\"}\","
+                 "\"llm_is_commander\":false,\"share\":\"state_matrix_only\"}");
+      return;
+    }
+    if (grokium_llama_chat(msg, resp, sizeof resp) != 0) {
+      http_reply(cfd, 500, "application/json",
+                 "{\"ok\":false,\"error\":\"chat_failed\","
+                 "\"llm_is_commander\":false}");
+      return;
+    }
+    if (strstr(resp, "\"ok\":true"))
+      code = 200;
+    else if (strstr(resp, "\"reachable\":false"))
+      code = 503;
+    else
+      code = 502;
+    http_reply(cfd, code, "application/json", resp);
+    return;
+  }
+
   if (!strcmp(path, "/v1/integrity") || !strcmp(path, "/v1/integrity/tick")) {
     int rc;
     const char *rroot = getenv("GROKIUM_ROOT");
@@ -1129,8 +1426,8 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
 
   http_reply(cfd, 404, "application/json",
              "{\"ok\":false,\"error\":\"not_found\","
-             "\"hint\":\"/healthz /v1/status /v1/commander /v1/coord "
-             "/v1/stream/smx /v1/contract/form /v1/manager/tick "
+             "\"hint\":\"/healthz /v1/status /v1/commander /v1/chat "
+             "/v1/coord /v1/stream/smx /v1/contract/form /v1/manager/tick "
              "/v1/nanobot/status\"}");
 }
 

@@ -42,6 +42,7 @@ make -C c_core all
 | POST | `/v1/commander/sign` | loopback + local `commander.sk` only |
 | POST | `/v1/commander/reject_model` | deny “I am Grok” authority claims |
 | GET | `/v1/llama/probe` | local llama.cpp reachability (`llm_is_commander:false`) |
+| POST | `/v1/chat` | local-first completion via loopback llama only (`llm_is_commander:false`) |
 | GET | `/v1/integrity` | code seal + privacy tick (503 if fail) |
 | GET | `/v1/integrity/policy` | integrity policy plate |
 | POST | `/v1/integrity/reseal` | intentional CODE_SEAL rewrite |
@@ -59,11 +60,14 @@ Host CLI: `contract`, `manager-tick`, `commander`, `llama`, `integrity tick|rese
 
 | Method | Path | Role |
 |--------|------|------|
-| POST | `/v1/chat` | local-first chat (host TUI path today) |
-| POST | `/v1/agent` | tool agent |
+| POST | `/v1/agent` | tool agent (host TUI / nanobot path today) |
 | GET/POST | `/v1/sessions/*` | search/pickup/resume/import |
 | GET | `/v1/cube/status` | Cube bridge |
 | GET | `/ui` | minimal UI |
+
+`POST /v1/chat` is implemented as a short non-streaming loopback completion
+(lab/ops). It never elevates the LLM to Commander. Multi-peer product talk
+stays SMX2; host TUI still owns rich agent/tool sessions.
 
 ## MCP (stdio)
 

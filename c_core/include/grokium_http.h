@@ -18,4 +18,7 @@ int grokium_serve(const char *host, int port,
 
 /* Probe local llama.cpp (default http://127.0.0.1:1212/v1). LLM ≠ commander. */
 int grokium_llama_probe(char *json_out, size_t cap);
+
+/* Local-first chat completion via loopback llama only. Never commander. */
+int grokium_llama_chat(const char *message, char *json_out, size_t cap);
 #endif

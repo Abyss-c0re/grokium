@@ -7,9 +7,9 @@
   "share": "state_matrix_only",
   "findings": [
     {"id": "privacy_flags", "ok": true},
-    {"id": "code_seal", "ok": true, "n_files": 61, "mismatches": 0, "aggregate": "48c2624a8198bb6df85747558d24e708481a4c59bd1434ad0f9ab53f3ffff471"},
+    {"id": "code_seal", "ok": true, "n_files": 61, "mismatches": 0, "aggregate": "0662a7e445f5f2732942dfe667379fbbd7c731922470c9c7400ccb507a97525f"},
     {"id": "server_bind", "ok": true, "loopback_only": true}
   ],
-  "code_seal": "48c2624a8198bb6df85747558d24e708481a4c59bd1434ad0f9ab53f3ffff471",
-  "ts": 1785850714
+  "code_seal": "0662a7e445f5f2732942dfe667379fbbd7c731922470c9c7400ccb507a97525f",
+  "ts": 1785851585
 }
