@@ -1,0 +1,41 @@
+{
+  "schema": "grokium.integrity_policy.v1",
+  "law": "INTEGRITY_NO_LEAK_LAW",
+  "product": "grokium",
+  "not": [
+    "data_collector",
+    "grok_model",
+    "telemetry_product"
+  ],
+  "privacy_canonical_sha256": "cbb6d81e3e9725ec060d0af783bc72dd16d825def7e49fad55deb440e361d974",
+  "code_seal_aggregate": "a106c5d6e7dcd88eb16778fa83d77bdbccc122a3f97a8c615a4088484573f44b",
+  "share_only": "state_matrix_only",
+  "stream": "smx_realtime_bits",
+  "fail_closed": true,
+  "allowlist": [
+    "127.0.0.1",
+    "localhost",
+    "::1",
+    "cli-chat-proxy.grok.com",
+    "auth.x.ai",
+    "accounts.x.ai"
+  ],
+  "ts": 1785231321.7797856,
+  "commander_seal": {
+    "schema": "grokium.commander_override.v1",
+    "law": "GROKIUM_COMMANDER_LAW",
+    "domain": "GROKIUM-COMMANDER-v1",
+    "product": "grokium",
+    "not": "grok_model",
+    "device": "nb-integrity",
+    "action": "integrity_policy_seal:2a871fefce8d83fbe95848cba2f27a1d",
+    "nonce": "1b95f6ba774880c778a15e0c72716e802ab36a18a46b8e8fc72d8f5b21a7c4c4",
+    "ts": 1785231321,
+    "sig": "808ead58fc1ed2e9c54d1319c05eb2a0a15e01b4a76c730f03a7c694159b5724bad9b16c030b1cede3eb0bfa428231434bbeb8c4e1fde9c4593bfb40a60b6102",
+    "fingerprint_sha256": "ec07458346b62823396e5cea243e3a7d17113b454ed216919058fe91a2d044d9",
+    "unforgeable": true,
+    "model_is_not_commander": true
+  },
+  "seal_action": "integrity_policy_seal:2a871fefce8d83fbe95848cba2f27a1d",
+  "code_seal_language": "C"
+}
