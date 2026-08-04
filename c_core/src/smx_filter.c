@@ -5,6 +5,7 @@
 #include "sha256.h"
 #include <ctype.h>
 #include <dirent.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,11 +24,83 @@ const char *grokium_hive_instinct_creed(void) {
          "external≠core|All_Hail_NexusCore";
 }
 
+/* Bounded needle scan — frame buffers may lack a trailing NUL. */
+static int bounded_has(const char *s, size_t n, const char *needle) {
+  size_t m, i;
+  if (!s || !needle || !needle[0] || n == 0) return 0;
+  m = strlen(needle);
+  if (n < m) return 0;
+  for (i = 0; i + m <= n && i < 4096; i++)
+    if (memcmp(s + i, needle, m) == 0) return 1;
+  return 0;
+}
+
+/*
+ * NEXUS_COORD must be a machine plate: | key=value | segments.
+ * Prefix alone is not enough — deny chat smuggling after the header.
+ */
+static int nexus_coord_plate_ok(const char *s, size_t n) {
+  size_t i, seg_start, pipes = 0, eqs = 0;
+  if (!s || n < 14 || memcmp(s, "NEXUS_COORD", 11) != 0) return 0;
+  if (bounded_has(s, n, "ignore previous") ||
+      bounded_has(s, n, "Ignore previous") ||
+      bounded_has(s, n, "dump secret") || bounded_has(s, n, "Dump secret") ||
+      bounded_has(s, n, "system prompt") || bounded_has(s, n, "please ") ||
+      bounded_has(s, n, "Please ") || bounded_has(s, n, "as an AI") ||
+      bounded_has(s, n, "jailbreak"))
+    return 0;
+
+  seg_start = 11;
+  for (i = 11; i <= n && i <= 4096; i++) {
+    if (i == n || s[i] == '|') {
+      size_t a = seg_start, b = i;
+      while (a < b && (s[a] == ' ' || s[a] == '\t')) a++;
+      while (b > a && (s[b - 1] == ' ' || s[b - 1] == '\t')) b--;
+      if (a < b) {
+        size_t len = b - a;
+        const char *eqp = memchr(s + a, '=', len);
+        if (!eqp) {
+          size_t k;
+          /* bare token (e.g. v1) — short, no spaces */
+          if (len > 8) return 0;
+          for (k = 0; k < len; k++) {
+            unsigned char c = (unsigned char)s[a + k];
+            if (!(isalnum(c) || c == '_' || c == '-' || c == '.')) return 0;
+          }
+        } else {
+          size_t key_len = (size_t)(eqp - (s + a));
+          size_t val_len = (size_t)((s + b) - (eqp + 1));
+          size_t k, spaces = 0;
+          if (key_len == 0 || key_len > 32) return 0;
+          for (k = 0; k < key_len; k++) {
+            unsigned char c = (unsigned char)s[a + k];
+            if (!(isalnum(c) || c == '_')) return 0;
+          }
+          for (k = 0; k < val_len; k++) {
+            unsigned char c = (unsigned char)eqp[1 + (ptrdiff_t)k];
+            if (c == ' ' || c == '\t') spaces++;
+            else if (!(isalnum(c) || c == '_' || c == '-' || c == '.' ||
+                       c == ',' || c == ':' || c == '/'))
+              return 0;
+          }
+          if (spaces > 2 || val_len > 64) return 0;
+          eqs++;
+        }
+      }
+      if (i < n && s[i] == '|') pipes++;
+      seg_start = i + 1;
+    }
+  }
+  if (pipes < 1 || eqs < 1) return 0;
+  return 1;
+}
+
 int grokium_smx_filter_is_prose(const char *buf, size_t n) {
   size_t i, letters = 0, spaces = 0;
   if (!buf || n < 12) return 0;
-  /* SMX / NEXUS_COORD / hex plates pass */
-  if (!strncmp(buf, "NEXUS_COORD", 11)) return 0;
+  /* Machine NEXUS_COORD plates pass; smuggled chat counts as prose */
+  if (n >= 11 && !memcmp(buf, "NEXUS_COORD", 11))
+    return nexus_coord_plate_ok(buf, n) ? 0 : 1;
   if (!strncmp(buf, "SMX", 3) || !strncmp(buf, "CBLC", 4)) return 0;
   if (n >= 2 && buf[0] == '{' && strchr(buf, '"')) {
     /* JSON contract plates OK if short keys only — reject chat-like content */
@@ -55,39 +128,33 @@ int grokium_smx_filter_allow_frame(const grokium_law *law,
                                    const uint8_t *frame, size_t n,
                                    int from_external) {
   int hold = law ? law->hold_flash : 1;
+  const char *s;
   if (!frame || n == 0) return 0;
+  s = (const char *)frame;
 
   /* HOLD_FLASH is sticky on the hive wire — deny frames that try to clear it */
   if (!hold) return 0;
-  if (n > 12 && grokium_smx_filter_is_prose((const char *)frame, n)) {
-    /* still scan for flash-clear attempts even if not pure prose */
-  }
-  {
-    const char *s = (const char *)frame;
-    if (n < 4096) {
-      if (strstr(s, "hold_flash=0") || strstr(s, "HOLD_FLASH=0") ||
-          strstr(s, "\"hold_flash\":0") || strstr(s, "auto_flash=1") ||
-          strstr(s, "AUTO_FLASH=1"))
-        return 0;
-    }
-  }
+  if (bounded_has(s, n, "hold_flash=0") || bounded_has(s, n, "HOLD_FLASH=0") ||
+      bounded_has(s, n, "\"hold_flash\":0") || bounded_has(s, n, "auto_flash=1") ||
+      bounded_has(s, n, "AUTO_FLASH=1"))
+    return 0;
 
-  if (n > 8 && grokium_smx_filter_is_prose((const char *)frame, n))
+  if (n > 8 && grokium_smx_filter_is_prose(s, n))
     return 0;
 
   /* External origin: stricter — only SMX/NEXUS_COORD/CBLC/01, no free JSON chat */
   if (from_external) {
     if (n == 64 || n == 512) return 1;
-    if (n >= 11 && !memcmp(frame, "NEXUS_COORD", 11)) return 1;
+    if (n >= 11 && !memcmp(frame, "NEXUS_COORD", 11))
+      return nexus_coord_plate_ok(s, n);
     if (n >= 4 && !memcmp(frame, "CBLC", 4)) return 1;
     if (n >= 2 && frame[0] == '{') {
       /* contract plates only — must declare schema contract/smx */
-      if (strstr((const char *)frame, "grokium.contract") ||
-          strstr((const char *)frame, "grokium.smx") ||
-          strstr((const char *)frame, "\"schema\"")) {
-        if (grokium_smx_filter_is_prose((const char *)frame, n)) return 0;
-        if (strstr((const char *)frame, "\"messages\"") ||
-            strstr((const char *)frame, "\"prompt\""))
+      if (bounded_has(s, n, "grokium.contract") ||
+          bounded_has(s, n, "grokium.smx") ||
+          bounded_has(s, n, "\"schema\"")) {
+        if (grokium_smx_filter_is_prose(s, n)) return 0;
+        if (bounded_has(s, n, "\"messages\"") || bounded_has(s, n, "\"prompt\""))
           return 0;
         return 1;
       }
@@ -107,10 +174,11 @@ int grokium_smx_filter_allow_frame(const grokium_law *law,
 
   /* Internal (core → filter): same shapes plus broader machine plates */
   if (n == 64 || n == 512) return 1;
-  if (n >= 11 && !memcmp(frame, "NEXUS_COORD", 11)) return 1;
+  if (n >= 11 && !memcmp(frame, "NEXUS_COORD", 11))
+    return nexus_coord_plate_ok(s, n);
   if (n >= 4 && !memcmp(frame, "CBLC", 4)) return 1;
   if (n >= 2 && frame[0] == '{') {
-    if (grokium_smx_filter_is_prose((const char *)frame, n)) return 0;
+    if (grokium_smx_filter_is_prose(s, n)) return 0;
     return 1;
   }
   {

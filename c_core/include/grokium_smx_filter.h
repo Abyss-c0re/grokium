@@ -38,12 +38,14 @@ typedef struct {
   char path[GROKIUM_CONTRACT_PATH_LEN];
 } grokium_contract;
 
-/* Filter gate: 1 = allow SMX frame toward core / external; 0 = deny. */
+/* Filter gate: 1 = allow SMX frame toward core / external; 0 = deny.
+ * NEXUS_COORD requires machine plate shape (| key=value |); prefix alone is not enough. */
 int grokium_smx_filter_allow_frame(const grokium_law *law,
                                    const uint8_t *frame, size_t n,
                                    int from_external);
 
-/* Deny if buffer looks like prose chat (heuristic hot-path sanitize). */
+/* Deny if buffer looks like prose chat (heuristic hot-path sanitize).
+ * Invalid / chat-smuggling NEXUS_COORD counts as prose. */
 int grokium_smx_filter_is_prose(const char *buf, size_t n);
 
 /* Form contract for external assignee. Writes JSON under dir (or GROKIUM_CONTRACT_DIR).
