@@ -385,12 +385,18 @@ static int selftest(void) {
   }
   if (http_get("127.0.0.1", port, "/v1/stream/smx", resp, sizeof resp) < 0)
     fails++;
-  else if (!strstr(resp, "text/event-stream") ||
-           !strstr(resp, "event: smx") ||
-           !strstr(body_of(resp), "\"share\":\"state_matrix_only\"") ||
-           !strstr(resp, "event: end")) {
-    fprintf(stderr, "selftest: smx SSE fail: %.400s\n", resp);
-    fails++;
+  else {
+    b = body_of(resp);
+    if (!strstr(resp, "text/event-stream") || !strstr(resp, "event: smx") ||
+        !strstr(resp, "event: end") ||
+        !strstr(b, "\"share\":\"state_matrix_only\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false")) {
+      fprintf(stderr, "selftest: smx SSE dual-wire fail: %.400s\n", b);
+      fails++;
+    }
   }
   if (http_post("127.0.0.1", port, "/v1/contract/form",
                 "{\"assignee\":\"nb-worker-1\",\"task\":\"map tool loop\","

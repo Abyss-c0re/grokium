@@ -139,18 +139,25 @@ static void json_matrix(const gk_consolidator *C, char *out, size_t cap);
  * stays on the product SMX2 bus. */
 static void smx_sse_snapshot(int fd, const gk_consolidator *C) {
   char payload[GK_HTTP_RESP_MAX];
-  char end[192];
+  char end[320];
   static const char note[] =
       ": grokium smx stream bits-only state_matrix_only\n\n";
+  /* SSE control events carry dual-wire honesty (lab/ops ≠ product bus). */
   http_sse_headers(fd);
   (void)write(fd, note, sizeof note - 1);
   if (!C) {
     http_sse_event(fd, "error",
                    "{\"ok\":false,\"error\":\"no_matrix\","
-                   "\"share\":\"state_matrix_only\"}");
+                   "\"share\":\"state_matrix_only\","
+                   "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+                   "\"peer_http_is_product_bus\":false,"
+                   "\"llm_is_commander\":false}");
     http_sse_event(fd, "end",
                    "{\"ok\":false,\"mode\":\"snapshot\","
-                   "\"share\":\"state_matrix_only\"}");
+                   "\"share\":\"state_matrix_only\","
+                   "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+                   "\"peer_http_is_product_bus\":false,"
+                   "\"llm_is_commander\":false}");
     return;
   }
   json_matrix(C, payload, sizeof payload);
@@ -158,7 +165,9 @@ static void smx_sse_snapshot(int fd, const gk_consolidator *C) {
   snprintf(end, sizeof end,
            "{\"ok\":true,\"mode\":\"snapshot\",\"seq\":%llu,"
            "\"share\":\"state_matrix_only\",\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\"}",
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false}",
            (unsigned long long)C->matrix.seq);
   http_sse_event(fd, "end", end);
 }
