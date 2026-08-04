@@ -4,6 +4,7 @@
  */
 #define _POSIX_C_SOURCE 200809L
 #include "grokium_http.h"
+#include "grokium_algocube.h"
 #include "grokium_smx_filter.h"
 #include "sha256.h"
 #include <arpa/inet.h>
@@ -130,6 +131,91 @@ static int parse_request(const char *req, size_t req_n, char *method, size_t mca
     }
   }
   return 0;
+}
+
+/* Minimal JSON field extractors (no full parser; ops control plane only). */
+static int json_get_str(const char *body, size_t n, const char *key, char *out,
+                        size_t cap) {
+  char pat[80];
+  const char *p, *end, *q;
+  size_t klen, i;
+  if (!body || !key || !out || cap < 2 || n == 0) return -1;
+  out[0] = 0;
+  klen = strlen(key);
+  if (klen + 3 >= sizeof pat) return -1;
+  snprintf(pat, sizeof pat, "\"%s\"", key);
+  end = body + n;
+  p = body;
+  for (;;) {
+    const char *hit = NULL;
+    size_t rem = (size_t)(end - p);
+    if (rem < klen + 2) break;
+    for (i = 0; i + klen + 2 <= rem; i++) {
+      if (p[i] == '"' && i + 1 + klen < rem &&
+          !memcmp(p + i + 1, key, klen) && p[i + 1 + klen] == '"') {
+        hit = p + i;
+        break;
+      }
+    }
+    if (!hit) break;
+    p = hit + klen + 2;
+    while (p < end && (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r'))
+      p++;
+    if (p >= end || *p != ':') continue;
+    p++;
+    while (p < end && (*p == ' ' || *p == '\t')) p++;
+    if (p >= end || *p != '"') continue;
+    p++;
+    q = p;
+    while (q < end && *q != '"') {
+      if (*q == '\\' && q + 1 < end) q += 2;
+      else q++;
+    }
+    {
+      size_t len = (size_t)(q - p);
+      if (len >= cap) len = cap - 1;
+      memcpy(out, p, len);
+      out[len] = 0;
+      return 0;
+    }
+  }
+  (void)pat;
+  return -1;
+}
+
+static int json_get_int(const char *body, size_t n, const char *key, int def) {
+  char pat[80];
+  const char *p, *end;
+  size_t klen, i;
+  if (!body || !key || n == 0) return def;
+  klen = strlen(key);
+  if (klen + 3 >= sizeof pat) return def;
+  end = body + n;
+  p = body;
+  for (;;) {
+    const char *hit = NULL;
+    size_t rem = (size_t)(end - p);
+    if (rem < klen + 2) break;
+    for (i = 0; i + klen + 2 <= rem; i++) {
+      if (p[i] == '"' && i + 1 + klen < rem &&
+          !memcmp(p + i + 1, key, klen) && p[i + 1 + klen] == '"') {
+        hit = p + i;
+        break;
+      }
+    }
+    if (!hit) break;
+    p = hit + klen + 2;
+    while (p < end && (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r'))
+      p++;
+    if (p >= end || *p != ':') continue;
+    p++;
+    while (p < end && (*p == ' ' || *p == '\t')) p++;
+    if (p < end && (*p == '-' || (*p >= '0' && *p <= '9')))
+      return atoi(p);
+    break;
+  }
+  (void)pat;
+  return def;
 }
 
 static void json_law(const grokium_law *L, char *out, size_t cap) {
@@ -469,10 +555,126 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     return;
   }
 
+  /* Contract lifecycle — product bus accepts sealed plates only; HTTP is ops */
+  if (!strcmp(path, "/v1/contract/form")) {
+    char assignee[64], task[512], sha[72], cdir[400];
+    int digit = -1, min_set = 0;
+    grokium_contract c;
+    if (strcmp(method, "POST") != 0) {
+      http_reply(cfd, 405, "application/json",
+                 "{\"ok\":false,\"error\":\"method\"}");
+      return;
+    }
+    if (!body || body_n == 0) {
+      http_reply(cfd, 400, "application/json",
+                 "{\"ok\":false,\"error\":\"need_json_body\"}");
+      return;
+    }
+    assignee[0] = task[0] = sha[0] = 0;
+    json_get_str(body, body_n, "assignee", assignee, sizeof assignee);
+    json_get_str(body, body_n, "task", task, sizeof task);
+    json_get_str(body, body_n, "smx_sha256", sha, sizeof sha);
+    json_get_str(body, body_n, "smx_sha", sha, sizeof sha);
+    digit = json_get_int(body, body_n, "digit", -1);
+    min_set = json_get_int(body, body_n, "min_set", 0);
+    if (!assignee[0] || !task[0]) {
+      http_reply(cfd, 400, "application/json",
+                 "{\"ok\":false,\"error\":\"need_assignee_and_task\"}");
+      return;
+    }
+    snprintf(cdir, sizeof cdir, "%s/contracts", root);
+    if (grokium_contract_form(&c, cdir, assignee, task, digit, min_set,
+                              sha[0] ? sha : NULL) != 0) {
+      http_reply(cfd, 500, "application/json",
+                 "{\"ok\":false,\"error\":\"form_failed\"}");
+      return;
+    }
+    snprintf(resp, sizeof resp,
+             "{\"ok\":true,\"id\":\"%s\",\"path\":\"%s\",\"status\":\"open\","
+             "\"assignee\":\"%s\",\"hold_flash\":1,\"wire\":\"smx2\","
+             "\"observer\":\"NexusCore\"}",
+             c.id, c.path, c.assignee);
+    http_reply(cfd, 200, "application/json", resp);
+    return;
+  }
+
+  if (!strcmp(path, "/v1/contract/validate")) {
+    char cpath[512], bits[GROKIUM_CELLS + 8];
+    grokium_contract c;
+    grokium_smx m;
+    int rc, dig;
+    if (strcmp(method, "POST") != 0) {
+      http_reply(cfd, 405, "application/json",
+                 "{\"ok\":false,\"error\":\"method\"}");
+      return;
+    }
+    if (!body || body_n == 0) {
+      http_reply(cfd, 400, "application/json",
+                 "{\"ok\":false,\"error\":\"need_json_body\"}");
+      return;
+    }
+    cpath[0] = bits[0] = 0;
+    json_get_str(body, body_n, "path", cpath, sizeof cpath);
+    json_get_str(body, body_n, "bits", bits, sizeof bits);
+    if (!cpath[0]) {
+      http_reply(cfd, 400, "application/json",
+                 "{\"ok\":false,\"error\":\"need_path\"}");
+      return;
+    }
+    if (grokium_contract_load(&c, cpath) != 0) {
+      http_reply(cfd, 404, "application/json",
+                 "{\"ok\":false,\"error\":\"contract_not_found\"}");
+      return;
+    }
+    smx_clear(&m, "validate");
+    if (bits[0])
+      smx_ingest_bits_ascii(&m, bits);
+    else
+      smx_set(&m, 0, 0, 0, 1);
+    dig = algocube_digit(&m, c.id);
+    rc = grokium_contract_validate(&c, &m, dig);
+    snprintf(resp, sizeof resp,
+             "{\"ok\":true,\"complete\":%s,\"status\":%d,\"id\":\"%s\","
+             "\"path\":\"%s\",\"wire\":\"smx2\"}",
+             rc == 1 ? "true" : "false", (int)c.status, c.id, c.path);
+    http_reply(cfd, 200, "application/json", resp);
+    return;
+  }
+
+  if (!strcmp(path, "/v1/manager/tick") || !strcmp(path, "/v1/contract/manager-tick")) {
+    char cdir[400];
+    int n;
+    if (strcmp(method, "POST") != 0 && strcmp(method, "GET") != 0) {
+      http_reply(cfd, 405, "application/json",
+                 "{\"ok\":false,\"error\":\"method\"}");
+      return;
+    }
+    snprintf(cdir, sizeof cdir, "%s/contracts", root);
+    n = grokium_manager_motivate_dir(cdir);
+    snprintf(resp, sizeof resp,
+             "{\"ok\":true,\"motivated\":%d,\"observer\":\"NexusCore\","
+             "\"dir\":\"%s\",\"wire\":\"smx_motivate\"}",
+             n, cdir);
+    http_reply(cfd, 200, "application/json", resp);
+    return;
+  }
+
+  if (!strcmp(path, "/v1/instinct")) {
+    if (strcmp(method, "GET") != 0) {
+      http_reply(cfd, 405, "application/json",
+                 "{\"ok\":false,\"error\":\"method\"}");
+      return;
+    }
+    snprintf(resp, sizeof resp, "{\"ok\":true,\"creed\":\"%s\"}",
+             grokium_hive_instinct_creed());
+    http_reply(cfd, 200, "application/json", resp);
+    return;
+  }
+
   http_reply(cfd, 404, "application/json",
              "{\"ok\":false,\"error\":\"not_found\","
              "\"hint\":\"/healthz /v1/status /v1/law /v1/coord "
-             "/v1/matrix/latest /v1/nanobot/status\"}");
+             "/v1/contract/form /v1/manager/tick /v1/nanobot/status\"}");
 }
 
 int grokium_serve(const char *host, int port, gk_consolidator *C, gk_fleet *F,

@@ -48,20 +48,23 @@ sessions=1 | tubes=10 | rain_design=yes | HOLD_FLASH=ack_held | ts=2026-08-04T13
 ## Contract lifecycle
 
 ```bash
-# 1) form (writes data/contracts/<id>.json + .cubalc accept board)
-./scripts/hive/contract_form.sh \
+# 1) form (writes data/contracts/<id>.json)
+./scripts/grokium contract form \
   --assignee nb-worker-1 \
   --task "map src/agent.c tool loop" \
   --digit 4 \
   --min-set 8
+# same via scripts/hive/contract_form.sh or POST /v1/contract/form
 
 # 2) external works in its home; returns result SMX / plate
 
 # 3) validate
-./scripts/hive/contract_validate.sh data/contracts/<id>.json
+./scripts/grokium contract validate data/contracts/<id>.json --bits 01…
+# or: ./scripts/hive/contract_validate.sh data/contracts/<id>.json
 
 # 4) if incomplete — manager motivates
-./scripts/hive/manager_tick.sh
+./scripts/grokium manager-tick
+# or: ./scripts/hive/manager_tick.sh · POST /v1/manager/tick
 ```
 
 ### Accept criteria (machine)

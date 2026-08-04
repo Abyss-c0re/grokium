@@ -218,6 +218,22 @@ static grokium_contract_status parse_status(const char *s) {
   return GROKIUM_CONTRACT_OPEN;
 }
 
+static void mkdir_p(const char *path) {
+  char tmp[512];
+  size_t i, n;
+  if (!path || !path[0]) return;
+  snprintf(tmp, sizeof tmp, "%s", path);
+  n = strlen(tmp);
+  for (i = 1; i < n; i++) {
+    if (tmp[i] == '/') {
+      tmp[i] = 0;
+      if (tmp[0]) mkdir(tmp, 0755);
+      tmp[i] = '/';
+    }
+  }
+  mkdir(tmp, 0755);
+}
+
 int grokium_contract_form(grokium_contract *out, const char *dir,
                           const char *assignee, const char *task,
                           int accept_digit, int accept_min_set,
@@ -228,7 +244,7 @@ int grokium_contract_form(grokium_contract *out, const char *dir,
   if (!out || !assignee || !assignee[0]) return -1;
   memset(out, 0, sizeof *out);
   snprintf(d, sizeof d, "%s", contract_dir(dir));
-  mkdir(d, 0755);
+  mkdir_p(d);
   snprintf(out->id, sizeof out->id, "c%ld-%04x", (long)now,
            (unsigned)(now ^ (time_t)getpid()) & 0xffff);
   snprintf(out->assignee, sizeof out->assignee, "%s", assignee);

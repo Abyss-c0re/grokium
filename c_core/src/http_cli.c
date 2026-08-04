@@ -89,13 +89,15 @@ static int selftest(void) {
   char resp[4096];
   const char *b;
   int st, fails = 0;
-  setenv("GROKIUM_SERVE_MAX", "8", 1);
+  setenv("GROKIUM_SERVE_MAX", "12", 1);
   child = fork();
   if (child < 0) return 1;
   if (child == 0) {
     gk_consolidator C;
     gk_fleet F;
     grokium_law L;
+    char cdir[] = "data/contracts_selftest";
+    setenv("GROKIUM_CONTRACT_DIR", cdir, 1);
     gk_init(&C, "serve-selftest");
     fleet_default_roles(&F);
     grokium_law_default(&L);
@@ -161,6 +163,24 @@ static int selftest(void) {
     fails++;
   else if (!strstr(body_of(resp), "\"share\":\"state_matrix_only\""))
     fails++;
+  if (http_post("127.0.0.1", port, "/v1/contract/form",
+                "{\"assignee\":\"nb-worker-1\",\"task\":\"map tool loop\","
+                "\"min_set\":1}",
+                resp, sizeof resp) < 0)
+    fails++;
+  else if (!strstr(body_of(resp), "\"ok\":true") ||
+           !strstr(body_of(resp), "\"status\":\"open\"")) {
+    fprintf(stderr, "selftest: contract form fail: %.300s\n", resp);
+    fails++;
+  }
+  if (http_post("127.0.0.1", port, "/v1/manager/tick", "", resp, sizeof resp) <
+      0)
+    fails++;
+  else if (!strstr(body_of(resp), "\"motivated\"") &&
+           !strstr(body_of(resp), "\"ok\":true")) {
+    fprintf(stderr, "selftest: manager tick fail: %.200s\n", resp);
+    fails++;
+  }
 
   kill(child, SIGTERM);
   waitpid(child, &st, 0);
@@ -168,7 +188,8 @@ static int selftest(void) {
     fprintf(stderr, "LOOPBACK_HTTP_FAIL fails=%d\n", fails);
     return 1;
   }
-  printf("LOOPBACK_HTTP_OK port=%d dual_wire=honest smx_filter=on\n", port);
+  printf("LOOPBACK_HTTP_OK port=%d dual_wire=honest smx_filter=on contracts=on\n",
+         port);
   return 0;
 }
 

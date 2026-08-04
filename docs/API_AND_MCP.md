@@ -31,11 +31,17 @@ make -C c_core all
 | POST | `/v1/nanobot/deploy` | deploy homes + FLEET.json |
 | POST | `/v1/nanobot/spawn` | fork/exec bot(s); body = id, `{"id":…}`, or empty=all |
 | POST | `/v1/nanobot/separate` | SIGTERM one bot; body = id or `{"id":…}` |
+| POST | `/v1/contract/form` | form external contract JSON body |
+| POST | `/v1/contract/validate` | `{path, bits?}` accept check |
+| GET/POST | `/v1/manager/tick` | motivate incomplete contracts |
+| GET | `/v1/instinct` | hive mind creed line |
 
 Headers: `X-Grokium-Telemetry: off`, `X-Grokium-Product-Wire: smx2`,
 `X-Grokium-Peer-HTTP: lab_ops_only`. Share: **state matrix only**.
 
 Fleet plate load preserves pids across `note-pid` / `status` / `separate`.
+
+Host CLI: `grokium contract form|validate|…`, `grokium manager-tick`.
 
 ### Planned / not yet in pure-C serve
 

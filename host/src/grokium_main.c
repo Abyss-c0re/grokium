@@ -190,7 +190,10 @@ static int run_c_core(const char *name, int argc, char **argv) {
   pid = fork();
   if (pid < 0) die("fork");
   if (pid == 0) {
+    char cdir[PATH_MAX];
     setenv("GROKIUM_ROOT", root, 1);
+    snprintf(cdir, sizeof cdir, "%s/data/contracts", root);
+    setenv("GROKIUM_CONTRACT_DIR", cdir, 0); /* keep caller override */
     if (chdir(root) != 0) {
       /* still try; relative data/home paths prefer repo root */
     }
@@ -216,6 +219,8 @@ static void usage(void) {
           "  serve [port]           loopback control plane (c_core, :17444)\n"
           "  fleet [defaults|deploy|status|…]  c_core plate (or fleet cubalc)\n"
           "  filter <allow-check|…> SMX / NEXUS_COORD sanitize gate\n"
+          "  contract form|validate|…  external cell contracts (c_core)\n"
+          "  manager-tick [DIR]     motivate incomplete contracts\n"
           "  board|selftest         CubalC board (optional)\n"
           "  product_wire=smx2  peer_http=lab_ops_only  Not affiliated with xAI.\n",
           GROKIUM_VERSION, GROKIUM_TOK);
@@ -375,6 +380,34 @@ int main(int argc, char **argv) {
   if (strcmp(cmd, "filter") == 0 || strcmp(cmd, "smx-filter") == 0) {
     return run_c_core("grokium-smx-filter", argc - ai - 1, argv + ai + 1);
   }
+  if (strcmp(cmd, "contract") == 0) {
+    if (ai + 1 >= argc) {
+      fprintf(stderr,
+              "usage: grokium contract form --assignee ID --task TEXT "
+              "[--digit N] [--min-set N]\n"
+              "       grokium contract validate PATH [--bits 01…]\n"
+              "       grokium contract manager-tick [DIR]\n");
+      return 2;
+    }
+    return run_c_core("grokium-smx-filter", argc - ai - 1, argv + ai + 1);
+  }
+  if (strcmp(cmd, "manager") == 0 || strcmp(cmd, "manager-tick") == 0) {
+    if (strcmp(cmd, "manager-tick") == 0 ||
+        (ai + 1 < argc && strcmp(argv[ai + 1], "tick") == 0)) {
+      /* grokium manager-tick [DIR]  or  grokium manager tick [DIR] */
+      int off = strcmp(cmd, "manager-tick") == 0 ? 1 : 2;
+      char *av[4];
+      int n = 0;
+      av[n++] = "manager-tick";
+      if (ai + off < argc) av[n++] = argv[ai + off];
+      return run_c_core("grokium-smx-filter", n, av);
+    }
+    if (ai + 1 >= argc) {
+      char *av[] = {"manager-tick"};
+      return run_c_core("grokium-smx-filter", 1, av);
+    }
+    return run_c_core("grokium-smx-filter", argc - ai - 1, argv + ai + 1);
+  }
   if (strcmp(cmd, "fleet") == 0 || strcmp(cmd, "nanobot") == 0) {
     const char *sub = (ai + 1 < argc) ? argv[ai + 1] : "defaults";
     /* opt into CubalC board fleet when asked; default is c_core plate */
@@ -482,7 +515,9 @@ int main(int argc, char **argv) {
           strcmp(cmd, "chat") != 0 && strcmp(cmd, "tui") != 0 &&
           strcmp(cmd, "selftest") != 0 && strcmp(cmd, "status") != 0 &&
           strcmp(cmd, "serve") != 0 && strcmp(cmd, "filter") != 0 &&
-          strcmp(cmd, "smx-filter") != 0 && strcmp(cmd, "fleet") != 0) {
+          strcmp(cmd, "smx-filter") != 0 && strcmp(cmd, "fleet") != 0 &&
+          strcmp(cmd, "contract") != 0 && strcmp(cmd, "manager") != 0 &&
+          strcmp(cmd, "manager-tick") != 0) {
         /* Prefer TUI for bare `grokium`; multi-word → prompt */
         if (argc > 2 || (argc == 2 && strchr(argv[1], ' ')))
           return cmd_prompt(&cfg, msg);
