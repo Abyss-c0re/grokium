@@ -63,7 +63,7 @@ model = "grok-4.5"
 
 ## Nanobot
 
-**Not the chat core.** Chat/agent = Grokium `llm.py` + tools.  
+**Not the chat core.** Chat/agent = Grokium C host + CubalC SYS tools.  
 Nanobot = integrity core + optional fleet peers (`/fleet`, `/integrity`).
 
 

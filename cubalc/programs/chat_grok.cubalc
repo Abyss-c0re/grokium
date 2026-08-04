@@ -1,0 +1,8 @@
+[hold]
+SYS CHAT "grok"
+IF OK == 0
+  PRINT "cube_fail" LAST
+END
+ASSERT OK == 1
+PRINT "cube>" LAST
+ASSERT LAST_N > 0

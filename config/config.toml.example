@@ -1,0 +1,79 @@
+# Grokium — pure C UI + agent configuration
+# Copy to ~/.grokium/config.toml  or  config/config.toml
+# Runtime: /settings key=value · /settings save · /settings reload
+# Not affiliated with xAI.
+
+[models]
+default = "local"
+
+[model.local]
+model = "auto"
+base_url = "http://127.0.0.1:1212/v1"
+api_backend = "chat_completions"
+context_window = 65536
+max_completion_tokens = 8192
+temperature = 0.7
+top_p = 0.95
+
+[model.grok]
+model = "grok-4.5"
+base_url = "https://cli-chat-proxy.grok.com/v1"
+
+[session]
+auto_compact_threshold_percent = 85
+
+[cli]
+auto_version_watch = true
+version_watch_interval_sec = 10800
+
+[hub]
+enabled = true
+port = 8787
+llm_slots = 1
+
+[agent]
+max_turns = 64
+cmd_timeout_sec = 900
+http_timeout_sec = 600
+tools = true
+braincells = true          # BrainCube hive for coding
+always_approve = false
+
+# ── Pure C TUI ──────────────────────────────────────────────
+[ui]
+theme = "glass"            # glass | dense | minimal (label only for now)
+product_name = "Grokium"
+multiline = true           # Enter = newline; Alt+Enter / Ctrl+S = send
+mouse = true
+composer_max_rows = 8
+show_header = true
+show_status_hints = true
+show_spoiler_count = true
+spoilers_default_open = false
+open_tool_spoiler_on_done = true
+stream_redraw = true
+clock = false
+show_thinking = false       # NO thinking spam (default)
+scroll_step = 5
+# colors: default black red green yellow blue magenta cyan white
+color_user = "red"
+color_assistant = "cyan"
+color_meta = "default"
+color_think = "magenta"
+color_tool = "yellow"
+color_accent = "cyan"
+color_ok = "green"
+send_hint = "Enter=nl · Alt+Enter/Ctrl+S=send"
+welcome_line = "local-first · pure C · /settings · /help"
+
+# Models differ: tool JSON vs XML cosplay; thinking fields/tags
+[adapter]
+tool_style = "auto"         # openai | xml | auto
+thinking_tags = "think,thinking,reasoning,redacted_reasoning"
+
+# Visualization — no hard-coded VR libs; command templates only
+[viz]
+desktop_cmd = "xdg-open %s" # 3D/mesh/pdf/html via system opener
+vr_cmd = ""                 # e.g. "your-openxr-viewer %s" or leave empty → desktop
+term_width = 64
+term_height = 16

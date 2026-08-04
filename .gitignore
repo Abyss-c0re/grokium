@@ -1,18 +1,45 @@
-# secrets — THE LAW private key never committed
+# Secrets — never commit commander private key
 data/law/commander.sk
 **/commander.sk
+**/*.sk
+**/auth.json
+**/peer_token
 
-# runtime
+# Runtime / build artifacts
 build/
-data/import/
-data/runs/
-data/home/
-data/matrix/*.json
-!data/blueprint/
-__pycache__/
-*.pyc
-*.o
-.venv/
-*.out
-serve.pid
+host/out/
 data/
+*.o
+*.out
+*.a
+.DS_Store
+serve.pid
+*.log
+
+# Local overrides (keep examples tracked)
+config/config.toml
+.env
+.env.*
+
+# Optional local state
+cubalc/state/
+deps/cubalc/out/
+deps/cubalc/state/
+deps/nanobot/build/
+
+# Python is not product — refuse reintro
+*.py
+*.pyc
+__pycache__/
+.venv/
+pyproject.toml
+requirements*.txt
+src/grokium/
+
+# IDE noise
+.idea/
+.vscode/
+*.swp
+*~
+
+# NOTE: .agents/ is tracked (Cube Laws)

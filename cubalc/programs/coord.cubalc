@@ -1,0 +1,6 @@
+[hold]
+[genesis "NEXUS_COORD v1 | from=pve-lab | type=coord | hold_flash=1 |"]
+[sync]
+[~2]
+[status]
+?

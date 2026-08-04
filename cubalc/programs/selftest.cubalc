@@ -1,0 +1,22 @@
+[hold]
+[fleet]
+LET f = 1
+LET k = 1
+LOOP 5
+  LET f = f * k
+  LET k = k + 1
+END
+ASSERT f == 120
+SYS WRITE "/tmp/cubalc_selftest_mark.txt" "cubalc-selftest-ok"
+SYS READ "/tmp/cubalc_selftest_mark.txt"
+ASSERT LAST_N > 0
+SYS WHICH cubalc
+ASSERT LAST_N == 1
+SYS HTTP GET "http://127.0.0.1:1212/v1/models"
+ASSERT HTTP_CODE >= 0
+SYS JOIN "/tmp" "cubalc_join_test.txt"
+SYS WRITE "/tmp/cubalc_join_test.txt" "join-ok"
+SYS EXIST "/tmp/cubalc_join_test.txt"
+ASSERT EXIST == 1
+PRINT "selftest" CUBES f HTTP_CODE
+ASSERT CUBES >= 5

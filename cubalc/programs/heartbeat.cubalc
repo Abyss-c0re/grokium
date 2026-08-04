@@ -1,0 +1,10 @@
+[hold]
+[genesis "NEXUS_COORD v1 | from=pve-lab | type=heartbeat | role=SIDE_organ | status=ONLINE | sessions=1 | tubes=10 | rain_design=yes | HOLD_FLASH=ack_held | ts=2026-07-28T13:28:05+03:00 | grokium=cubalc_c | python=0 |"]
+[sync]
+[fleet]
+[side!]
+[hive!]
+[~6]
+?
+PRINT "heartbeat" CUBES UNITY
+ASSERT CUBES >= 6

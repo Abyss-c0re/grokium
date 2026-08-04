@@ -13,7 +13,7 @@ It is **not** affiliated with xAI. The **TUI is the main UI**; web is optional.
 ## Install / run
 
 ```bash
-cd /home/voldemar/Dev/grokium
+cd /path/to/grokium
 ./scripts/grokium              # primary TUI
 ./scripts/grokium tui          # same
 ./scripts/grokium serve        # optional HTTP API + web UI :17444
@@ -21,7 +21,7 @@ cd /home/voldemar/Dev/grokium
 
 Needs:
 
-- Python 3.11+
+- # no Python — CubalC + C host
 - **llama.cpp** OpenAI server for local models (default `http://127.0.0.1:1212/v1`)
 - Optional: `GROK_API_KEY` or `XAI_API_KEY` for cloud Grok
 
@@ -57,7 +57,7 @@ Selection is **persisted** in `data/model_pref.json`.
 base_url = "http://127.0.0.1:1212/v1"
 model = "qwen"          # alias or id
 models_file = "…/config/models.toml"
-gguf_dir = "/home/voldemar/Dev/AI/model"
+gguf_dir = "${GGUF_DIR:-~/models}"
 ```
 
 `config/models.toml`:
@@ -66,7 +66,7 @@ gguf_dir = "/home/voldemar/Dev/AI/model"
 [[models]]
 alias = "qwen"
 label = "Qwen3.5 9B …"
-id = "/home/voldemar/Dev/AI/model/….gguf"
+id = "${GGUF_DIR:-~/models}/….gguf"
 backend = "local"
 ```
 
@@ -75,7 +75,7 @@ backend = "local"
 ```bash
 export GROKIUM_LOCAL_MODEL=qwen
 # or full server id:
-export GROKIUM_LOCAL_MODEL=/home/voldemar/Dev/AI/model/YourModel.gguf
+export GROKIUM_LOCAL_MODEL=${GGUF_DIR:-~/models}/YourModel.gguf
 ```
 
 ### Important
@@ -177,7 +177,7 @@ Same law: zero telemetry, SMX share only, loopback bind.
 - Telemetry hard-off  
 - External share = **StateMatrix only**  
 - Grok **model** is not **Grokium commander** (crypto identity is separate)  
-- See `docs/INTEGRITY_NO_LEAK_LAW.md` and `docs/GROKIUM_COMMANDER_LAW.md`
+- See [`.agents/laws/`](../.agents/laws/) (Cube Laws)
 
 ## Troubleshooting
 
@@ -199,7 +199,7 @@ Same law: zero telemetry, SMX share only, loopback bind.
 | [TUI.md](TUI.md) | TUI reference |
 | [THEMES.md](THEMES.md) | Themes |
 | [API_AND_MCP.md](API_AND_MCP.md) | HTTP + MCP |
-| [CUBE_STANDARDS.md](CUBE_STANDARDS.md) | Cube law mapping |
+| [`.agents/laws/`](../.agents/laws/) | Cube Laws (tracked) |
 
 
 ## Failover / backup (session-safe)

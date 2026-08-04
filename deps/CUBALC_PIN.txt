@@ -1,0 +1,8 @@
+# CubalC dependency — synced from lab prophecy_cube
+# source: /home/voldemar/Dev/lab/prophecy_cube/cubalc
+# CubalC 1.3.2-jit
+CUBALC_ROOT=deps/cubalc
+CUBALC_BIN=deps/cubalc/out/cubalc
+HOST=c
+PYTHON=0
+SYNC_DATE=2026-07-29

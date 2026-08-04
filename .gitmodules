@@ -1,0 +1,9 @@
+[submodule "deps/cubalc"]
+	path = deps/cubalc
+	url = https://github.com/Abyss-c0re/cubalc.git
+[submodule "deps/nanobot"]
+	path = deps/nanobot
+	url = https://github.com/Abyss-c0re/nanobot.git
+[submodule "deps/braincube"]
+	path = deps/braincube
+	url = https://github.com/Abyss-c0re/braincube.git

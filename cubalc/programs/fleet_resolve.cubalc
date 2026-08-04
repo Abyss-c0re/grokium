@@ -1,0 +1,6 @@
+[hold]
+[fleet]
+SYS WHICH nanobot
+PRINT "nanobot_found" LAST_N
+SYS WRITE "/tmp/cubalc_nanobot_path.txt" LAST
+ASSERT CUBES >= 5

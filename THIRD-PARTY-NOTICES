@@ -28,16 +28,22 @@ Nothing in this tree is a vendored copy of Grok Build or llama.cpp source.
    GGUF / other weights used with local servers remain under their own licenses
    (e.g. model card terms). Grokium does not redistribute model weights.
 
-5) Python standard library
-   http.server, urllib, json, tomllib, etc. — Python Software Foundation License.
-   No additional pip packages are required for the core harness.
+5) nanobot (agent core — ours, linked or pinned under deps/nanobot)
+   Project:  https://github.com/Abyss-c0re/nanobot
+   Notes:    Embeddable C agent (host/arm/static). Grokium may improve nanobot
+             in tidy commits; keep desktop-only UX out of the peer binary.
+             Honor LICENSE/NOTICE shipped with the pin. Not an xAI product.
 
-6) Optional cloud Grok API (opt-in only)
-   When GROKIUM_GROK_AUTH=1, requests go to the user-configured Grok/xAI endpoint.
-   Use of that API is governed by xAI / product terms and requires the user's key.
-   Default Grokium config keeps cloud auth OFF.
+6) Optional cloud LLM API (opt-in only)
+   When the user enables a cloud model and supplies credentials, requests go
+   to the endpoint they configure. Use of third-party APIs is governed by
+   those providers' terms. Default Grokium path is local llama.cpp.
+
+7) System libraries
+   libcurl (if used), ncurses, libc — under their OS package licenses.
 
 If you distribute Grokium, keep LICENSE, NOTICE, and this file with the distribution.
+Do not redistribute third-party CLI binaries (including official grok builds).
 
 
 7) libsodium (runtime link for Ed25519 commander)

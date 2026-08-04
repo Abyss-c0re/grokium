@@ -1,0 +1,7 @@
+[hold]
+SYS ENV GROKIUM_CMD
+LET cmd = LAST
+PRINT "dispatch" cmd
+[fleet]
+[status]
+?

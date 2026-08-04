@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: Apache-2.0
-# Grokium MCP stdio server — zero telemetry
-set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-export PYTHONPATH="${ROOT}/src${PYTHONPATH:+:$PYTHONPATH}"
-export GROKIUM_CONFIG="${GROKIUM_CONFIG:-$ROOT/config/grokium.toml}"
-exec python3 -m grokium.mcp_server "$@"
+# MCP was Python-era. Not available until CubalC grows MCP frames.
+echo "grokium-mcp: REMOVED (Python=0). Control plane is CubalC." >&2
+echo "  Use: grokium board | fleet | cubalc …" >&2
+echo "  Improve CubalC for MCP; do not restore Python." >&2
+echo "  tok=C3" >&2
+exit 3

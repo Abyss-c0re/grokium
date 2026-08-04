@@ -1,9 +1,0 @@
-# External dependency — nanobot is NOT bundled in this repository.
-repo=https://github.com/Abyss-c0re/nanobot
-tag=v0.5.1
-commit=fac7d75005aff8dd6b5e67c8308b8fd5cd399a01
-role=host binary peer fleet (MIT)
-config=[nanobot] in config/grokium.toml
-code=src/grokium/nanobots.py
-install=git clone https://github.com/Abyss-c0re/nanobot.git && cd nanobot && make host && install -m755 build/host/nanobot ~/.local/bin/nanobot
-# or: make docker && docker run -d -p 8787:8787 nanobot:0.5.1 peer

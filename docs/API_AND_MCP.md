@@ -35,7 +35,7 @@ Share: **state matrix only** on coord path.
 
 ```bash
 ./scripts/grokium-mcp
-# or: PYTHONPATH=src python3 -m grokium.mcp_server
+# mcp: removed (py=0). use cubalc + grokium board
 ```
 
 Register with Grok Build — see `config/mcp.grok.toml.snippet`.

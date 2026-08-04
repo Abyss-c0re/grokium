@@ -1,0 +1,13 @@
+[hold]
+SYS ENV HOME
+SYS JOIN LAST "Desktop"
+LET desk = LAST
+SYS ENV GROKIUM_TOOL_NAME
+LET name = LAST
+SYS JOIN desk name
+LET path = LAST
+SYS WRITE path ""
+PRINT "ok" path
+SYS EXIST path
+ASSERT EXIST == 1
+ASSERT LAST_N >= 0

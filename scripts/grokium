@@ -1,11 +1,41 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: Apache-2.0
-# Copyright 2026 Grokium contributors
-# Grokium entry — zero telemetry, local-first
-# Primary: TUI  (`grokium` / `grokium tui`)
-# Optional: web+API (`grokium serve` → :17444)
+# Grokium entry — nanobot core + C host. CubalC optional for board/fleet.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-export PYTHONPATH="${ROOT}/src${PYTHONPATH:+:$PYTHONPATH}"
-export GROKIUM_CONFIG="${GROKIUM_CONFIG:-$ROOT/config/grokium.toml}"
-exec python3 -m grokium.cli "$@"
+export GROKIUM_ROOT="$ROOT"
+export CUBALC_STATE="${CUBALC_STATE:-$ROOT/data/cubalc}"
+
+resolve_cubalc() {
+  if [[ -n "${CUBALC_BIN:-}" && -x "${CUBALC_BIN}" ]]; then
+    echo "$CUBALC_BIN"; return
+  fi
+  local c
+  for c in \
+    "$ROOT/deps/cubalc/out/cubalc" \
+    "${CUBALC_ROOT:-}/out/cubalc" \
+    "$ROOT/cubalc/out/cubalc" \
+    "$(command -v cubalc 2>/dev/null || true)"
+  do
+    [[ -n "$c" && -x "$c" ]] && { echo "$c"; return; }
+  done
+  return 1
+}
+
+if CUBALC_BIN="$(resolve_cubalc)"; then
+  export CUBALC_BIN
+fi
+
+# Prefer sibling nanobot for link path
+if [[ -z "${NANOBOT_ROOT:-}" ]]; then
+  if [[ -f "$ROOT/deps/nanobot/CMakeLists.txt" ]]; then
+    export NANOBOT_ROOT="$ROOT/deps/nanobot"
+  elif [[ -f "${HOME}/Dev/AI/nanobot/CMakeLists.txt" ]]; then
+    export NANOBOT_ROOT="${HOME}/Dev/AI/nanobot"
+  fi
+fi
+
+BIN="$ROOT/host/out/grokium"
+if [[ ! -x "$BIN" ]]; then
+  make -C "$ROOT/host" all
+fi
+exec "$BIN" "$@"

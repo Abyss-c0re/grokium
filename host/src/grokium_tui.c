@@ -1,0 +1,1615 @@
+#define _POSIX_C_SOURCE 200809L
+/* Grokium TUI — spoiler blocks for thoughts + tools. Sleek, human-usable. */
+#include "grokium.h"
+#include "grokium_chat.h"
+#include "grokium_config.h"
+#include "grokium_version.h"
+#include "grokium_hub.h"
+#include "grokium_media.h"
+#include "util.h"
+#include "ng_sched.h"
+#include "shell.h"
+#include <ncurses.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <limits.h>
+#include <ctype.h>
+#include <errno.h>
+#include <time.h>
+
+extern char root[];
+extern char cubalc_bin[];
+extern char state_dir[];
+extern char prog_dir[];
+extern void resolve_paths(void);
+extern int file_ok(const char *p);
+
+#define BLK_MAX 200
+#define IN_MAX 8192
+#define BODY_CHUNK 4096
+
+enum {
+  BK_USER = 1,
+  BK_ASST,
+  BK_META,
+  BK_THINK, /* spoiler */
+  BK_TOOL   /* spoiler */
+};
+
+typedef struct {
+  int kind;
+  int open; /* spoilers: 0 collapsed, 1 expanded */
+  char head[96];
+  char *body;
+  size_t len, cap;
+} blk_t;
+
+static blk_t blks[BLK_MAX];
+static int blk_n;
+static int focus_sp = -1; /* index of focused spoiler block, or -1 */
+static char input[IN_MAX];
+static int in_len;
+static int in_cur;           /* cursor index in input[0..in_len] */
+static int pending_esc;
+static int scroll_off;
+static int debug_mode;
+static gkx_config cfg;
+
+/* Color pairs filled from config */
+enum {
+  CP_USER = 1,
+  CP_ASST = 2,
+  CP_TOOL = 3,
+  CP_OK = 4,
+  CP_META = 5,
+  CP_THINK = 6,
+  CP_ACCENT = 7
+};
+
+static void log_add(const char *line);
+static int is_spoiler_kind(int kind);
+
+static void ui_apply_colors(void) {
+  if (!has_colors()) return;
+  start_color();
+  use_default_colors();
+  init_pair(CP_USER, gkx_color_id(cfg.ui_color_user), -1);
+  init_pair(CP_ASST, gkx_color_id(cfg.ui_color_assistant), -1);
+  init_pair(CP_TOOL, gkx_color_id(cfg.ui_color_tool), -1);
+  init_pair(CP_OK, gkx_color_id(cfg.ui_color_ok), -1);
+  init_pair(CP_META, gkx_color_id(cfg.ui_color_meta), -1);
+  init_pair(CP_THINK, gkx_color_id(cfg.ui_color_think), -1);
+  init_pair(CP_ACCENT, gkx_color_id(cfg.ui_color_accent), -1);
+}
+
+static int composer_max_rows(void) {
+  int n = cfg.ui_composer_max_rows;
+  if (n < 1) n = 1;
+  if (n > 16) n = 16;
+  return n;
+}
+
+static void config_persist(void) {
+  char path[PATH_MAX];
+  gkx_config_resolve_save_path(&cfg, path, sizeof path);
+  if (gkx_config_save(&cfg, path) == 0) {
+    char line[200];
+    snprintf(line, sizeof line, "config saved: %s", path);
+    log_add(line);
+  } else
+    log_add("config save failed");
+}
+static gkx_version_state ver_st;
+static time_t last_ver_check;
+static int always_approve;
+static char **g_argv;
+static int g_argc;
+static int live_think = -1; /* open think block during stream */
+static int live_tool = -1;
+static int live_asst = -1;
+
+static void draw(void);
+
+static void blk_free_all(void) {
+  for (int i = 0; i < blk_n; i++) {
+    free(blks[i].body);
+    blks[i].body = NULL;
+  }
+  blk_n = 0;
+  focus_sp = -1;
+  live_think = live_tool = live_asst = -1;
+}
+
+static int blk_push(int kind, const char *head) {
+  if (blk_n >= BLK_MAX) {
+    /* drop oldest half */
+    int drop = BLK_MAX / 4;
+    for (int i = 0; i < drop; i++) free(blks[i].body);
+    memmove(blks, blks + drop, (size_t)(blk_n - drop) * sizeof blks[0]);
+    blk_n -= drop;
+    if (live_think >= 0) live_think -= drop;
+    if (live_tool >= 0) live_tool -= drop;
+    if (live_asst >= 0) live_asst -= drop;
+    if (focus_sp >= 0) focus_sp -= drop;
+  }
+  blk_t *b = &blks[blk_n];
+  memset(b, 0, sizeof *b);
+  b->kind = kind;
+  b->open = is_spoiler_kind(kind) ? cfg.ui_spoilers_default_open : 0;
+  if (head)
+    snprintf(b->head, sizeof b->head, "%s", head);
+  b->body = NULL;
+  b->len = b->cap = 0;
+  return blk_n++;
+}
+
+static void blk_append(int ix, const char *s, size_t n) {
+  if (ix < 0 || ix >= blk_n || !s || !n) return;
+  blk_t *b = &blks[ix];
+  if (b->len + n + 1 > b->cap) {
+    size_t nc = b->cap ? b->cap * 2 : BODY_CHUNK;
+    while (nc < b->len + n + 1) nc *= 2;
+    char *p = realloc(b->body, nc);
+    if (!p) return;
+    b->body = p;
+    b->cap = nc;
+  }
+  memcpy(b->body + b->len, s, n);
+  b->len += n;
+  b->body[b->len] = 0;
+}
+
+static void blk_append_str(int ix, const char *s) {
+  if (s) blk_append(ix, s, strlen(s));
+}
+
+static void log_add(const char *line) {
+  if (!line) return;
+  int ix = blk_push(BK_META, NULL);
+  blk_append_str(ix, line);
+}
+
+static void log_add_block(const char *text) {
+  if (!text || !text[0]) return;
+  char *dup = strdup(text);
+  if (!dup) return;
+  char *save = NULL;
+  for (char *ln = strtok_r(dup, "\n", &save); ln; ln = strtok_r(NULL, "\n", &save)) {
+    if (!ln[0]) continue;
+    if (!debug_mode && ln[0] == '{') continue;
+    log_add(ln);
+  }
+  free(dup);
+}
+
+/* ---- spoiler helpers ---- */
+
+static int is_spoiler_kind(int kind) { return kind == BK_THINK || kind == BK_TOOL; }
+#define is_spoiler is_spoiler_kind
+
+static int count_spoilers(void) {
+  int n = 0;
+  for (int i = 0; i < blk_n; i++)
+    if (is_spoiler(blks[i].kind)) n++;
+  return n;
+}
+
+static int spoiler_at_rank(int rank) {
+  int n = 0;
+  for (int i = 0; i < blk_n; i++) {
+    if (!is_spoiler(blks[i].kind)) continue;
+    if (n == rank) return i;
+    n++;
+  }
+  return -1;
+}
+
+static int last_spoiler(void) {
+  for (int i = blk_n - 1; i >= 0; i--)
+    if (is_spoiler(blks[i].kind)) return i;
+  return -1;
+}
+
+static void spoilers_set_all(int open) {
+  for (int i = 0; i < blk_n; i++)
+    if (is_spoiler(blks[i].kind)) blks[i].open = open;
+}
+
+static void toggle_spoiler(int ix) {
+  if (ix < 0 || ix >= blk_n || !is_spoiler(blks[ix].kind)) return;
+  blks[ix].open = !blks[ix].open;
+  focus_sp = ix;
+}
+
+static void focus_next_spoiler(int dir) {
+  if (count_spoilers() == 0) {
+    focus_sp = -1;
+    return;
+  }
+  int start = focus_sp < 0 ? (dir > 0 ? -1 : blk_n) : focus_sp;
+  if (dir > 0) {
+    for (int i = start + 1; i < blk_n; i++)
+      if (is_spoiler(blks[i].kind)) {
+        focus_sp = i;
+        return;
+      }
+    for (int i = 0; i < blk_n; i++)
+      if (is_spoiler(blks[i].kind)) {
+        focus_sp = i;
+        return;
+      }
+  } else {
+    for (int i = start - 1; i >= 0; i--)
+      if (is_spoiler(blks[i].kind)) {
+        focus_sp = i;
+        return;
+      }
+    for (int i = blk_n - 1; i >= 0; i--)
+      if (is_spoiler(blks[i].kind)) {
+        focus_sp = i;
+        return;
+      }
+  }
+}
+
+static void refresh_think_head(int ix) {
+  if (ix < 0 || ix >= blk_n) return;
+  size_t n = blks[ix].len;
+  if (n < 80)
+    snprintf(blks[ix].head, sizeof blks[ix].head, "thought · %zu chars", n);
+  else if (n < 1000)
+    snprintf(blks[ix].head, sizeof blks[ix].head, "thought · %zu chars", n);
+  else
+    snprintf(blks[ix].head, sizeof blks[ix].head, "thought · %.1fk", n / 1000.0);
+}
+
+static void short_model(char *out, size_t n) {
+  const char *md = cfg.active_model;
+  if (md && strrchr(md, '/')) md = strrchr(md, '/') + 1;
+  snprintf(out, n, "%.40s", md && md[0] ? md : "auto");
+}
+
+/* Extract "key":"value" from small JSON event (naive). */
+static int json_str_field(const char *j, const char *key, char *out, size_t outn) {
+  char pat[64];
+  snprintf(pat, sizeof pat, "\"%s\"", key);
+  const char *p = strstr(j, pat);
+  if (!p) return -1;
+  p = strchr(p + strlen(pat), ':');
+  if (!p) return -1;
+  p++;
+  while (*p == ' ') p++;
+  if (*p != '"') return -1;
+  p++;
+  size_t i = 0;
+  while (*p && *p != '"' && i + 1 < outn) {
+    if (*p == '\\' && p[1]) {
+      p++;
+      if (*p == 'n') {
+        out[i++] = '\n';
+        p++;
+        continue;
+      }
+      if (*p == 't') {
+        out[i++] = '\t';
+        p++;
+        continue;
+      }
+    }
+    out[i++] = *p++;
+  }
+  out[i] = 0;
+  return 0;
+}
+
+static void handle_struct_event(const char *json) {
+  char type[32] = "";
+  if (json_str_field(json, "type", type, sizeof type) != 0) return;
+
+  if (strcmp(type, "thinking") == 0) {
+    if (!cfg.ui_show_thinking) return; /* no thinking spam */
+    char text[2048];
+    if (json_str_field(json, "text", text, sizeof text) != 0) return;
+    if (live_think < 0 || live_think >= blk_n || blks[live_think].kind != BK_THINK) {
+      live_think = blk_push(BK_THINK, "thought");
+      blks[live_think].open = 0;
+    }
+    blk_append_str(live_think, text);
+    refresh_think_head(live_think);
+    return;
+  }
+
+  if (strcmp(type, "tool") == 0) {
+    char phase[16] = "", name[64] = "", id[40] = "";
+    char args[900] = "", output[900] = "";
+    json_str_field(json, "phase", phase, sizeof phase);
+    json_str_field(json, "name", name, sizeof name);
+    json_str_field(json, "id", id, sizeof id);
+    json_str_field(json, "args", args, sizeof args);
+    json_str_field(json, "output", output, sizeof output);
+    if (!name[0]) snprintf(name, sizeof name, "tool");
+
+    if (strcmp(phase, "start") == 0 || !phase[0]) {
+      char head[96];
+      snprintf(head, sizeof head, "tool · %s", name);
+      live_tool = blk_push(BK_TOOL, head);
+      blks[live_tool].open = 0;
+      if (id[0]) {
+        blk_append_str(live_tool, "id: ");
+        blk_append_str(live_tool, id);
+        blk_append_str(live_tool, "\n");
+      }
+      if (args[0]) {
+        blk_append_str(live_tool, "args: ");
+        blk_append_str(live_tool, args);
+        blk_append_str(live_tool, "\n");
+      }
+    } else if (strcmp(phase, "done") == 0) {
+      if (live_tool < 0) {
+        char head[96];
+        snprintf(head, sizeof head, "tool · %s · done", name);
+        live_tool = blk_push(BK_TOOL, head);
+      } else {
+        snprintf(blks[live_tool].head, sizeof blks[live_tool].head, "tool · %s · done",
+                 name);
+      if (cfg.ui_open_tool_spoiler_on_done) blks[live_tool].open = 1;
+      }
+      if (output[0]) {
+        blk_append_str(live_tool, "\n— result —\n");
+        blk_append_str(live_tool, output);
+      }
+      live_tool = -1;
+    }
+  }
+}
+
+typedef struct {
+  char line[200];
+  int len;
+  int started;
+} stream_acc;
+
+static void stream_cb(void *ud, const char *chunk, size_t n) {
+  stream_acc *a = ud;
+  if (!chunk || !n) return;
+
+  /* Structured events: 0x1e + json (thinking / tool) → spoilers */
+  if ((unsigned char)chunk[0] == 0x1e) {
+    handle_struct_event(chunk + 1);
+    draw();
+    return;
+  }
+  /* Some paths send thinking JSON without 0x1e */
+  if (n > 8 && chunk[0] == '{' && strstr(chunk, "\"type\"")) {
+    if (strstr(chunk, "thinking") || strstr(chunk, "\"tool\"")) {
+      char *tmp = malloc(n + 1);
+      if (tmp) {
+        memcpy(tmp, chunk, n);
+        tmp[n] = 0;
+        handle_struct_event(tmp);
+        free(tmp);
+        draw();
+      }
+      return;
+    }
+  }
+
+  for (size_t i = 0; i < n; i++) {
+    char ch = chunk[i];
+    if (ch == '\n' || a->len >= (int)sizeof a->line - 1) {
+      a->line[a->len] = 0;
+      if (a->len > 0) {
+        if (live_asst < 0) {
+          live_asst = blk_push(BK_ASST, NULL);
+          a->started = 1;
+        }
+        blk_append_str(live_asst, a->line);
+        blk_append_str(live_asst, "\n");
+        draw();
+      }
+      a->len = 0;
+      if (ch == '\n') continue;
+    }
+    if ((unsigned char)ch >= 32 || ch == '\t')
+      a->line[a->len++] = (ch == '\t') ? ' ' : ch;
+  }
+  /* partial live line */
+  if (a->len > 0) {
+    if (live_asst < 0) {
+      live_asst = blk_push(BK_ASST, NULL);
+      a->started = 1;
+    }
+    /* paint by temporarily extending body then redraw — keep partial only in acc */
+    draw();
+  }
+}
+
+/* Direct shell — run immediately, then ask the agent to present results. */
+static void shell_run_direct(const char *cmd) {
+  if (!cmd || !cmd[0]) {
+    log_add("usage: ! <command>   or  /shell <command>");
+    return;
+  }
+  while (*cmd == ' ') cmd++;
+  {
+    int u = blk_push(BK_USER, NULL);
+    blk_append_str(u, "!");
+    blk_append_str(u, cmd);
+  }
+  char head[96];
+  snprintf(head, sizeof head, "tool · shell · direct");
+  int t = blk_push(BK_TOOL, head);
+  blks[t].open = 0;
+  blk_append_str(t, "args: ");
+  blk_append_str(t, cmd);
+  blk_append_str(t, "\n");
+  draw();
+
+  {
+    char home[PATH_MAX];
+    snprintf(home, sizeof home, "%s/nanobot_home", state_dir);
+    mkdir(home, 0700);
+    setenv("NANOBOT_HOME", home, 1);
+    char se[PATH_MAX];
+    snprintf(se, sizeof se, "%s/shell_enabled", home);
+    FILE *f = fopen(se, "w");
+    if (f) {
+      fputs("1\n", f);
+      fclose(f);
+    }
+  }
+  ng_shell_ensure_policy_files();
+  ng_cmd_result cr = ng_run_command(cmd, 60);
+  snprintf(blks[t].head, sizeof blks[t].head, "tool · shell · exit %d", cr.exit_code);
+  blk_append_str(t, "\n— result —\n");
+  if (cr.output)
+    blk_append_str(t, cr.output);
+  else
+    blk_append_str(t, "(no output)");
+  blks[t].open = cfg.ui_open_tool_spoiler_on_done;
+  draw();
+
+  /* Loop output back into the agent so it presents/summarizes for the user */
+  {
+    char prompt[IN_MAX + 2048];
+    snprintf(prompt, sizeof prompt,
+             "I ran this shell command myself:\n```\n%.400s\n```\n"
+             "exit code: %d\n"
+             "stdout/stderr:\n```\n%.3500s\n```\n"
+             "Present these results to me in plain text: what happened, "
+             "and the important output lines. Do not re-run the command.",
+             cmd, cr.exit_code, cr.output ? cr.output : "(no output)");
+    /* Use chat without tools for pure presentation */
+    setenv("NANOBOT_TOOLS", "0", 1);
+    stream_acc acc;
+    memset(&acc, 0, sizeof acc);
+    live_think = live_tool = live_asst = -1;
+    char reply[16384], err[400];
+    reply[0] = err[0] = 0;
+    int rc = grokium_chat_request_ex(&cfg, prompt, stream_cb, &acc, reply, sizeof reply,
+                                     err, sizeof err);
+    setenv("NANOBOT_TOOLS", "1", 1);
+    if (acc.len > 0) {
+      acc.line[acc.len] = 0;
+      if (live_asst < 0) live_asst = blk_push(BK_ASST, NULL);
+      blk_append_str(live_asst, acc.line);
+    }
+    if (live_asst < 0) {
+      int a = blk_push(BK_ASST, NULL);
+      if (rc == 0 && reply[0])
+        blk_append_str(a, reply);
+      else {
+        char line[200];
+        snprintf(line, sizeof line, "shell exit=%d — see tool spoiler above", cr.exit_code);
+        blk_append_str(a, line);
+        if (cr.output) {
+          blk_append_str(a, "\n");
+          blk_append_str(a, cr.output);
+        }
+      }
+    }
+    live_think = live_tool = live_asst = -1;
+  }
+  ng_cmd_result_free(&cr);
+  draw();
+}
+
+static void chat_send(const char *msg) {
+  live_think = live_tool = live_asst = -1;
+  {
+    int u = blk_push(BK_USER, NULL);
+    blk_append_str(u, msg);
+  }
+  {
+    char sm[48], w[96];
+    short_model(sm, sizeof sm);
+    snprintf(w, sizeof w, "… %s · hub gate", sm);
+    log_add(w);
+  }
+  draw();
+
+  if (!ng_llm_sched_try_acquire()) {
+    log_add("hub: waiting for LLM slot…");
+    draw();
+    ng_llm_sched_acquire();
+  }
+  ng_llm_sched_release();
+
+  stream_acc acc;
+  memset(&acc, 0, sizeof acc);
+  char reply[16384], err[400];
+  reply[0] = err[0] = 0;
+  int rc = grokium_chat_request_ex(&cfg, msg, stream_cb, &acc, reply, sizeof reply, err,
+                                   sizeof err);
+
+  if (acc.len > 0) {
+    acc.line[acc.len] = 0;
+    if (live_asst < 0) live_asst = blk_push(BK_ASST, NULL);
+    blk_append_str(live_asst, acc.line);
+  }
+  if (live_asst < 0) {
+    if (rc == 0 && reply[0]) {
+      int a = blk_push(BK_ASST, NULL);
+      blk_append_str(a, reply);
+    } else if (rc == 1) {
+      log_add("cube> (empty)");
+      if (err[0]) log_add(err);
+    } else {
+      log_add("cube> (fail)");
+      if (err[0]) log_add(err);
+    }
+  }
+  /* seal think title after stream */
+  if (live_think >= 0) refresh_think_head(live_think);
+  live_think = live_tool = live_asst = -1;
+  draw();
+}
+
+static int run_prog_capture(const char *name) {
+  char prog[PATH_MAX];
+  snprintf(prog, sizeof prog, "%s/%s", prog_dir, name);
+  if (access(prog, R_OK) != 0) {
+    log_add("! missing cubalc program");
+    return 2;
+  }
+  if (!file_ok(cubalc_bin)) {
+    log_add("! CubalC missing (optional)");
+    return 99;
+  }
+  int pipefd[2];
+  if (pipe(pipefd) != 0) return 1;
+  pid_t pid = fork();
+  if (pid < 0) return 1;
+  if (pid == 0) {
+    close(pipefd[0]);
+    dup2(pipefd[1], 1);
+    dup2(pipefd[1], 2);
+    close(pipefd[1]);
+    setenv("CUBALC_STATE", state_dir, 1);
+    setenv("CUBALC_ASCII", "1", 1);
+    setenv("GROKIUM_ROOT", root, 1);
+    execl(cubalc_bin, "cubalc", "run", prog, (char *)NULL);
+    _exit(127);
+  }
+  close(pipefd[1]);
+  char acc[65536];
+  size_t o = 0;
+  char buf[4096];
+  ssize_t n;
+  while ((n = read(pipefd[0], buf, sizeof buf)) > 0) {
+    if (o + (size_t)n >= sizeof acc) n = (ssize_t)(sizeof acc - 1 - o);
+    if (n <= 0) break;
+    memcpy(acc + o, buf, (size_t)n);
+    o += (size_t)n;
+  }
+  acc[o] = 0;
+  close(pipefd[0]);
+  int st = 0;
+  waitpid(pid, &st, 0);
+  log_add_block(acc);
+  return WIFEXITED(st) ? WEXITSTATUS(st) : 1;
+}
+
+static void do_login(int device) {
+  endwin();
+  printf("\n=== Grokium /login (optional cloud) ===\n");
+  printf("Uses official `grok login` if installed. Not affiliated with xAI.\n\n");
+  const char *grok = getenv("GROK_CLI");
+  if (!grok || !grok[0]) grok = "grok";
+  char *av[6];
+  int ac = 0;
+  av[ac++] = (char *)grok;
+  av[ac++] = "login";
+  if (device) av[ac++] = "--device-auth";
+  else av[ac++] = "--oauth";
+  av[ac] = NULL;
+  pid_t pid = fork();
+  if (pid == 0) {
+    execvp(grok, av);
+    _exit(127);
+  }
+  if (pid > 0) {
+    int st = 0;
+    waitpid(pid, &st, 0);
+  }
+  char tok[64];
+  if (grokium_load_grok_token(tok, sizeof tok) == 0) {
+    printf("token OK\n");
+    snprintf(cfg.active_backend, sizeof cfg.active_backend, "grok");
+    snprintf(cfg.active_model, sizeof cfg.active_model, "%s", cfg.grok_model);
+    gkx_config_save_prefs(&cfg, state_dir);
+  }
+  printf("Press Enter…\n");
+  char dummy[8];
+  fgets(dummy, sizeof dummy, stdin);
+  initscr();
+  cbreak();
+  noecho();
+  keypad(stdscr, TRUE);
+  mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL);
+  if (has_colors()) {
+    start_color();
+    use_default_colors();
+    init_pair(1, COLOR_RED, -1);
+    init_pair(2, COLOR_CYAN, -1);
+    init_pair(3, COLOR_YELLOW, -1);
+    init_pair(4, COLOR_GREEN, -1);
+    init_pair(5, COLOR_WHITE, -1);
+    init_pair(6, COLOR_MAGENTA, -1);
+  }
+  curs_set(1);
+}
+
+static void cmd_model_list(void) {
+  char err[200];
+  char *body = grokium_models_json(&cfg, err, sizeof err);
+  log_add("--- models (live) ---");
+  if (!body) {
+    log_add(err[0] ? err : "fetch failed");
+    return;
+  }
+  const char *p = body;
+  int count = 0;
+  while ((p = strstr(p, "\"id\"")) != NULL && count < 40) {
+    p += 4;
+    while (*p && *p != '"') p++;
+    if (*p != '"') break;
+    p++;
+    char id[512];
+    size_t i = 0;
+    while (*p && *p != '"' && i + 1 < sizeof id) id[i++] = *p++;
+    id[i] = 0;
+    if (i > 0) {
+      char line[240];
+      const char *show = strrchr(id, '/') ? strrchr(id, '/') + 1 : id;
+      snprintf(line, sizeof line, "  %s %s",
+               strcmp(id, cfg.active_model) == 0 ? "*" : "-", show);
+      log_add(line);
+      count++;
+    }
+  }
+  free(body);
+}
+
+static void do_command(const char *raw) {
+  while (*raw == ' ') raw++;
+  if (!raw[0]) return;
+  /* Bang shell: !cmd  or  ! cmd */
+  if (raw[0] == '!') {
+    shell_run_direct(raw + 1);
+    return;
+  }
+  if (raw[0] == '/') raw++;
+
+  char cmd[64], rest[IN_MAX];
+  rest[0] = 0;
+  if (sscanf(raw, "%63s %799[^\n]", cmd, rest) < 1) return;
+  for (char *p = cmd; *p; p++) *p = (char)tolower((unsigned char)*p);
+
+  if (strcmp(cmd, "q") == 0 || strcmp(cmd, "quit") == 0 || strcmp(cmd, "exit") == 0) {
+    endwin();
+    exit(0);
+  }
+  if (strcmp(cmd, "help") == 0 || strcmp(cmd, "h") == 0 || strcmp(cmd, "?") == 0) {
+    log_add("--- pure C TUI (config-driven) ---");
+    log_add("  /settings [key=val|save|reload|path]");
+    log_add("  multiline: Enter=nl · Alt+Enter/Ctrl+S=send");
+    log_add("  spoilers: Tab · e/E/c · click");
+    log_add("  /attach /viz · ! shell · /model · /settings · /q");
+    return;
+  }
+  if (strcmp(cmd, "shell") == 0 || strcmp(cmd, "sh") == 0 || strcmp(cmd, "run") == 0) {
+    shell_run_direct(rest);
+    return;
+  }
+  if (strcmp(cmd, "multiline") == 0 || strcmp(cmd, "ml") == 0) {
+    if (rest[0]) {
+      if (strcmp(rest, "on") == 0 || strcmp(rest, "1") == 0)
+        cfg.ui_multiline = 1;
+      else if (strcmp(rest, "off") == 0 || strcmp(rest, "0") == 0)
+        cfg.ui_multiline = 0;
+    } else
+      cfg.ui_multiline = !cfg.ui_multiline;
+    log_add(cfg.ui_multiline
+                ? "multiline ON — Enter = newline · Alt+Enter / Ctrl+S = send"
+                : "multiline OFF — Enter = send · Alt+Enter = newline");
+    config_persist();
+    return;
+  }
+  if (strcmp(cmd, "settings") == 0 || strcmp(cmd, "config") == 0) {
+    if (!rest[0] || !strcmp(rest, "show")) {
+      char line[240];
+      log_add("--- settings ---");
+      gkx_config_summary(&cfg, line, sizeof line);
+      log_add(line);
+      snprintf(line, sizeof line, "backend=%s model=%s ctx=%d",
+               cfg.active_backend, cfg.active_model, cfg.context_window);
+      log_add(line);
+      snprintf(line, sizeof line, "ui.theme=%s product=%s ml=%d mouse=%d rows=%d",
+               cfg.ui_theme, cfg.ui_product_name, cfg.ui_multiline, cfg.ui_mouse,
+               cfg.ui_composer_max_rows);
+      log_add(line);
+      snprintf(line, sizeof line, "agent tools=%d brain=%d turns=%d",
+               cfg.agent_tools, cfg.agent_braincells, cfg.agent_max_turns);
+      log_add(line);
+      snprintf(line, sizeof line, "base=%s", cfg.local_base_url);
+      log_add(line);
+      log_add("set: /settings ui.multiline=false | agent.tools=true | save");
+      return;
+    }
+    if (!strcmp(rest, "save")) { config_persist(); return; }
+    if (!strcmp(rest, "reload")) {
+      gkx_config_load(&cfg, NULL);
+      gkx_config_apply_env(&cfg);
+      ui_apply_colors();
+      log_add("config reloaded");
+      return;
+    }
+    if (!strcmp(rest, "path")) {
+      char path[PATH_MAX], line[PATH_MAX + 40];
+      gkx_config_resolve_save_path(&cfg, path, sizeof path);
+      snprintf(line, sizeof line, "save path: %s", path);
+      log_add(line);
+      return;
+    }
+    {
+      char *eq = strchr(rest, '=');
+      char k[80], v[160];
+      int on;
+      if (!eq) { log_add("usage: /settings key=value"); return; }
+      *eq = 0;
+      snprintf(k, sizeof k, "%s", rest);
+      snprintf(v, sizeof v, "%s", eq + 1);
+      on = (v[0]=='1'||v[0]=='t'||v[0]=='y'||v[0]=='T'||v[0]=='Y'||!strcmp(v,"on")||!strcmp(v,"true"));
+      if (!strcmp(k,"ui.multiline")||!strcmp(k,"multiline")) cfg.ui_multiline = on;
+      else if (!strcmp(k,"ui.mouse")||!strcmp(k,"mouse")) cfg.ui_mouse = on;
+      else if (!strcmp(k,"ui.theme")||!strcmp(k,"theme"))
+        snprintf(cfg.ui_theme, sizeof cfg.ui_theme, "%s", v);
+      else if (!strcmp(k,"ui.product_name")||!strcmp(k,"product_name"))
+        snprintf(cfg.ui_product_name, sizeof cfg.ui_product_name, "%s", v);
+      else if (!strcmp(k,"agent.tools")||!strcmp(k,"tools")) cfg.agent_tools = on;
+      else if (!strcmp(k,"agent.braincells")||!strcmp(k,"braincells")) cfg.agent_braincells = on;
+      else if (!strcmp(k,"agent.max_turns")||!strcmp(k,"max_turns"))
+        cfg.agent_max_turns = atoi(v);
+      else if (!strcmp(k,"agent.always_approve")||!strcmp(k,"always_approve"))
+        cfg.agent_always_approve = on;
+      else if (!strcmp(k,"model.local.base_url")||!strcmp(k,"base_url"))
+        snprintf(cfg.local_base_url, sizeof cfg.local_base_url, "%s", v);
+      else if (!strcmp(k,"model.local.context_window")||!strcmp(k,"context_window"))
+        cfg.context_window = atoi(v);
+      else if (!strcmp(k,"hub.enabled")) cfg.hub_enabled = on;
+      else if (!strcmp(k,"ui.color_assistant"))
+        snprintf(cfg.ui_color_assistant, sizeof cfg.ui_color_assistant, "%s", v);
+      else if (!strcmp(k,"ui.color_user"))
+        snprintf(cfg.ui_color_user, sizeof cfg.ui_color_user, "%s", v);
+      else if (!strcmp(k,"ui.color_think"))
+        snprintf(cfg.ui_color_think, sizeof cfg.ui_color_think, "%s", v);
+      else if (!strcmp(k,"ui.color_tool"))
+        snprintf(cfg.ui_color_tool, sizeof cfg.ui_color_tool, "%s", v);
+      else if (!strcmp(k,"ui.spoilers_default_open"))
+        cfg.ui_spoilers_default_open = on;
+      else if (!strcmp(k,"ui.composer_max_rows"))
+        cfg.ui_composer_max_rows = atoi(v);
+      else if (!strcmp(k,"ui.stream_redraw"))
+        cfg.ui_stream_redraw = on;
+      else { log_add("unknown key"); return; }
+      always_approve = cfg.agent_always_approve;
+      ui_apply_colors();
+      config_persist();
+      log_add("ok — saved");
+    }
+    return;
+  }
+  if (strcmp(cmd, "clear") == 0 || strcmp(cmd, "cls") == 0 || strcmp(cmd, "new") == 0) {
+    blk_free_all();
+    log_add(strcmp(cmd, "new") == 0 ? "(new session)" : "(cleared)");
+    return;
+  }
+  if (strcmp(cmd, "expand") == 0 || strcmp(cmd, "open") == 0) {
+    spoilers_set_all(1);
+    log_add("spoilers: expanded");
+    return;
+  }
+  if (strcmp(cmd, "collapse") == 0 || strcmp(cmd, "fold") == 0) {
+    spoilers_set_all(0);
+    log_add("spoilers: collapsed");
+    return;
+  }
+  if (strcmp(cmd, "debug") == 0) {
+    debug_mode = !debug_mode;
+    log_add(debug_mode ? "debug ON" : "debug OFF");
+    return;
+  }
+  if (strcmp(cmd, "always-approve") == 0 || strcmp(cmd, "yolo") == 0) {
+    always_approve = !always_approve;
+    setenv("NANOBOT_ALWAYS_APPROVE", always_approve ? "1" : "0", 1);
+    log_add(always_approve ? "always-approve ON" : "always-approve OFF");
+    return;
+  }
+  if (strcmp(cmd, "login") == 0 || strcmp(cmd, "grok") == 0) {
+    do_login(rest[0] && strstr(rest, "device") != NULL);
+    return;
+  }
+  if (strcmp(cmd, "logout") == 0) {
+    snprintf(cfg.active_backend, sizeof cfg.active_backend, "local");
+    snprintf(cfg.active_model, sizeof cfg.active_model, "%s", cfg.local_model);
+    gkx_config_save_prefs(&cfg, state_dir);
+    log_add("backend=local");
+    return;
+  }
+  if (strcmp(cmd, "auth") == 0) {
+    char tok[64], line[160];
+    snprintf(line, sizeof line, "auth=%s backend=%s",
+             grokium_load_grok_token(tok, sizeof tok) == 0 ? "yes" : "no",
+             cfg.active_backend);
+    log_add(line);
+    return;
+  }
+  if (strcmp(cmd, "backend") == 0) {
+    if (!rest[0]) {
+      char line[120];
+      snprintf(line, sizeof line, "backend=%s", cfg.active_backend);
+      log_add(line);
+      return;
+    }
+    for (char *p = rest; *p; p++) *p = (char)tolower((unsigned char)*p);
+    if (strcmp(rest, "local") == 0 || strcmp(rest, "llama") == 0) {
+      snprintf(cfg.active_backend, sizeof cfg.active_backend, "local");
+      gkx_config_save_prefs(&cfg, state_dir);
+      log_add("backend=local");
+    } else if (strcmp(rest, "grok") == 0 || strcmp(rest, "cloud") == 0) {
+      snprintf(cfg.active_backend, sizeof cfg.active_backend, "grok");
+      snprintf(cfg.active_model, sizeof cfg.active_model, "%s", cfg.grok_model);
+      gkx_config_save_prefs(&cfg, state_dir);
+      log_add("backend=grok");
+    } else
+      log_add("usage: /backend local|grok");
+    return;
+  }
+  if (strcmp(cmd, "model") == 0 || strcmp(cmd, "m") == 0) {
+    if (!rest[0] || strcmp(rest, "list") == 0) {
+      cmd_model_list();
+      return;
+    }
+    if (strcmp(rest, "local") == 0) {
+      snprintf(cfg.active_backend, sizeof cfg.active_backend, "local");
+      snprintf(cfg.active_model, sizeof cfg.active_model, "auto");
+    } else if (strcmp(rest, "grok") == 0) {
+      snprintf(cfg.active_backend, sizeof cfg.active_backend, "grok");
+      snprintf(cfg.active_model, sizeof cfg.active_model, "%s", cfg.grok_model);
+    } else {
+      snprintf(cfg.active_model, sizeof cfg.active_model, "%s", rest);
+      snprintf(cfg.active_backend, sizeof cfg.active_backend,
+               strncmp(rest, "grok", 4) == 0 ? "grok" : "local");
+    }
+    gkx_config_save_prefs(&cfg, state_dir);
+    log_add("model set");
+    return;
+  }
+  if (strcmp(cmd, "context") == 0 || strcmp(cmd, "ctx") == 0) {
+    if (rest[0]) {
+      int n = atoi(rest);
+      if (n > 1024) cfg.context_window = n;
+    }
+    char line[80];
+    snprintf(line, sizeof line, "context_window=%d", cfg.context_window);
+    log_add(line);
+    return;
+  }
+  if (strcmp(cmd, "settings") == 0) {
+    char line[160];
+    snprintf(line, sizeof line, "backend=%s model=%s ctx=%d slots=%d",
+             cfg.active_backend, cfg.active_model, cfg.context_window, cfg.llm_slots);
+    log_add(line);
+    snprintf(line, sizeof line, "base=%s", cfg.local_base_url);
+    log_add(line);
+    return;
+  }
+  if (strcmp(cmd, "status") == 0 || strcmp(cmd, "compat") == 0 || strcmp(cmd, "hub") == 0) {
+    char line[240];
+    gkx_hub_status(line, sizeof line);
+    log_add(line);
+    {
+      char *js = ng_llm_sched_status_json();
+      if (js) {
+        log_add(js);
+        free(js);
+      }
+    }
+    if (rest[0] && strcmp(rest, "start") == 0)
+      log_add(gkx_hub_ensure(&cfg) == 0 ? "hub: ready" : "hub: failed");
+    else if (rest[0] && strcmp(rest, "stop") == 0) {
+      gkx_hub_stop();
+      log_add("hub: stopped");
+    }
+    return;
+  }
+  if (strcmp(cmd, "attach") == 0 || strcmp(cmd, "file") == 0 || strcmp(cmd, "open") == 0) {
+    if (!rest[0]) { log_add("usage: /attach <path> [prompt for vision]"); return; }
+    char path[PATH_MAX], prompt[IN_MAX];
+    prompt[0] = 0;
+    if (sscanf(rest, "%511s %799[^\n]", path, prompt) < 1) {
+      log_add("usage: /attach <path>");
+      return;
+    }
+    size_t raw_n = 0;
+    unsigned char *raw = gkx_file_read_raw(path, &raw_n);
+    if (!raw) { log_add("cannot read file"); return; }
+    const char *mime = gkx_mime_guess(path);
+    char line[240];
+    snprintf(line, sizeof line, "file %s (%zu bytes, %s)", path, raw_n, mime);
+    log_add(line);
+    if (gkx_path_is_image(path)) {
+      char reply[16384], err[400];
+      reply[0] = err[0] = 0;
+      log_add("vision…");
+      draw();
+      int rc = gkx_chat_vision(&cfg, prompt[0] ? prompt : "Describe this image in detail.",
+                               path, reply, sizeof reply, err, sizeof err);
+      int a = blk_push(BK_ASST, NULL);
+      if (rc == 0 && reply[0]) blk_append_str(a, reply);
+      else blk_append_str(a, err[0] ? err : "vision failed");
+    } else if (!strncmp(mime, "text/", 5) || strstr(mime, "json") || strstr(mime, "xml")) {
+      /* raw text — inject into chat as user attachment context */
+      size_t cap = raw_n > 12000 ? 12000 : raw_n;
+      char *msg = malloc(cap + 200);
+      if (msg) {
+        snprintf(msg, cap + 200,
+                 "File `%s` (raw, first %zu bytes):\n```\n%.*s\n```\n%s",
+                 path, cap, (int)cap, (char *)raw,
+                 prompt[0] ? prompt : "Summarize or act on this file.");
+        chat_send(msg);
+        free(msg);
+      }
+    } else {
+      /* binary raw hex preview + optional external viz */
+      char *hex = malloc(200);
+      size_t i, h = 0;
+      if (hex) {
+        h = snprintf(hex, 200, "raw binary %zu bytes, head:", raw_n);
+        for (i = 0; i < raw_n && i < 24 && h + 4 < 200; i++)
+          h += (size_t)snprintf(hex + h, 200 - h, " %02x", raw[i]);
+        log_add(hex);
+        free(hex);
+      }
+      log_add("use /viz open <path> for desktop viewer, /viz vr <path> for VR cmd");
+    }
+    free(raw);
+    return;
+  }
+  if (strcmp(cmd, "viz") == 0) {
+    char sub[32], arg[PATH_MAX];
+    sub[0] = arg[0] = 0;
+    sscanf(rest, "%31s %511s", sub, arg);
+    if (!sub[0] || !strcmp(sub, "help")) {
+      log_add("/viz term <n1,n2,...>   terminal 2D bars");
+      log_add("/viz open <path>        desktop viewer (config viz.desktop_cmd)");
+      log_add("/viz vr <path>          VR/desktop cmd (viz.vr_cmd or desktop)");
+      log_add("No hard-coded VR SDK — set viz.vr_cmd = \"your-viewer %s\"");
+      return;
+    }
+    if (!strcmp(sub, "open") && arg[0]) {
+      if (gkx_viz_open(&cfg, arg, 0) == 0) log_add("opened (desktop cmd)");
+      else log_add("viz open failed");
+      return;
+    }
+    if (!strcmp(sub, "vr") && arg[0]) {
+      if (gkx_viz_open(&cfg, arg, 1) == 0) log_add("opened (vr/desktop cmd)");
+      else log_add("viz vr failed");
+      return;
+    }
+    if (!strcmp(sub, "term") || !strcmp(sub, "2d")) {
+      double ys[128];
+      int n = 0;
+      const char *p = arg[0] ? arg : rest;
+      if (!strcmp(sub, "term") || !strcmp(sub, "2d")) {
+        /* numbers after sub */
+        char *sp = strchr(rest, ' ');
+        p = sp ? sp + 1 : rest;
+      }
+      while (*p && n < 128) {
+        while (*p == ' ' || *p == ',') p++;
+        if (!*p) break;
+        ys[n++] = atof(p);
+        while (*p && *p != ',' && *p != ' ') p++;
+      }
+      if (n < 1) {
+        /* demo wave */
+        for (n = 0; n < 32; n++) ys[n] = (n % 7) + (n % 3) * 0.5;
+      }
+      char *plot = gkx_viz_term2d_bars(ys, n, cfg.viz_term_width, cfg.viz_term_height);
+      if (plot) {
+        log_add_block(plot);
+        free(plot);
+      }
+      return;
+    }
+    log_add("usage: /viz term|open|vr …");
+    return;
+  }
+  if (strcmp(cmd, "board") == 0) {
+
+    run_prog_capture("board.cubalc");
+    return;
+  }
+  if (strcmp(cmd, "fleet") == 0) {
+    run_prog_capture("fleet.cubalc");
+    return;
+  }
+  if (strcmp(cmd, "selftest") == 0) {
+    run_prog_capture("selftest.cubalc");
+    return;
+  }
+  chat_send(raw);
+}
+
+/* Flatten blocks into visible rows for drawing / hit-test */
+typedef struct {
+  int blk;
+  int is_header; /* spoiler header row */
+  const char *text;
+  char tmp[240];
+} vrow_t;
+
+#define VROW_MAX 2000
+static vrow_t vrows[VROW_MAX];
+static int vrow_n;
+
+static void rebuild_vrows(void) {
+  vrow_n = 0;
+  for (int i = 0; i < blk_n && vrow_n < VROW_MAX - 8; i++) {
+    blk_t *b = &blks[i];
+    if (b->kind == BK_USER) {
+      vrows[vrow_n++] = (vrow_t){.blk = i, .is_header = 0, .text = "you>"};
+      if (b->body && b->body[0]) {
+        char *dup = strdup(b->body);
+        if (dup) {
+          char *save = NULL;
+          for (char *ln = strtok_r(dup, "\n", &save); ln && vrow_n < VROW_MAX;
+               ln = strtok_r(NULL, "\n", &save)) {
+            vrows[vrow_n].blk = i;
+            vrows[vrow_n].is_header = 0;
+            snprintf(vrows[vrow_n].tmp, sizeof vrows[vrow_n].tmp, "  %s", ln);
+            vrows[vrow_n].text = vrows[vrow_n].tmp;
+            vrow_n++;
+          }
+          free(dup);
+        }
+      }
+    } else if (b->kind == BK_ASST) {
+      vrows[vrow_n++] = (vrow_t){.blk = i, .is_header = 0, .text = "cube>"};
+      if (b->body && b->body[0]) {
+        char *dup = strdup(b->body);
+        if (dup) {
+          char *save = NULL;
+          for (char *ln = strtok_r(dup, "\n", &save); ln && vrow_n < VROW_MAX;
+               ln = strtok_r(NULL, "\n", &save)) {
+            vrows[vrow_n].blk = i;
+            vrows[vrow_n].is_header = 0;
+            snprintf(vrows[vrow_n].tmp, sizeof vrows[vrow_n].tmp, "  %s", ln);
+            vrows[vrow_n].text = vrows[vrow_n].tmp;
+            vrow_n++;
+          }
+          free(dup);
+        }
+      }
+    } else if (b->kind == BK_META) {
+      vrows[vrow_n].blk = i;
+      vrows[vrow_n].is_header = 0;
+      vrows[vrow_n].text = b->body ? b->body : "";
+      vrow_n++;
+    } else if (is_spoiler(b->kind)) {
+      /* header always visible */
+      const char *mark = b->open ? "v" : ">";
+      const char *focus = (focus_sp == i) ? "*" : " ";
+      vrows[vrow_n].blk = i;
+      vrows[vrow_n].is_header = 1;
+      snprintf(vrows[vrow_n].tmp, sizeof vrows[vrow_n].tmp, "%s%s %s", focus, mark,
+               b->head[0] ? b->head : (b->kind == BK_THINK ? "thought" : "tool"));
+      vrows[vrow_n].text = vrows[vrow_n].tmp;
+      vrow_n++;
+      if (b->open && b->body && b->body[0]) {
+        char *dup = strdup(b->body);
+        if (dup) {
+          char *save = NULL;
+          for (char *ln = strtok_r(dup, "\n", &save); ln && vrow_n < VROW_MAX;
+               ln = strtok_r(NULL, "\n", &save)) {
+            vrows[vrow_n].blk = i;
+            vrows[vrow_n].is_header = 0;
+            snprintf(vrows[vrow_n].tmp, sizeof vrows[vrow_n].tmp, "    %s", ln);
+            vrows[vrow_n].text = vrows[vrow_n].tmp;
+            vrow_n++;
+          }
+          free(dup);
+        }
+      }
+    }
+  }
+}
+
+/* Count newlines in [0, end) of input for composer height. */
+static int input_line_count(void) {
+  int n = 1;
+  for (int i = 0; i < in_len; i++)
+    if (input[i] == '\n') n++;
+  if (n > composer_max_rows()) n = composer_max_rows();
+  if (n < 1) n = 1;
+  return n;
+}
+
+/* Cursor (row,col) within composer; row 0 = first line. */
+static void input_cursor_rc(int *out_r, int *out_c) {
+  int r = 0, c = 0;
+  for (int i = 0; i < in_cur && i < in_len; i++) {
+    if (input[i] == '\n') {
+      r++;
+      c = 0;
+    } else
+      c++;
+  }
+  *out_r = r;
+  *out_c = c;
+}
+
+static void input_insert(char ch) {
+  if (in_len + 1 >= IN_MAX) return;
+  if (in_cur < 0) in_cur = 0;
+  if (in_cur > in_len) in_cur = in_len;
+  memmove(input + in_cur + 1, input + in_cur, (size_t)(in_len - in_cur));
+  input[in_cur] = ch;
+  in_len++;
+  in_cur++;
+  input[in_len] = 0;
+}
+
+static void input_backspace(void) {
+  if (in_cur <= 0) return;
+  memmove(input + in_cur - 1, input + in_cur, (size_t)(in_len - in_cur));
+  in_cur--;
+  in_len--;
+  input[in_len] = 0;
+}
+
+static void input_delete(void) {
+  if (in_cur >= in_len) return;
+  memmove(input + in_cur, input + in_cur + 1, (size_t)(in_len - in_cur));
+  in_len--;
+  input[in_len] = 0;
+}
+
+static void submit_input(void) {
+  input[in_len] = 0;
+  /* trim trailing newlines only */
+  while (in_len > 0 && (input[in_len - 1] == '\n' || input[in_len - 1] == '\r'))
+    input[--in_len] = 0;
+  if (in_len == 0) {
+    if (focus_sp >= 0) toggle_spoiler(focus_sp);
+    return;
+  }
+  char line[IN_MAX];
+  memcpy(line, input, (size_t)in_len + 1);
+  in_len = in_cur = 0;
+  input[0] = 0;
+  if (strcmp(line, "q") == 0 || strcmp(line, "quit") == 0) {
+    endwin();
+    exit(0);
+  }
+  do_command(line);
+  scroll_off = 0;
+}
+
+static void draw(void) {
+  int rows, cols;
+  getmaxyx(stdscr, rows, cols);
+  erase();
+  rebuild_vrows();
+
+  if (cfg.ui_show_header) {
+    attron(A_BOLD | COLOR_PAIR(CP_ACCENT));
+    mvprintw(0, 0, " %s", cfg.ui_product_name[0] ? cfg.ui_product_name : "Grokium");
+    attroff(A_BOLD | COLOR_PAIR(CP_ACCENT));
+    attron(A_DIM);
+    printw("  %s", GROKIUM_VERSION);
+    attroff(A_DIM);
+    if (always_approve || cfg.agent_always_approve) {
+      attron(COLOR_PAIR(CP_OK));
+      printw("  yolo");
+      attroff(COLOR_PAIR(CP_OK));
+    }
+    if (cfg.ui_multiline) {
+      attron(A_DIM | COLOR_PAIR(CP_OK));
+      printw("  ml");
+      attroff(A_DIM | COLOR_PAIR(CP_OK));
+    }
+    if (cfg.agent_braincells) {
+      attron(A_DIM | COLOR_PAIR(CP_THINK));
+      printw("  hive");
+      attroff(A_DIM | COLOR_PAIR(CP_THINK));
+    }
+    int ns = count_spoilers();
+    if (cfg.ui_show_spoiler_count && ns > 0) {
+      attron(A_DIM | COLOR_PAIR(CP_THINK));
+      printw("  [%d spoiler%s]", ns, ns == 1 ? "" : "s");
+      attroff(A_DIM | COLOR_PAIR(CP_THINK));
+    }
+    char sm[48];
+    short_model(sm, sizeof sm);
+    attron(A_DIM);
+    mvprintw(1, 0, " %s · %s · ctx %d · %s", cfg.active_backend, sm,
+             cfg.context_window, cfg.ui_theme);
+    if (cfg.ui_show_status_hints && cols > 50) {
+      const char *hint = cfg.ui_send_hint[0] ? cfg.ui_send_hint :
+        (cfg.ui_multiline ? "Enter=nl · Alt+Enter send" : "Enter=send");
+      int hl = (int)strlen(hint);
+      if (hl < cols - 2)
+        mvprintw(1, cols - hl - 1, "%s", hint);
+    }
+    attroff(A_DIM);
+    mvhline(2, 0, ACS_HLINE, cols > 0 ? cols : 1);
+  }
+
+  int comp_rows = input_line_count();
+  int sep_y = rows - 1 - comp_rows; /* separator above composer */
+  if (sep_y < 3) sep_y = 3;
+
+  int log_h = sep_y - 3;
+  if (log_h < 2) log_h = 2;
+  int start = vrow_n - log_h - scroll_off;
+  if (start < 0) start = 0;
+  int y = 3;
+  for (int i = start; i < vrow_n && y < sep_y; i++, y++) {
+    int bi = vrows[i].blk;
+    int kind = (bi >= 0 && bi < blk_n) ? blks[bi].kind : BK_META;
+    if (kind == BK_USER)
+      attron(A_BOLD | COLOR_PAIR(CP_USER));
+    else if (kind == BK_ASST)
+      attron(A_BOLD | COLOR_PAIR(CP_ASST));
+    else if (kind == BK_THINK)
+      attron(A_DIM | COLOR_PAIR(CP_THINK));
+    else if (kind == BK_TOOL)
+      attron(A_DIM | COLOR_PAIR(CP_TOOL));
+    else
+      attron(A_DIM);
+    if (vrows[i].is_header && focus_sp == bi) attron(A_REVERSE);
+    mvaddnstr(y, 0, vrows[i].text ? vrows[i].text : "", cols > 1 ? cols - 1 : 1);
+    attroff(A_BOLD | A_DIM | A_REVERSE | COLOR_PAIR(CP_USER) | COLOR_PAIR(CP_ASST) | COLOR_PAIR(CP_TOOL) |
+            COLOR_PAIR(CP_THINK));
+  }
+
+  attron(A_DIM);
+  mvhline(sep_y, 0, ACS_HLINE, cols > 0 ? cols : 1);
+  attroff(A_DIM);
+
+  /* Multi-line composer */
+  int cr, cc;
+  input_cursor_rc(&cr, &cc);
+  /* If more lines than composer_max_rows(), window so cursor row is visible */
+  int view0 = 0;
+  if (cr >= composer_max_rows()) view0 = cr - composer_max_rows() + 1;
+
+  {
+    int line_i = 0, pos = 0;
+    while (line_i < view0 && pos < in_len) {
+      if (input[pos] == '\n') line_i++;
+      pos++;
+    }
+    for (int row = 0; row < comp_rows; row++) {
+      int yy = sep_y + 1 + row;
+      if (yy >= rows) break;
+      move(yy, 0);
+      clrtoeol();
+      if (row == 0) {
+        attron(A_BOLD | COLOR_PAIR(CP_ASST));
+        mvaddstr(yy, 0, " > ");
+        attroff(A_BOLD | COLOR_PAIR(CP_ASST));
+      } else {
+        attron(A_DIM);
+        mvaddstr(yy, 0, " | ");
+        attroff(A_DIM);
+      }
+      int col0 = 3;
+      int start_pos = pos;
+      while (pos < in_len && input[pos] != '\n') pos++;
+      int frag = pos - start_pos;
+      int maxw = cols > col0 + 1 ? cols - col0 - 1 : 1;
+      if (frag > maxw) frag = maxw;
+      if (frag > 0) mvaddnstr(yy, col0, input + start_pos, frag);
+      if (pos < in_len && input[pos] == '\n') pos++; /* skip nl */
+    }
+  }
+
+  /* place cursor */
+  {
+    int vis_r = cr - view0;
+    if (vis_r < 0) vis_r = 0;
+    if (vis_r >= comp_rows) vis_r = comp_rows - 1;
+    int yy = sep_y + 1 + vis_r;
+    int xx = 3 + cc;
+    if (xx >= cols) xx = cols - 1;
+    if (yy >= rows) yy = rows - 1;
+    move(yy, xx);
+  }
+  refresh();
+}
+
+static void maybe_version_watch(void) {
+  if (!cfg.auto_version_watch) return;
+  time_t now = time(NULL);
+  if (last_ver_check && (now - last_ver_check) < cfg.version_watch_interval_sec) return;
+  last_ver_check = now;
+  char prev[64];
+  snprintf(prev, sizeof prev, "%s", ver_st.last_seen);
+  gkx_version_refresh(&ver_st, root);
+  if (ver_st.changed && prev[0] && strcmp(prev, "none") != 0) {
+    endwin();
+    if (g_argv && g_argc > 0) gkx_version_maybe_restart(&ver_st, g_argc, g_argv);
+  }
+}
+
+/* Map mouse y → block toggle if header */
+static void mouse_click_y(int my) {
+  int rows, cols;
+  getmaxyx(stdscr, rows, cols);
+  (void)cols;
+  int comp_rows = input_line_count();
+  int sep_y = rows - 1 - comp_rows;
+  if (sep_y < 3) sep_y = 3;
+  int log_h = sep_y - 3;
+  if (log_h < 2) log_h = 2;
+  int start = vrow_n - log_h - scroll_off;
+  if (start < 0) start = 0;
+  if (my < 3 || my >= sep_y) return;
+  int vi = start + (my - 3);
+  if (vi < 0 || vi >= vrow_n) return;
+  if (vrows[vi].is_header) toggle_spoiler(vrows[vi].blk);
+}
+
+int grokium_tui(int argc, char **argv) {
+  g_argc = argc;
+  g_argv = argv;
+  resolve_paths();
+  mkdir(state_dir, 0755);
+  setenv("CUBALC_ASCII", "1", 1);
+
+  gkx_config_load(&cfg, NULL);
+  gkx_config_apply_env(&cfg);
+  gkx_config_load_prefs(&cfg, state_dir);
+  if (!cfg.active_model[0])
+    snprintf(cfg.active_model, sizeof cfg.active_model, "%s", cfg.local_model);
+  if (!cfg.active_backend[0])
+    snprintf(cfg.active_backend, sizeof cfg.active_backend, "local");
+
+  gkx_version_init(&ver_st, root);
+  gkx_version_refresh(&ver_st, root);
+  last_ver_check = time(NULL);
+
+  ng_log_set_stderr(0);
+  ng_log_init(NULL);
+  gkx_hub_apply_sched_env(&cfg);
+  {
+    char slots[8];
+    snprintf(slots, sizeof slots, "%d", cfg.llm_slots > 0 ? cfg.llm_slots : 1);
+    setenv("NANOBOT_LLM_SLOTS", slots, 1);
+    ng_llm_sched_set_enabled(1);
+    ng_llm_sched_set_slots(cfg.llm_slots > 0 ? cfg.llm_slots : 1);
+  }
+  if (cfg.hub_enabled) gkx_hub_ensure(&cfg);
+
+  always_approve = cfg.agent_always_approve;
+
+  initscr();
+  cbreak();
+  noecho();
+  keypad(stdscr, TRUE);
+  if (cfg.ui_mouse) {
+    mousemask(ALL_MOUSE_EVENTS, NULL);
+    mouseinterval(0);
+  }
+  ui_apply_colors();
+  curs_set(1);
+
+  if (cfg.ui_welcome_line[0])
+    log_add(cfg.ui_welcome_line);
+  else
+    log_add("local-first · pure C · /settings");
+  if (cfg.ui_show_status_hints)
+    log_add(cfg.ui_send_hint[0] ? cfg.ui_send_hint : "/help · /settings");
+
+  input[0] = 0;
+  in_len = in_cur = 0;
+  pending_esc = 0;
+  for (;;) {
+    maybe_version_watch();
+    draw();
+    int ch = getch();
+    if (ch == KEY_RESIZE) continue;
+    if (ch == KEY_MOUSE) {
+      MEVENT ev;
+      if (getmouse(&ev) == OK && (ev.bstate & BUTTON1_CLICKED)) {
+        rebuild_vrows();
+        mouse_click_y(ev.y);
+      }
+      continue;
+    }
+    if (ch == 3) { /* Ctrl+C clear input or interrupt note */
+      if (in_len > 0) {
+        in_len = in_cur = 0;
+        input[0] = 0;
+      } else
+        log_add("(interrupt)");
+      continue;
+    }
+
+    /* Alt+Enter: ESC then Enter (common terminal sequence) */
+    if (ch == 27) {
+      pending_esc = 1;
+      /* short wait for the next key of Alt-combo */
+      timeout(40);
+      int ch2 = getch();
+      timeout(-1);
+      pending_esc = 0;
+      if (ch2 == ERR) continue;
+      if (ch2 == '\n' || ch2 == '\r' || ch2 == KEY_ENTER) {
+        /* Alt+Enter */
+        if (cfg.ui_multiline)
+          submit_input();
+        else
+          input_insert('\n');
+        continue;
+      }
+      /* other Alt keys ignored */
+      ch = ch2;
+    }
+
+    /* Ctrl+S = send (works in both modes) */
+    if (ch == 19) { /* ^S */
+      submit_input();
+      continue;
+    }
+    /* Ctrl+J = newline when not multiline? both: force newline */
+    if (ch == 10 && 0) { /* unused — Enter handling below */
+    }
+
+    /* Spoiler keys only when composer empty */
+    if (in_len == 0) {
+      if (ch == '\t') {
+        focus_next_spoiler(1);
+        continue;
+      }
+      if (ch == KEY_BTAB) {
+        focus_next_spoiler(-1);
+        continue;
+      }
+      if (ch == 'e') {
+        int ix = focus_sp >= 0 ? focus_sp : last_spoiler();
+        toggle_spoiler(ix);
+        continue;
+      }
+      if (ch == 'E') {
+        spoilers_set_all(1);
+        continue;
+      }
+      if (ch == 'c' || ch == 'C') {
+        spoilers_set_all(0);
+        continue;
+      }
+    }
+
+    if (ch == KEY_ENTER || ch == '\n' || ch == '\r') {
+      if (cfg.ui_multiline) {
+        /* Enter = newline; empty Enter on focus = spoiler */
+        if (in_len == 0 && focus_sp >= 0)
+          toggle_spoiler(focus_sp);
+        else
+          input_insert('\n');
+      } else {
+        submit_input();
+      }
+      continue;
+    }
+    if (ch == KEY_BACKSPACE || ch == 127 || ch == 8) {
+      input_backspace();
+      continue;
+    }
+    if (ch == KEY_DC) {
+      input_delete();
+      continue;
+    }
+    if (ch == KEY_LEFT) {
+      if (in_cur > 0) in_cur--;
+      continue;
+    }
+    if (ch == KEY_RIGHT) {
+      if (in_cur < in_len) in_cur++;
+      continue;
+    }
+    if (ch == KEY_HOME) {
+      /* start of current line */
+      while (in_cur > 0 && input[in_cur - 1] != '\n') in_cur--;
+      continue;
+    }
+    if (ch == KEY_END) {
+      while (in_cur < in_len && input[in_cur] != '\n') in_cur++;
+      continue;
+    }
+    if (ch == KEY_PPAGE) {
+      scroll_off += cfg.ui_scroll_step > 0 ? cfg.ui_scroll_step : 5;
+      continue;
+    }
+    if (ch == KEY_NPAGE) {
+      if (scroll_off > 0) scroll_off -= cfg.ui_scroll_step > 0 ? cfg.ui_scroll_step : 5;
+      continue;
+    }
+    if (ch == KEY_UP) {
+      /* move cursor up a line in composer if multi-line, else scroll */
+      int r, c;
+      input_cursor_rc(&r, &c);
+      if (r > 0) {
+        /* walk to previous line, same column */
+        int i = in_cur;
+        while (i > 0 && input[i - 1] != '\n') i--;
+        if (i > 0) i--; /* skip nl */
+        int line_start = i;
+        while (line_start > 0 && input[line_start - 1] != '\n') line_start--;
+        int col = 0;
+        in_cur = line_start;
+        while (col < c && in_cur < i) {
+          in_cur++;
+          col++;
+        }
+      } else
+        scroll_off++;
+      continue;
+    }
+    if (ch == KEY_DOWN) {
+      int r, c;
+      input_cursor_rc(&r, &c);
+      int lines = 1;
+      for (int i = 0; i < in_len; i++)
+        if (input[i] == '\n') lines++;
+      if (r + 1 < lines) {
+        int i = in_cur;
+        while (i < in_len && input[i] != '\n') i++;
+        if (i < in_len) i++; /* past nl */
+        int col = 0;
+        in_cur = i;
+        while (col < c && in_cur < in_len && input[in_cur] != '\n') {
+          in_cur++;
+          col++;
+        }
+      } else if (scroll_off > 0)
+        scroll_off--;
+      continue;
+    }
+    if (ch >= 32 && ch < 127) {
+      input_insert((char)ch);
+    }
+  }
+  endwin();
+  blk_free_all();
+  return 0;
+}

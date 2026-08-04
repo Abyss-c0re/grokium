@@ -24,12 +24,19 @@ idea relative to Grok Build) — not an xAI trademark claim.
 
 ---
 
-Inspiration (not a source copy)
-  Grok Build — https://github.com/xai-org/grok-build
-  First-party Grok Build code is Apache License 2.0 (xAI / SpaceXAI).
-  Grokium does not redistribute Grok Build source code.
-  Session import reads user-local ~/.grok/sessions when present;
+Agent core
+  nanobot — https://github.com/Abyss-c0re/nanobot
+  Our embeddable C agent (peer/MCP/tools/OpenAI-compatible client).
+  Grokium host wires a desktop TUI around nanobot; desktop UX stays in host/.
+  nanobot remains buildable for ARMv7 / static / lean embedded targets.
+  See NANOBOT_PIN.txt and THIRD-PARTY-NOTICES.
+
+Inspiration / interface compatibility (not a source dump)
+  Public agent UX patterns (slash commands, model config keys) are reimplemented
+  in original C for Grokium. We do not ship xAI binaries, logos, or a vendored
+  copy of Grok Build as our product runtime.
+  Optional session import may read user-local ~/.grok/sessions when present;
   that data remains the user's; Grokium does not relicense it.
 
-Optional runtime components (not bundled)
-  See THIRD-PARTY-NOTICES (llama.cpp, nanobot host binary, libsodium).
+Optional runtime components (host-provided, not always bundled)
+  See THIRD-PARTY-NOTICES (llama.cpp, nanobot, system libs).

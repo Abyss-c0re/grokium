@@ -1,0 +1,18 @@
+[hold]
+SYS ENV GROKIUM_VERSION
+LET ver = LAST
+SYS ENV CUBALC_BIN
+LET cbin = LAST
+SYS ENV GROKIUM_ROOT
+LET root = LAST
+PRINT "product=grokium"
+PRINT "engine=CubalC"
+PRINT "host=C"
+PRINT "python=0"
+PRINT "tok=C3"
+PRINT "hold_flash=1"
+PRINT "share=smx"
+PRINT ver
+PRINT cbin
+PRINT root
+ASSERT 1 == 1

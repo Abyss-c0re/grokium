@@ -14,10 +14,11 @@
 
 ## What Grokium is
 
-A **local-first** community-style agent harness inspired by the *idea* of
-respectful open alternatives (similar spirit to VSCodium vs VS Code).  
-It can optionally call third-party APIs (including Grok-compatible endpoints)
-**with credentials you supply**. That does **not** make Grokium an xAI product.
+A **local-first** community-style agent harness. The agent core is **nanobot**
+(our embeddable C project). The host is an original C TUI.  
+It can optionally call third-party APIs **with credentials you supply**.
+That does **not** make Grokium an xAI product. We do not ship official
+Grok Build binaries.
 
 ## Trademarks
 
