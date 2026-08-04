@@ -4,12 +4,12 @@
   "product": "grokium",
   "not": ["data_collector", "grok_model", "telemetry_product"],
   "privacy_canonical_sha256": "35c9a6b67937590a82cd607596c40b28e14a09414ed1740bf15e9cc87cb1e7bc",
-  "code_seal_aggregate": "5bca04521d74783c1bcf249fec5e2fdd2a7c77c0edb5718a9c0d091f25936a3a",
+  "code_seal_aggregate": "252f0b1d9784008abff83b0e248261e55d9b1bf0c149b2eeae6ebdfccc947961",
   "share_only": "state_matrix_only",
   "stream": "smx_realtime_bits",
   "fail_closed": true,
   "allowlist": ["127.0.0.1", "localhost", "::1", "cli-chat-proxy.grok.com", "auth.x.ai", "accounts.x.ai"],
-  "ts": 1785861583,
+  "ts": 1785862434,
   "code_seal_language": "C",
   "commander_seal_note": "optional Ed25519 seal via grokium-commander; model is never commander"
 }

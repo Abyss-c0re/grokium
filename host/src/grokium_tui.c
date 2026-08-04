@@ -836,13 +836,194 @@ static void cmd_sessions_search(const char *q) {
   log_add(line);
 }
 
+/* Allow only HOME or repo data/ for host-local resume files. */
+static int resume_path_allowed(const char *p) {
+  char base[PATH_MAX];
+  const char *h;
+  size_t hl, bl;
+  if (!p || p[0] != '/') return 0;
+  h = getenv("HOME");
+  if (h && h[0]) {
+    hl = strlen(h);
+    if (strncmp(p, h, hl) == 0 && (p[hl] == '/' || p[hl] == 0))
+      return 1;
+  }
+  snprintf(base, sizeof base, "%s/data", root);
+  bl = strlen(base);
+  if (strncmp(p, base, bl) == 0 && (p[bl] == '/' || p[bl] == 0))
+    return 1;
+  return 0;
+}
+
+/* Decode a JSON string body (starting after opening quote) into out. */
+static int json_decode_string(const char *src, char *out, size_t cap) {
+  size_t o = 0;
+  if (!src || !out || cap < 2) return -1;
+  out[0] = 0;
+  while (*src && *src != '"' && o + 1 < cap) {
+    if (*src == '\\' && src[1]) {
+      src++;
+      if (*src == 'n')
+        out[o++] = '\n';
+      else if (*src == 't')
+        out[o++] = '\t';
+      else if (*src == 'r')
+        out[o++] = '\r';
+      else if (*src == '"' || *src == '\\' || *src == '/')
+        out[o++] = *src;
+      else if (*src == 'u' && src[1] && src[2] && src[3] && src[4])
+        src += 4; /* skip unicode escape */
+      else
+        out[o++] = *src;
+      src++;
+    } else {
+      out[o++] = *src++;
+    }
+  }
+  out[o] = 0;
+  return 0;
+}
+
+/* Extract user/assistant display text from a chat_history.jsonl line. */
+static int resume_line_text(const char *line, int *kind_out, char *out,
+                            size_t cap) {
+  const char *c, *t, *p;
+  size_t o = 0;
+  int kind = 0;
+  if (!line || !out || cap < 2) return -1;
+  out[0] = 0;
+  if (strstr(line, "\"type\":\"user\""))
+    kind = BK_USER;
+  else if (strstr(line, "\"type\":\"assistant\""))
+    kind = BK_ASST;
+  else
+    return -1;
+  c = strstr(line, "\"content\"");
+  if (!c) return -1;
+  c = strchr(c + 9, ':');
+  if (!c) return -1;
+  c++;
+  while (*c == ' ' || *c == '\t') c++;
+  if (*c == '"') {
+    if (json_decode_string(c + 1, out, cap) != 0) return -1;
+  } else if (*c == '[') {
+    /* multimodal array: concatenate text parts */
+    p = c;
+    while ((t = strstr(p, "\"text\"")) != NULL && o + 1 < cap) {
+      const char *q = strchr(t + 6, ':');
+      char piece[1024];
+      if (!q) break;
+      q++;
+      while (*q == ' ' || *q == '\t') q++;
+      if (*q != '"') {
+        p = t + 6;
+        continue;
+      }
+      if (json_decode_string(q + 1, piece, sizeof piece) == 0 && piece[0]) {
+        size_t pl = strlen(piece);
+        if (o && o + 1 < cap) out[o++] = '\n';
+        if (o + pl >= cap) pl = cap - 1 - o;
+        memcpy(out + o, piece, pl);
+        o += pl;
+        out[o] = 0;
+      }
+      p = t + 6;
+    }
+  } else
+    return -1;
+  if (!out[0]) return -1;
+  /* drop huge system-ish user dumps (keep head for context) */
+  if (kind == BK_USER && o > 1200) {
+    out[1200] = 0;
+    if (o + 16 < cap)
+      snprintf(out + 1200, cap - 1200, "\n…");
+  } else if (o > 2000) {
+    out[2000] = 0;
+    snprintf(out + 2000, cap > 2008 ? 8 : cap - 2000, "\n…");
+  }
+  if (kind_out) *kind_out = kind;
+  return 0;
+}
+
+#define RESUME_MAX_MSGS 12
+
+/* Host-local visual resume from chat_history.jsonl — never SMX product bus. */
+static int session_resume_local(const char *id, const char *meta) {
+  char import_path[PATH_MAX], hist[PATH_MAX], line_buf[8192], text[2200];
+  char *ring_text[RESUME_MAX_MSGS];
+  int ring_kind[RESUME_MAX_MSGS];
+  int ring_n = 0, ring_start = 0, loaded = 0, kind, i, ix;
+  FILE *f;
+  size_t n;
+
+  import_path[0] = 0;
+  meta_get_str(meta, "import_path", import_path, sizeof import_path);
+  if (!import_path[0])
+    meta_get_str(meta, "source", import_path, sizeof import_path);
+
+  hist[0] = 0;
+  if (import_path[0] && resume_path_allowed(import_path)) {
+    snprintf(hist, sizeof hist, "%s/chat_history.jsonl", import_path);
+    if (access(hist, R_OK) != 0) hist[0] = 0;
+  }
+  if (!hist[0]) {
+    snprintf(hist, sizeof hist, "%s/data/import/%s/chat_history.jsonl", root, id);
+    if (access(hist, R_OK) != 0) hist[0] = 0;
+  }
+  if (!hist[0]) return 0;
+
+  f = fopen(hist, "r");
+  if (!f) return 0;
+  memset(ring_text, 0, sizeof ring_text);
+  while (fgets(line_buf, sizeof line_buf, f)) {
+    /* skip truncated monster lines */
+    n = strlen(line_buf);
+    if (n + 1 >= sizeof line_buf && line_buf[n - 1] != '\n') {
+      int ch;
+      while ((ch = fgetc(f)) != EOF && ch != '\n') {
+      }
+      continue;
+    }
+    if (resume_line_text(line_buf, &kind, text, sizeof text) != 0)
+      continue;
+    if (ring_n == RESUME_MAX_MSGS) {
+      free(ring_text[ring_start]);
+      ring_text[ring_start] = NULL;
+      ring_start = (ring_start + 1) % RESUME_MAX_MSGS;
+      ring_n--;
+    }
+    ix = (ring_start + ring_n) % RESUME_MAX_MSGS;
+    ring_text[ix] = strdup(text);
+    ring_kind[ix] = kind;
+    if (ring_text[ix])
+      ring_n++;
+  }
+  fclose(f);
+  if (ring_n <= 0) return 0;
+
+  blk_free_all();
+  for (i = 0; i < ring_n; i++) {
+    ix = (ring_start + i) % RESUME_MAX_MSGS;
+    if (!ring_text[ix]) continue;
+    {
+      int b = blk_push(ring_kind[ix], NULL);
+      blk_append_str(b, ring_text[ix]);
+      loaded++;
+    }
+    free(ring_text[ix]);
+    ring_text[ix] = NULL;
+  }
+  return loaded;
+}
+
 static void cmd_session_pickup(const char *id) {
   char path[PATH_MAX], meta[2048], line[320];
   char title[96], updated[48], model[48];
   FILE *f;
   size_t nread;
+  int resumed = 0;
   if (!session_id_safe(id)) {
-    log_add("usage: /pickup <session-id>  (hex/uuid meta only)");
+    log_add("usage: /pickup <session-id>  (host-local resume when history exists)");
     return;
   }
   snprintf(path, sizeof path, "%s/data/import/%s.meta.json", root, id);
@@ -850,7 +1031,7 @@ static void cmd_session_pickup(const char *id) {
   if (!f) {
     snprintf(line, sizeof line, "pickup> not found: %s", id);
     log_add(line);
-    log_add("pickup> meta only — no transcript dump on TUI wire");
+    log_add("pickup> meta from data/import · no product-bus transcript");
     return;
   }
   nread = fread(meta, 1, sizeof meta - 1, f);
@@ -874,8 +1055,17 @@ static void cmd_session_pickup(const char *id) {
     snprintf(line, sizeof line, "  model=%s", model);
     log_add(line);
   }
-  log_add("  content=meta_only · share=state_matrix_only");
-  log_add("  full resume stays host/nanobot path (not SMX product bus)");
+  resumed = session_resume_local(id, meta);
+  if (resumed > 0) {
+    snprintf(line, sizeof line,
+             "resume> loaded %d host-local msgs (user/asst, last %d cap)",
+             resumed, RESUME_MAX_MSGS);
+    log_add(line);
+    log_add("  host-local TUI only · not SMX product bus · share=state_matrix_only");
+  } else {
+    log_add("  meta only · no chat_history.jsonl under import_path");
+    log_add("  share=state_matrix_only · product_wire=smx2");
+  }
 }
 
 static void cmd_integrity_tick(void) {
@@ -1038,9 +1228,9 @@ static void cmd_mode(const char *arg) {
     return;
   }
   if (!strcmp(a, "resume")) {
-    log_add("mode> resume · meta pickup only on TUI wire");
-    log_add("  use /sessions [q] then /pickup <id> (no transcript dump)");
-    log_add("  full message resume stays host/nanobot (not product bus SMX2)");
+    log_add("mode> resume · /pickup <id> loads host-local chat_history");
+    log_add("  last user/asst turns into TUI (not SMX product bus)");
+    log_add("  /sessions [q] then /pickup <id> · share=state_matrix_only");
     return;
   }
   log_add("usage: /mode chat|agent|resume|show");
@@ -1191,9 +1381,9 @@ static void do_command(const char *raw) {
     log_add("  spoilers: Tab · e/E/c · click");
     log_add("  /coord <plate>  fold NEXUS_COORD/SMX via filter (fail-closed)");
     log_add("  /smx            latest StateMatrix plate (bits only)");
-    log_add("  /sessions [q]   imported session metas (no transcripts)");
-    log_add("  /pickup|/load <id>  session meta pickup");
-    log_add("  /mode chat|agent|resume  tools toggle · resume=meta only");
+    log_add("  /sessions [q]   imported session metas");
+    log_add("  /pickup|/load <id>  meta + host-local history resume");
+    log_add("  /mode chat|agent|resume  tools toggle · resume=host-local");
     log_add("  /law            Cube Standards plate (share=state_matrix_only)");
     log_add("  /status         dual-wire honesty (fleet+matrix · SMX2≠peer HTTP)");
     log_add("  /fleet [status…]  pure-C plate (honest pid · peer HTTP lab_ops)");

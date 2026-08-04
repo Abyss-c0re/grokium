@@ -150,9 +150,9 @@ Cores stay **unmixed** (no silent cloud fallback).
 |---------|---------|
 | `/help` | Help |
 | `/new` | Clear chat context |
-| `/sessions [q]` | Imported session **metas** only (`data/import`) |
-| `/pickup` `/load <id>` | Session meta pickup (no transcript dump) |
-| `/mode chat\|agent\|resume` | Tools on/off; resume = meta honesty |
+| `/sessions [q]` | Imported session **metas** (`data/import`) |
+| `/pickup` `/load <id>` | Meta + host-local history resume (not product bus) |
+| `/mode chat\|agent\|resume` | Tools on/off; resume = host-local TUI |
 | `/model …` | Models (above) |
 | `/backend …` | local / grok |
 | `/theme crimson\|matrix\|void\|gold\|mono` | Look |
@@ -165,7 +165,7 @@ Cores stay **unmixed** (no silent cloud fallback).
 | `/smx` | Latest SMX bits |
 | `/quit` | Exit |
 
-Product bus = **SMX2**; peer HTTP = lab/ops only. Full message resume stays host/nanobot — not the product bus.
+Product bus = **SMX2**; peer HTTP = lab/ops only. Session resume is **host-local TUI** only — never the SMX product bus.
 
 **Enter** sends · **PgUp/PgDn** scroll · **Tab** focus sessions.
 

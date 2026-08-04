@@ -12,7 +12,7 @@
 |------|-----|
 | chat | `/mode chat` — tools off |
 | agent | `/mode agent` — tools on |
-| resume | `/mode resume` honesty + `/pickup <id>` meta only |
+| resume | `/mode resume` + `/pickup <id>` host-local history (not SMX bus) |
 
 ## Slash commands
 `/help` `/settings` `/model` `/backend` `/clear` `/quit`  
@@ -20,16 +20,16 @@
 `/hub [start|stop]` — LLM request hub (sched status)  
 `/coord <NEXUS_COORD|01-bits>` — fold plate via SMX filter (fail-closed; prose denied)  
 `/smx` (or `/matrix`) — latest StateMatrix plate (`data/matrix/LATEST.json` or ability)  
-`/sessions [q]` — imported session **metas** only (`data/import/*.meta.json`)  
-`/pickup` `/load` `<id>` — meta pickup (no transcript dump)  
-`/mode chat|agent|resume` — tools toggle; resume stays meta-only on TUI wire  
+`/sessions [q]` — imported session **metas** (`data/import/*.meta.json`)  
+`/pickup` `/load` `<id>` — meta + host-local `chat_history.jsonl` into TUI (last turns)  
+`/mode chat|agent|resume` — tools toggle; resume is host-local only (not product bus)  
 `/law` — Cube Standards plate (share=state_matrix_only; dual-wire honesty)  
 `/fleet [status|defaults|deploy|spawn …|cubalc]` — pure-C plate (honest pid/status)  
 `/integrity` — CODE_SEAL + privacy fail-closed tick  
 `/commander` — Ed25519 law fingerprint (never a Grok model)  
 
 Product bus remains **SMX2**; peer HTTP = lab/ops only; Commander ≠ model; share = state_matrix_only.  
-Session resume of full messages stays host/nanobot path — not the product bus.
+Session resume loads user/assistant turns into the local TUI only — never the SMX product bus.
 
 ## Optional web
 ```bash
