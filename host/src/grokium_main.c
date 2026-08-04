@@ -222,6 +222,7 @@ static void usage(void) {
           "  contract form|validate|…  external cell contracts (c_core)\n"
           "  manager-tick [DIR]     motivate incomplete contracts\n"
           "  commander show|sign|verify|…  Ed25519 law (≠ model)\n"
+          "  llama|llama-probe      local llama.cpp reachability\n"
           "  board|selftest         CubalC board (optional)\n"
           "  product_wire=smx2  peer_http=lab_ops_only  Not affiliated with xAI.\n",
           GROKIUM_VERSION, GROKIUM_TOK);
@@ -434,8 +435,16 @@ int main(int argc, char **argv) {
     return run_cubalc_program("heartbeat.cubalc", NULL);
   if (strcmp(cmd, "selftest") == 0)
     return run_cubalc_program("selftest.cubalc", NULL);
-  if (strcmp(cmd, "llama") == 0 || strcmp(cmd, "llama-test") == 0)
+  if (strcmp(cmd, "llama") == 0 || strcmp(cmd, "llama-test") == 0 ||
+      strcmp(cmd, "llama-probe") == 0) {
+    char bin[PATH_MAX];
+    /* pure-C probe first; CubalC board optional fallback */
+    if (resolve_c_core_bin("grokium-serve", bin, sizeof bin) == 0) {
+      char *av[] = {"probe"};
+      return run_c_core("grokium-serve", 1, av);
+    }
     return run_cubalc_program("llama_probe.cubalc", NULL);
+  }
 
   if (strcmp(cmd, "chat") == 0 || strcmp(cmd, "ask") == 0 || strcmp(cmd, "say") == 0) {
     int i = ai + 1;

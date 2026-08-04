@@ -14,4 +14,7 @@
 int grokium_serve(const char *host, int port,
                   gk_consolidator *C, gk_fleet *F, grokium_law *L,
                   const char *data_root);
+
+/* Probe local llama.cpp (default http://127.0.0.1:1212/v1). LLM ≠ commander. */
+int grokium_llama_probe(char *json_out, size_t cap);
 #endif

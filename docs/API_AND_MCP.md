@@ -40,6 +40,7 @@ make -C c_core all
 | POST | `/v1/commander/verify` | `{device,action,nonce,ts,sig}` |
 | POST | `/v1/commander/sign` | loopback + local `commander.sk` only |
 | POST | `/v1/commander/reject_model` | deny “I am Grok” authority claims |
+| GET | `/v1/llama/probe` | local llama.cpp reachability (`llm_is_commander:false`) |
 
 Headers: `X-Grokium-Telemetry: off`, `X-Grokium-Product-Wire: smx2`,
 `X-Grokium-Peer-HTTP: lab_ops_only`. Share: **state matrix only**.
@@ -47,13 +48,13 @@ Headers: `X-Grokium-Telemetry: off`, `X-Grokium-Product-Wire: smx2`,
 Fleet plate load preserves pids across `note-pid` / `status` / `separate`.
 
 Law dir: `GROKIUM_LAW_DIR` or `{data_root}/law`.  
-Host CLI: `grokium contract …`, `manager-tick`, `commander show|sign|verify|…`.
+Llama base: `GROKIUM_LLAMA_BASE` / `NANOBOT_BASE_URL` (loopback only).  
+Host CLI: `grokium contract …`, `manager-tick`, `commander …`, `llama` / `serve probe`.
 
 ### Planned / not yet in pure-C serve
 
 | Method | Path | Role |
 |--------|------|------|
-| GET | `/v1/llama/probe` | local llama |
 | POST | `/v1/chat` | local-first chat (host TUI path today) |
 | POST | `/v1/agent` | tool agent |
 | GET/POST | `/v1/sessions/*` | search/pickup/resume/import |

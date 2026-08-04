@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -217,6 +218,153 @@ static int json_get_int(const char *body, size_t n, const char *key, int def) {
   }
   (void)pat;
   return def;
+}
+
+/* Parse http://host:port/path — only loopback targets allowed for probe. */
+static int parse_llama_base(const char *base, char *host, size_t hcap, int *port,
+                            char *path, size_t pcap) {
+  const char *p, *slash;
+  char *colon;
+  if (!base || !host || !port || !path) return -1;
+  if (!strncmp(base, "http://", 7)) p = base + 7;
+  else if (!strncmp(base, "https://", 8)) p = base + 8;
+  else p = base;
+  slash = strchr(p, '/');
+  if (slash) {
+    size_t hlen = (size_t)(slash - p);
+    if (hlen >= hcap) return -1;
+    memcpy(host, p, hlen);
+    host[hlen] = 0;
+    snprintf(path, pcap, "%s", slash);
+  } else {
+    snprintf(host, hcap, "%s", p);
+    snprintf(path, pcap, "/v1");
+  }
+  colon = strrchr(host, ':');
+  if (colon && colon != host) {
+    *port = atoi(colon + 1);
+    *colon = 0;
+  } else {
+    *port = 1212;
+  }
+  if (!host_is_loopback(host)) return -1;
+  /* ensure /models path */
+  if (!strstr(path, "/models")) {
+    char tmp[128];
+    size_t n = strlen(path);
+    if (n && path[n - 1] == '/') path[n - 1] = 0;
+    snprintf(tmp, sizeof tmp, "%s/models", path[0] ? path : "/v1");
+    snprintf(path, pcap, "%s", tmp);
+  }
+  if (*port <= 0) *port = 1212;
+  return 0;
+}
+
+int grokium_llama_probe(char *json_out, size_t cap) {
+  const char *base;
+  char host[64], path[128], req[256], buf[2048];
+  int port = 1212, fd = -1, code = 0, reachable = 0;
+  struct sockaddr_in addr;
+  struct timeval tv;
+  size_t n = 0;
+  ssize_t r;
+  const char *err = NULL;
+  char model_snip[96];
+  if (!json_out || cap < 64) return -1;
+  base = getenv("GROKIUM_LLAMA_BASE");
+  if (!base || !base[0]) base = getenv("NANOBOT_BASE_URL");
+  if (!base || !base[0]) base = "http://127.0.0.1:1212/v1";
+  model_snip[0] = 0;
+  if (parse_llama_base(base, host, sizeof host, &port, path, sizeof path) != 0) {
+    snprintf(json_out, cap,
+             "{\"ok\":false,\"reachable\":false,\"error\":\"non_loopback_base\","
+             "\"base_url\":\"%s\",\"llm_is_commander\":false,"
+             "\"product_wire\":\"smx2\"}",
+             base);
+    return 0;
+  }
+  fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (fd < 0) {
+    err = "socket";
+    goto done;
+  }
+  tv.tv_sec = 1;
+  tv.tv_usec = 500000;
+  setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
+  setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv);
+  memset(&addr, 0, sizeof addr);
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons((uint16_t)port);
+  if (inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr) != 1) {
+    err = "pton";
+    goto done;
+  }
+  if (connect(fd, (struct sockaddr *)&addr, sizeof addr) < 0) {
+    err = "connect";
+    goto done;
+  }
+  snprintf(req, sizeof req,
+           "GET %s HTTP/1.1\r\nHost: 127.0.0.1:%d\r\nConnection: close\r\n\r\n",
+           path, port);
+  if (write(fd, req, strlen(req)) < 0) {
+    err = "write";
+    goto done;
+  }
+  while (n + 1 < sizeof buf) {
+    r = read(fd, buf + n, sizeof buf - 1 - n);
+    if (r <= 0) break;
+    n += (size_t)r;
+  }
+  buf[n] = 0;
+  if (n == 0) {
+    err = "empty";
+    goto done;
+  }
+  reachable = 1;
+  if (!strncmp(buf, "HTTP/", 5)) {
+    const char *sp = strchr(buf, ' ');
+    if (sp) code = atoi(sp + 1);
+  }
+  {
+    /* optional model id snippet — no prose dump */
+    const char *idk = strstr(buf, "\"id\"");
+    if (idk) {
+      const char *q = strchr(idk + 4, '"');
+      if (q) {
+        size_t i = 0;
+        q++;
+        while (*q && *q != '"' && i + 1 < sizeof model_snip) {
+          if (*q == '\\') {
+            q++;
+            if (!*q) break;
+          }
+          model_snip[i++] = *q++;
+        }
+        model_snip[i] = 0;
+      }
+    }
+  }
+  err = NULL;
+done:
+  if (fd >= 0) close(fd);
+  if (!reachable) {
+    snprintf(json_out, cap,
+             "{\"ok\":true,\"reachable\":false,\"http_code\":0,"
+             "\"base_url\":\"http://127.0.0.1:%d%s\","
+             "\"error\":\"%s\",\"llm_is_commander\":false,"
+             "\"commander_is_model\":false,\"product_wire\":\"smx2\","
+             "\"share\":\"state_matrix_only\"}",
+             port, path, err ? err : "down");
+    return 0;
+  }
+  snprintf(json_out, cap,
+           "{\"ok\":true,\"reachable\":true,\"http_code\":%d,"
+           "\"base_url\":\"http://127.0.0.1:%d%s\","
+           "\"model_id\":\"%s\",\"llm_is_commander\":false,"
+           "\"commander_is_model\":false,\"product_wire\":\"smx2\","
+           "\"share\":\"state_matrix_only\"}",
+           code, port, path, model_snip[0] ? model_snip : "");
+  return 0;
 }
 
 static int law_dir_for(const char *data_root, char *out, size_t cap) {
@@ -702,6 +850,21 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
                "{\"ok\":true,\"product\":\"grokium\",\"license\":\"Apache-2.0\","
                "\"affiliation\":\"not_affiliated_with_xAI\","
                "\"commander_is_not_model\":true,\"share\":\"state_matrix_only\"}");
+    return;
+  }
+
+  if (!strcmp(path, "/v1/llama/probe") || !strcmp(path, "/v1/llama")) {
+    if (strcmp(method, "GET") != 0) {
+      http_reply(cfd, 405, "application/json",
+                 "{\"ok\":false,\"error\":\"method\"}");
+      return;
+    }
+    if (grokium_llama_probe(resp, sizeof resp) != 0) {
+      http_reply(cfd, 500, "application/json",
+                 "{\"ok\":false,\"error\":\"probe_failed\"}");
+      return;
+    }
+    http_reply(cfd, 200, "application/json", resp);
     return;
   }
 

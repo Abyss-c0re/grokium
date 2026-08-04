@@ -91,7 +91,7 @@ static int selftest(void) {
   char resp[4096];
   const char *b;
   int st, fails = 0;
-  setenv("GROKIUM_SERVE_MAX", "16", 1);
+  setenv("GROKIUM_SERVE_MAX", "18", 1);
   {
     gk_commander cmd;
     const char *law = "/tmp/gk_law_serve";
@@ -226,6 +226,13 @@ static int selftest(void) {
       fails++;
     }
   }
+  if (http_get("127.0.0.1", port, "/v1/llama/probe", resp, sizeof resp) < 0)
+    fails++;
+  else if (!strstr(body_of(resp), "llm_is_commander\":false") ||
+           !strstr(body_of(resp), "\"ok\":true")) {
+    fprintf(stderr, "selftest: llama probe fail: %.300s\n", resp);
+    fails++;
+  }
 
   kill(child, SIGTERM);
   waitpid(child, &st, 0);
@@ -234,7 +241,7 @@ static int selftest(void) {
     return 1;
   }
   printf("LOOPBACK_HTTP_OK port=%d dual_wire=honest smx_filter=on "
-         "contracts=on commander=on\n",
+         "contracts=on commander=on llama_probe=on\n",
          port);
   return 0;
 }
@@ -249,10 +256,18 @@ int main(int argc, char **argv) {
   if (argc >= 2 && !strcmp(argv[1], "selftest"))
     return selftest();
 
+  if (argc >= 2 && !strcmp(argv[1], "probe")) {
+    char buf[1024];
+    if (grokium_llama_probe(buf, sizeof buf) != 0) return 1;
+    puts(buf);
+    return 0;
+  }
+
   if (argc >= 2 && !strcmp(argv[1], "help")) {
     fprintf(stderr,
-            "grokium-serve [port]|selftest\n"
+            "grokium-serve [port]|selftest|probe\n"
             "  loopback-only control plane (default 127.0.0.1:17444)\n"
+            "  probe — GET local llama /v1/models (LLM ≠ commander)\n"
             "  product_wire=smx2; peer_http=lab_ops_only\n"
             "  GROKIUM_SERVE_MAX=N exits after N requests (tests)\n");
     return 0;
