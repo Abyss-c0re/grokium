@@ -55,6 +55,12 @@ test-commander: $(BIN_CMD)
 	K=$$($(BIN_CMD) keygen --law-dir $$D); \
 	echo "$$K" | grep -q '"product_wire":"smx2"'; \
 	echo "$$K" | grep -q '"llm_is_commander":false'; \
+	grep -q '"product_wire": "smx2"' $$D/commander.id; \
+	grep -q '"peer_http": "lab_ops_only"' $$D/commander.id; \
+	grep -q '"peer_http_is_product_bus": false' $$D/commander.id; \
+	grep -q '"llm_is_commander": false' $$D/commander.id; \
+	grep -q '"commander_is_model": false' $$D/commander.id; \
+	grep -q '"model_is_not_commander": true' $$D/commander.id; \
 	S=$$($(BIN_CMD) show --law-dir $$D); \
 	echo "$$S" | grep -q '"not":"grok_model"'; \
 	echo "$$S" | grep -q '"peer_http_is_product_bus":false'; \

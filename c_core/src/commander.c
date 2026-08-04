@@ -81,9 +81,11 @@ int gk_commander_save(const gk_commander *C, const char *law_dir) {
   snprintf(path, sizeof path, "%s/commander.id", law_dir);
   f = fopen(path, "w");
   if (!f) return -1;
+  /* On-disk id plate: dual-wire honesty (Commander ≠ model; SMX ≠ peer HTTP). */
   fprintf(f,
     "{\n"
     "  \"schema\": \"grokium.commander.id.v1\",\n"
+    "  \"ok\": true,\n"
     "  \"law\": \"GROKIUM_COMMANDER_LAW\",\n"
     "  \"domain\": \"%s\",\n"
     "  \"product\": \"%s\",\n"
@@ -91,7 +93,14 @@ int gk_commander_save(const gk_commander *C, const char *law_dir) {
     "  \"fingerprint_sha256\": \"%s\",\n"
     "  \"algo\": \"ed25519\",\n"
     "  \"unforgeable\": true,\n"
-    "  \"model_is_not_commander\": true\n"
+    "  \"model_is_not_commander\": true,\n"
+    "  \"llm_is_commander\": false,\n"
+    "  \"commander_is_model\": false,\n"
+    "  \"share\": \"state_matrix_only\",\n"
+    "  \"hold_flash\": 1,\n"
+    "  \"product_wire\": \"smx2\",\n"
+    "  \"peer_http\": \"lab_ops_only\",\n"
+    "  \"peer_http_is_product_bus\": false\n"
     "}\n",
     GK_CMD_DOMAIN, GK_CMD_PRODUCT, GK_CMD_NOT, C->fingerprint_hex);
   fclose(f);
