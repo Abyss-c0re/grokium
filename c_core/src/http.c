@@ -92,6 +92,19 @@ static void http_reply(int fd, int code, const char *ctype, const char *body) {
   if (body && blen) (void)write(fd, body, blen);
 }
 
+/* Lab/ops error plate: dual-wire honesty even on failure paths. */
+static void http_reply_err(int fd, int code, const char *err) {
+  char body[384];
+  snprintf(body, sizeof body,
+           "{\"schema\":\"grokium.error.v1\",\"ok\":false,\"error\":\"%s\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_on_hot_path\":false,\"llm_is_commander\":false}",
+           err && err[0] ? err : "error");
+  http_reply(fd, code, "application/json", body);
+}
+
 /* SSE helpers — lab/ops only; product bus remains SMX2. Bits only. */
 static void http_sse_headers(int fd) {
   static const char hdr[] =
@@ -1153,27 +1166,23 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
   const char *root = data_root && data_root[0] ? data_root : "data";
 
   if (read_request(cfd, req, sizeof req, &req_n) != 0) {
-    http_reply(cfd, 400, "application/json",
-               "{\"ok\":false,\"error\":\"empty_request\"}");
+    http_reply_err(cfd, 400, "empty_request");
     return;
   }
   pr = parse_request(req, req_n, method, sizeof method, path, sizeof path,
                      query, sizeof query, &body, &body_n);
   if (pr == -2) {
-    http_reply(cfd, 413, "application/json",
-               "{\"ok\":false,\"error\":\"body_too_large\"}");
+    http_reply_err(cfd, 413, "body_too_large");
     return;
   }
   if (pr != 0) {
-    http_reply(cfd, 400, "application/json",
-               "{\"ok\":false,\"error\":\"bad_request\"}");
+    http_reply_err(cfd, 400, "bad_request");
     return;
   }
 
   if (!strcmp(path, "/healthz") || !strcmp(path, "/")) {
     if (strcmp(method, "GET") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     http_reply(cfd, 200, "application/json",
@@ -1246,8 +1255,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
 
   if (!strcmp(path, "/v1/status")) {
     if (strcmp(method, "GET") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     json_status(L, C, F, F ? fleet_status(F) : 0, resp, sizeof resp);
@@ -1257,8 +1265,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
 
   if (!strcmp(path, "/v1/cube/status") || !strcmp(path, "/v1/cube")) {
     if (strcmp(method, "GET") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     json_cube_status(C, L, root, resp, sizeof resp);
@@ -1283,8 +1290,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
         }
       }
     } else {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     sessions_search(root, q, resp, sizeof resp);
@@ -1298,8 +1304,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     int rc;
     id[0] = 0;
     if (strcmp(method, "GET") != 0 && strcmp(method, "POST") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     if (!strcmp(path, "/v1/sessions/pickup")) {
@@ -1330,8 +1335,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
 
   if (!strcmp(path, "/v1/law")) {
     if (strcmp(method, "GET") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     json_law(L, resp, sizeof resp);
@@ -1341,13 +1345,11 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
 
   if (!strcmp(path, "/v1/nanobot/status")) {
     if (strcmp(method, "GET") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     if (!F) {
-      http_reply(cfd, 500, "application/json",
-                 "{\"ok\":false,\"error\":\"no_fleet\"}");
+      http_reply_err(cfd, 500, "no_fleet");
       return;
     }
     json_fleet(F, resp, sizeof resp);
@@ -1358,13 +1360,11 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
   if (!strcmp(path, "/v1/nanobot/deploy")) {
     char plate[512];
     if (strcmp(method, "POST") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     if (!F) {
-      http_reply(cfd, 500, "application/json",
-                 "{\"ok\":false,\"error\":\"no_fleet\"}");
+      http_reply_err(cfd, 500, "no_fleet");
       return;
     }
     fleet_deploy(F);
@@ -1393,13 +1393,11 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     size_t i, j;
     int do_spawn = !strcmp(path, "/v1/nanobot/spawn");
     if (strcmp(method, "POST") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     if (!F) {
-      http_reply(cfd, 500, "application/json",
-                 "{\"ok\":false,\"error\":\"no_fleet\"}");
+      http_reply_err(cfd, 500, "no_fleet");
       return;
     }
     /* body: raw bot id, empty=spawn-all, or {"id":"nb-…"} */
@@ -1427,16 +1425,14 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       int n;
       if (id[0]) {
         if (fleet_spawn(F, id) != 0) {
-          http_reply(cfd, 500, "application/json",
-                     "{\"ok\":false,\"error\":\"spawn_failed\"}");
+          http_reply_err(cfd, 500, "spawn_failed");
           return;
         }
         n = 1;
       } else {
         n = fleet_spawn_all(F);
         if (n < 0) {
-          http_reply(cfd, 500, "application/json",
-                     "{\"ok\":false,\"error\":\"spawn_all_failed\"}");
+          http_reply_err(cfd, 500, "spawn_all_failed");
           return;
         }
       }
@@ -1456,13 +1452,11 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       return;
     }
     if (!id[0]) {
-      http_reply(cfd, 400, "application/json",
-                 "{\"ok\":false,\"error\":\"need_bot_id\"}");
+      http_reply_err(cfd, 400, "need_bot_id");
       return;
     }
     if (fleet_separate(F, id) != 0) {
-      http_reply(cfd, 404, "application/json",
-                 "{\"ok\":false,\"error\":\"unknown_bot\"}");
+      http_reply_err(cfd, 404, "unknown_bot");
       return;
     }
     snprintf(plate, sizeof plate, "%s/home/FLEET.json", root);
@@ -1482,13 +1476,11 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
 
   if (!strcmp(path, "/v1/matrix/latest") || !strcmp(path, "/v1/stream/smx/latest")) {
     if (strcmp(method, "GET") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     if (!C) {
-      http_reply(cfd, 500, "application/json",
-                 "{\"ok\":false,\"error\":\"no_matrix\"}");
+      http_reply_err(cfd, 500, "no_matrix");
       return;
     }
     json_matrix(C, resp, sizeof resp);
@@ -1500,8 +1492,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
    * sequential accept loop; product multi-peer bus remains SMX2. */
   if (!strcmp(path, "/v1/stream/smx")) {
     if (strcmp(method, "GET") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     smx_sse_snapshot(cfd, C);
@@ -1510,13 +1501,11 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
 
   if (!strcmp(path, "/v1/ability")) {
     if (strcmp(method, "GET") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     if (!C) {
-      http_reply(cfd, 500, "application/json",
-                 "{\"ok\":false,\"error\":\"no_consolidator\"}");
+      http_reply_err(cfd, 500, "no_consolidator");
       return;
     }
     gk_ability(C, now, resp, sizeof resp);
@@ -1528,13 +1517,11 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     int allow;
     char id[48];
     if (strcmp(method, "POST") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     if (!C || !body || body_n == 0) {
-      http_reply(cfd, 400, "application/json",
-                 "{\"ok\":false,\"error\":\"empty_body\"}");
+      http_reply_err(cfd, 400, "empty_body");
       return;
     }
     /* sanitize: prose / hold_flash=0 / non-SMX denied (external origin) */
@@ -1577,13 +1564,11 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     int digit = -1, min_set = 0;
     grokium_contract c;
     if (strcmp(method, "POST") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     if (!body || body_n == 0) {
-      http_reply(cfd, 400, "application/json",
-                 "{\"ok\":false,\"error\":\"need_json_body\"}");
+      http_reply_err(cfd, 400, "need_json_body");
       return;
     }
     assignee[0] = task[0] = sha[0] = 0;
@@ -1594,15 +1579,13 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     digit = json_get_int(body, body_n, "digit", -1);
     min_set = json_get_int(body, body_n, "min_set", 0);
     if (!assignee[0] || !task[0]) {
-      http_reply(cfd, 400, "application/json",
-                 "{\"ok\":false,\"error\":\"need_assignee_and_task\"}");
+      http_reply_err(cfd, 400, "need_assignee_and_task");
       return;
     }
     snprintf(cdir, sizeof cdir, "%s/contracts", root);
     if (grokium_contract_form(&c, cdir, assignee, task, digit, min_set,
                               sha[0] ? sha : NULL) != 0) {
-      http_reply(cfd, 500, "application/json",
-                 "{\"ok\":false,\"error\":\"form_failed\"}");
+      http_reply_err(cfd, 500, "form_failed");
       return;
     }
     /* Lab/ops contract form plate; product bus remains SMX2. */
@@ -1626,26 +1609,22 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     grokium_smx m;
     int rc, dig;
     if (strcmp(method, "POST") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     if (!body || body_n == 0) {
-      http_reply(cfd, 400, "application/json",
-                 "{\"ok\":false,\"error\":\"need_json_body\"}");
+      http_reply_err(cfd, 400, "need_json_body");
       return;
     }
     cpath[0] = bits[0] = 0;
     json_get_str(body, body_n, "path", cpath, sizeof cpath);
     json_get_str(body, body_n, "bits", bits, sizeof bits);
     if (!cpath[0]) {
-      http_reply(cfd, 400, "application/json",
-                 "{\"ok\":false,\"error\":\"need_path\"}");
+      http_reply_err(cfd, 400, "need_path");
       return;
     }
     if (grokium_contract_load(&c, cpath) != 0) {
-      http_reply(cfd, 404, "application/json",
-                 "{\"ok\":false,\"error\":\"contract_not_found\"}");
+      http_reply_err(cfd, 404, "contract_not_found");
       return;
     }
     smx_clear(&m, "validate");
@@ -1673,8 +1652,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     char cdir[400];
     int n;
     if (strcmp(method, "POST") != 0 && strcmp(method, "GET") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     snprintf(cdir, sizeof cdir, "%s/contracts", root);
@@ -1695,8 +1673,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
 
   if (!strcmp(path, "/v1/instinct")) {
     if (strcmp(method, "GET") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     /* Lab/ops creed plate; dual-wire honesty (product bus remains SMX2). */
@@ -1715,8 +1692,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
 
   if (!strcmp(path, "/v1/license")) {
     if (strcmp(method, "GET") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     /* License plate carries dual-wire + Commander ≠ model honesty. */
@@ -1735,13 +1711,11 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
 
   if (!strcmp(path, "/v1/llama/probe") || !strcmp(path, "/v1/llama")) {
     if (strcmp(method, "GET") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     if (grokium_llama_probe(resp, sizeof resp) != 0) {
-      http_reply(cfd, 500, "application/json",
-                 "{\"ok\":false,\"error\":\"probe_failed\"}");
+      http_reply_err(cfd, 500, "probe_failed");
       return;
     }
     http_reply(cfd, 200, "application/json", resp);
@@ -1906,8 +1880,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     int rc;
     const char *rroot = getenv("GROKIUM_ROOT");
     if (strcmp(method, "GET") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     if (!rroot || !rroot[0]) rroot = ".";
@@ -1919,8 +1892,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
   if (!strcmp(path, "/v1/integrity/policy")) {
     const char *rroot = getenv("GROKIUM_ROOT");
     if (strcmp(method, "GET") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     if (!rroot || !rroot[0]) rroot = ".";
@@ -1935,8 +1907,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
   if (!strcmp(path, "/v1/integrity/reseal")) {
     const char *rroot = getenv("GROKIUM_ROOT");
     if (strcmp(method, "POST") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     if (!rroot || !rroot[0]) rroot = ".";
@@ -1953,8 +1924,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     gk_commander cmd;
     char law[400];
     if (strcmp(method, "GET") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     law_dir_for(root, law, sizeof law);
@@ -1982,8 +1952,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
   if (!strcmp(path, "/v1/commander/reject_model")) {
     int deny;
     if (strcmp(method, "POST") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     deny = 1;
@@ -2014,18 +1983,15 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     int64_t ts = 0;
     int ok;
     if (strcmp(method, "POST") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     if (!body || body_n == 0) {
-      http_reply(cfd, 400, "application/json",
-                 "{\"ok\":false,\"error\":\"need_json_body\"}");
+      http_reply_err(cfd, 400, "need_json_body");
       return;
     }
     if (load_commander(root, &cmd) != 0 || !cmd.has_pk) {
-      http_reply(cfd, 404, "application/json",
-                 "{\"ok\":false,\"error\":\"no_commander_pk\"}");
+      http_reply_err(cfd, 404, "no_commander_pk");
       return;
     }
     device[0] = action[0] = nonce[0] = sig[0] = 0;
@@ -2035,8 +2001,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     json_get_str(body, body_n, "sig", sig, sizeof sig);
     ts = (int64_t)json_get_int(body, body_n, "ts", 0);
     if (!device[0] || !action[0] || !nonce[0] || !sig[0] || ts == 0) {
-      http_reply(cfd, 400, "application/json",
-                 "{\"ok\":false,\"error\":\"need_device_action_nonce_ts_sig\"}");
+      http_reply_err(cfd, 400, "need_device_action_nonce_ts_sig");
       return;
     }
     ok = gk_commander_verify_override(&cmd, device, action, nonce, ts, NULL, 0,
@@ -2054,8 +2019,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     char device[64], action[64], nonce_hex[65], sig_hex[129], env[2048];
     int64_t ts = 0;
     if (strcmp(method, "POST") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\"}");
+      http_reply_err(cfd, 405, "method");
       return;
     }
     /* loopback-only already enforced by bind; still require sk on disk */
@@ -2066,22 +2030,19 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       return;
     }
     if (!body || body_n == 0) {
-      http_reply(cfd, 400, "application/json",
-                 "{\"ok\":false,\"error\":\"need_json_body\"}");
+      http_reply_err(cfd, 400, "need_json_body");
       return;
     }
     device[0] = action[0] = 0;
     json_get_str(body, body_n, "device", device, sizeof device);
     json_get_str(body, body_n, "action", action, sizeof action);
     if (!device[0] || !action[0]) {
-      http_reply(cfd, 400, "application/json",
-                 "{\"ok\":false,\"error\":\"need_device_and_action\"}");
+      http_reply_err(cfd, 400, "need_device_and_action");
       return;
     }
     if (gk_commander_sign_override(&cmd, device, action, NULL, 0, nonce_hex, &ts,
                                    sig_hex) != 0) {
-      http_reply(cfd, 500, "application/json",
-                 "{\"ok\":false,\"error\":\"sign_failed\"}");
+      http_reply_err(cfd, 500, "sign_failed");
       return;
     }
     gk_commander_envelope_json(&cmd, device, action, nonce_hex, ts, sig_hex,

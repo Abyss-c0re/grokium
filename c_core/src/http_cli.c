@@ -167,6 +167,22 @@ static int selftest(void) {
     fprintf(stderr, "selftest: healthz bad: %.200s\n", resp);
     fails++;
   }
+  /* Error plates must carry dual-wire honesty (not headers alone). */
+  if (http_post("127.0.0.1", port, "/v1/status", "", resp, sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "405") && !strstr(b, "\"error\":\"method\"")) ||
+        !strstr(b, "\"schema\":\"grokium.error.v1\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"hold_flash\":1")) {
+      fprintf(stderr, "selftest: error plate dual-wire fail: %.400s\n", b);
+      fails++;
+    }
+  }
   if (http_get("127.0.0.1", port, "/ui", resp, sizeof resp) < 0)
     fails++;
   else if (!strstr(resp, "text/html") ||
