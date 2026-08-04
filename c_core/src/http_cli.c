@@ -222,33 +222,50 @@ static int selftest(void) {
       fails++;
     }
   }
-  /* sessions: meta-only plate; may be empty if import dir missing */
+  /* sessions: meta-only plate; dual-wire honesty even when empty/miss */
   if (http_get("127.0.0.1", port, "/v1/sessions", resp, sizeof resp) < 0)
     fails++;
   else {
     b = body_of(resp);
     if (!strstr(b, "\"schema\":\"grokium.sessions.v1\"") ||
         !strstr(b, "\"content\":\"meta_only\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
         !strstr(b, "\"share\":\"state_matrix_only\"")) {
-      fprintf(stderr, "selftest: sessions list fail: %.400s\n", resp);
+      fprintf(stderr, "selftest: sessions list dual-wire fail: %.400s\n", b);
       fails++;
     }
   }
   if (http_get("127.0.0.1", port, "/v1/sessions/search?q=grokium", resp,
                 sizeof resp) < 0)
     fails++;
-  else if (!strstr(body_of(resp), "\"content\":\"meta_only\"")) {
-    fprintf(stderr, "selftest: sessions search fail: %.300s\n", resp);
-    fails++;
+  else {
+    b = body_of(resp);
+    if (!strstr(b, "\"content\":\"meta_only\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false")) {
+      fprintf(stderr, "selftest: sessions search dual-wire fail: %.400s\n", b);
+      fails++;
+    }
   }
   if (http_get("127.0.0.1", port, "/v1/sessions/pickup?id=not-a-real-id", resp,
                 sizeof resp) < 0)
     fails++;
-  else if (!strstr(resp, "404") && !strstr(body_of(resp), "not_found") &&
-           !strstr(body_of(resp), "bad_session_id")) {
-    fprintf(stderr, "selftest: sessions pickup miss should fail: %.200s\n",
-            resp);
-    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "404") && !strstr(b, "not_found") &&
+         !strstr(b, "bad_session_id")) ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"content\":\"meta_only\"")) {
+      fprintf(stderr, "selftest: sessions pickup dual-wire fail: %.400s\n", b);
+      fails++;
+    }
   }
   if (http_get("127.0.0.1", port, "/v1/law", resp, sizeof resp) < 0)
     fails++;
@@ -484,10 +501,18 @@ static int selftest(void) {
   }
   if (http_get("127.0.0.1", port, "/v1/llama/probe", resp, sizeof resp) < 0)
     fails++;
-  else if (!strstr(body_of(resp), "llm_is_commander\":false") ||
-           !strstr(body_of(resp), "\"ok\":true")) {
-    fprintf(stderr, "selftest: llama probe fail: %.300s\n", resp);
-    fails++;
+  else {
+    b = body_of(resp);
+    if (!strstr(b, "\"ok\":true") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"commander_is_model\":false") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"share\":\"state_matrix_only\"")) {
+      fprintf(stderr, "selftest: llama probe dual-wire fail: %.400s\n", b);
+      fails++;
+    }
   }
   /* chat: empty body denied; non-empty always asserts LLM ≠ commander */
   if (http_post("127.0.0.1", port, "/v1/chat", "", resp, sizeof resp) < 0)
