@@ -163,8 +163,14 @@ static int selftest(void) {
   }
   b = body_of(resp);
   if (!strstr(b, "\"ok\":true") ||
+      !strstr(b, "\"schema\":\"grokium.healthz.v1\"") ||
+      !strstr(b, "\"product_wire\":\"smx2\"") ||
+      !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+      !strstr(b, "\"peer_http_is_product_bus\":false") ||
+      !strstr(b, "\"llm_is_commander\":false") ||
+      !strstr(b, "\"share\":\"state_matrix_only\"") ||
       !strstr(resp, "X-Grokium-Product-Wire: smx2")) {
-    fprintf(stderr, "selftest: healthz bad: %.200s\n", resp);
+    fprintf(stderr, "selftest: healthz dual-wire fail: %.400s\n", b);
     fails++;
   }
   /* Error plates must carry dual-wire honesty (not headers alone). */
