@@ -67,4 +67,14 @@ test-consolidate: $(BUILD)/grokium-consolidate
 
 hive: test-filter test-consolidate $(BUILD)/grokium-fleet
 	@$(BUILD)/grokium-fleet defaults | grep -q nb-manager
+	@set -e; \
+	$(BUILD)/grokium-fleet note-pid nb-manager $$$$ /tmp/gk_fleet_honesty.json >/dev/null; \
+	grep -q "\"pid\": $$$$" /tmp/gk_fleet_honesty.json; \
+	grep -q '"offline": false' /tmp/gk_fleet_honesty.json; \
+	grep -q '"status": "running"' /tmp/gk_fleet_honesty.json; \
+	$(BUILD)/grokium-fleet note-pid nb-manager 999999999 /tmp/gk_fleet_dead.json >/dev/null; \
+	grep -q '"pid": null' /tmp/gk_fleet_dead.json; \
+	grep -q '"offline": true' /tmp/gk_fleet_dead.json; \
+	rm -f /tmp/gk_fleet_honesty.json /tmp/gk_fleet_dead.json; \
+	echo FLEET_HONESTY_OK
 	@echo HIVE_MIND_CORE_OK

@@ -2,6 +2,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "grokium_fleet.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 int main(int argc, char **argv) {
@@ -9,10 +10,13 @@ int main(int argc, char **argv) {
   const char *path = "data/home/FLEET.json";
   if (argc < 2) {
     fprintf(stderr,
-            "grokium-fleet defaults|deploy|save [path]|status\n"
+            "grokium-fleet defaults|deploy|save [path]|status|note-pid "
+            "ID PID\n"
             "  defaults — print roles including nb-manager\n"
             "  deploy   — mkdir homes under data/home\n"
-            "  save     — write FLEET.json plate\n");
+            "  save     — write honest FLEET.json plate\n"
+            "  status   — kill(0) probe; alive count\n"
+            "  note-pid — host records spawn (ID PID)\n");
     return 2;
   }
   fleet_default_roles(&F);
@@ -39,9 +43,35 @@ int main(int argc, char **argv) {
     return 0;
   }
   if (!strcmp(argv[1], "status")) {
-    printf("{\"alive\":%d,\"n\":%d,\"nb_manager\":true}\n", fleet_status(&F),
-           F.n);
+    int alive = fleet_status(&F);
+    printf("{\"alive\":%d,\"n\":%d,\"nb_manager\":true,\"probed\":true}\n",
+           alive, F.n);
     return 0;
+  }
+  if (!strcmp(argv[1], "note-pid")) {
+    int pid, i;
+    if (argc < 4) {
+      fprintf(stderr, "usage: grokium-fleet note-pid BOT_ID PID [path]\n");
+      return 2;
+    }
+    pid = atoi(argv[3]);
+    if (fleet_note_pid(&F, argv[2], pid) != 0) {
+      fprintf(stderr, "unknown bot id\n");
+      return 1;
+    }
+    if (argc > 4) path = argv[4];
+    fleet_save(&F, path);
+    for (i = 0; i < F.n; i++) {
+      if (strcmp(F.bots[i].id, argv[2]) != 0) continue;
+      printf("{\"ok\":true,\"id\":\"%s\",\"pid\":%s,\"running\":%s,"
+             "\"status\":\"%s\",\"path\":\"%s\"}\n",
+             F.bots[i].id,
+             F.bots[i].pid > 0 ? argv[3] : "null",
+             F.bots[i].running ? "true" : "false",
+             F.bots[i].running ? "running" : "separated", path);
+      return 0;
+    }
+    return 1;
   }
   return 2;
 }

@@ -1,14 +1,23 @@
 /* SPDX-License-Identifier: Apache-2.0
  * Separable nanobot fleet plate — purpose-assigned Hive Mind peers.
  * Includes nb-manager (motivate incomplete contracts for NexusCore).
+ * Fleet plate is honest: pid/status/offline reflect kill(0) probes.
  */
 #define _POSIX_C_SOURCE 200809L
 #include "grokium_fleet.h"
+#include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+static int pid_alive(int pid) {
+  if (pid <= 0) return 0;
+  if (kill(pid, 0) == 0) return 1;
+  return errno == EPERM; /* exists, not ours — still alive */
+}
 
 static void bot_set(gk_bot *b, const char *id, const char *purpose, int port,
                     int shell, const char *home_root) {
@@ -72,9 +81,39 @@ int fleet_deploy(gk_fleet *F) {
 int fleet_status(gk_fleet *F) {
   int i, alive = 0;
   if (!F) return -1;
-  for (i = 0; i < F->n; i++)
-    if (F->bots[i].running && F->bots[i].pid > 0) alive++;
+  for (i = 0; i < F->n; i++) {
+    gk_bot *b = &F->bots[i];
+    if (b->pid > 0 && pid_alive(b->pid)) {
+      b->running = 1;
+      b->separated = 0;
+      alive++;
+    } else {
+      if (b->pid > 0) b->pid = -1; /* was claimed, now dead */
+      b->running = 0;
+      b->separated = 1;
+    }
+  }
   return alive;
+}
+
+int fleet_note_pid(gk_fleet *F, const char *bot_id, int pid) {
+  int i;
+  if (!F || !bot_id) return -1;
+  for (i = 0; i < F->n; i++) {
+    if (strcmp(F->bots[i].id, bot_id) != 0) continue;
+    if (pid > 0) {
+      F->bots[i].pid = pid;
+      F->bots[i].running = pid_alive(pid) ? 1 : 0;
+      F->bots[i].separated = F->bots[i].running ? 0 : 1;
+      if (!F->bots[i].running) F->bots[i].pid = -1;
+    } else {
+      F->bots[i].pid = -1;
+      F->bots[i].running = 0;
+      F->bots[i].separated = 1;
+    }
+    return 0;
+  }
+  return -1;
 }
 
 int fleet_separate(gk_fleet *F, const char *bot_id) {
@@ -97,6 +136,7 @@ int fleet_stop_all(gk_fleet *F) {
   for (i = 0; i < F->n; i++) {
     F->bots[i].running = 0;
     F->bots[i].pid = -1;
+    F->bots[i].separated = 1;
   }
   return 0;
 }
@@ -122,10 +162,11 @@ int fleet_post_raw_bits(const gk_fleet *F, const char *bot_id,
   return -1;
 }
 
-int fleet_save(const gk_fleet *F, const char *path) {
+int fleet_save(gk_fleet *F, const char *path) {
   FILE *f;
   int i;
   if (!F || !path) return -1;
+  (void)fleet_status(F); /* plate must match live process reality */
   f = fopen(path, "w");
   if (!f) return -1;
   fprintf(f,
@@ -141,6 +182,11 @@ int fleet_save(const gk_fleet *F, const char *path) {
           F->home_root, F->binary, F->base_url, F->model);
   for (i = 0; i < F->n; i++) {
     const gk_bot *b = &F->bots[i];
+    char pid_buf[24];
+    if (b->pid > 0)
+      snprintf(pid_buf, sizeof pid_buf, "%d", b->pid);
+    else
+      snprintf(pid_buf, sizeof pid_buf, "null");
     fprintf(f,
             "    \"%s\": {\n"
             "      \"id\": \"%s\",\n"
@@ -150,17 +196,18 @@ int fleet_save(const gk_fleet *F, const char *path) {
             "      \"pid\": %s,\n"
             "      \"home\": \"%s\",\n"
             "      \"binary\": \"%s\",\n"
-            "      \"offline\": true,\n"
+            "      \"offline\": %s,\n"
             "      \"base_url\": \"%s\",\n"
             "      \"model\": \"%s\",\n"
             "      \"status\": \"%s\",\n"
-            "      \"separated\": true,\n"
+            "      \"separated\": %s,\n"
             "      \"law\": \"cube_purpose_assigned\",\n"
             "      \"wire\": \"%s\"\n"
             "    }%s\n",
             b->id, b->id, b->purpose, b->shell ? "true" : "false", b->port,
-            b->pid > 0 ? "null" : "null", b->home, F->binary, F->base_url,
-            F->model, b->running ? "running" : "separated",
+            pid_buf, b->home, F->binary, b->running ? "false" : "true",
+            F->base_url, F->model, b->running ? "running" : "separated",
+            b->separated ? "true" : "false",
             strcmp(b->id, "nb-manager") == 0 ? "smx_motivate" : "smx2",
             i + 1 < F->n ? "," : "");
   }
