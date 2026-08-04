@@ -289,6 +289,19 @@ static int selftest(void) {
     fails++;
   else if (!strstr(body_of(resp), "\"share\":\"state_matrix_only\""))
     fails++;
+  if (http_get("127.0.0.1", port, "/v1/ability", resp, sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if (!strstr(b, "\"schema\":\"grokium.ability.v1\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"llm_on_hot_path\":false")) {
+      fprintf(stderr, "selftest: ability dual-wire fail: %.400s\n", b);
+      fails++;
+    }
+  }
   if (http_get("127.0.0.1", port, "/v1/stream/smx", resp, sizeof resp) < 0)
     fails++;
   else if (!strstr(resp, "text/event-stream") ||

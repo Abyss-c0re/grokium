@@ -79,7 +79,19 @@ int main(int argc, char **argv) {
     gk_ability(&C, now, ability, sizeof ability);
     printf("%s\n", ability);
     if (!C.seal_ok) return 1;
-    printf("CONSOLIDATOR_OK grade=%s concepts=%d bits=%u smx_filter=on\n",
+    if (!strstr(ability, "\"product_wire\":\"smx2\"") ||
+        !strstr(ability, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(ability, "\"peer_http_is_product_bus\":false") ||
+        !strstr(ability, "\"llm_is_commander\":false") ||
+        !strstr(ability, "\"llm_on_hot_path\":false") ||
+        !strstr(ability, "\"python\":0") ||
+        !strstr(ability, "\"share\":\"state_matrix_only\"")) {
+      fprintf(stderr, "selftest: ability dual-wire honesty fail: %s\n",
+              ability);
+      return 1;
+    }
+    printf("CONSOLIDATOR_OK grade=%s concepts=%d bits=%u smx_filter=on "
+           "dual_wire=honest\n",
            C.grade, C.n_concepts, C.matrix.bits_set);
     return 0;
   }

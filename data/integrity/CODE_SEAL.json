@@ -3,7 +3,7 @@
   "product": "grokium",
   "language": "C",
   "note": "pure-C product seal; intentional reseal",
-  "aggregate": "f3f2db646a98f981b0fb4f365bc8a3618ea3740cc9330be5785151f40036b0c4",
+  "aggregate": "28130e4e72fd4134c46c3f0163e8a5d47fb0a13bf85df6ceed745cb7066b9d1b",
   "n_files": 63,
   "files": {
     ".agents/laws/00-THE_LAW.md": "71c47cd5f1873bb446f157dcbc7e081a919ae092d5bbbc6d6a73094934868f14",
@@ -27,12 +27,12 @@
     "c_core/src/algocube.c": "c25e4eb5e9c79201c889bff422dd571850a7c5bde98cb7b32d0663ed42dba9c7",
     "c_core/src/commander.c": "48784a74f8c174910fddb9a307bfe2c1f9f611829afaeaa1835e546b952be9af",
     "c_core/src/commander_cli.c": "0376019e2a7911435fbdf4008b3592f552dc4c08c29f42db4bccc61ca2e57682",
-    "c_core/src/consolidator.c": "e9cea7123670f2d03b333c4542016d16725138cd98e83fe75a1bf37587bb8e85",
-    "c_core/src/consolidator_cli.c": "0e1e3de59c98b6fd16c825e39167328babd41aef970f5b19b39bbf24112050c8",
+    "c_core/src/consolidator.c": "c0ad208c6f5f772353ce1c023f5e823c2fa95b98d4bbc0eb5ebe1a41c5d436f4",
+    "c_core/src/consolidator_cli.c": "c5968ca9c148004501aac187643a03aeb1d8489612eee5f5f837b74160a68196",
     "c_core/src/fleet.c": "faf86abb9a33b7bf24a3266cb00e91a2e2715ef370c084f16bae2dbd9adeec8a",
     "c_core/src/fleet_cli.c": "5a1b36bd0f6e6d5358586f4441c770db6fab5b23b31298971465db54d02f5b2a",
     "c_core/src/http.c": "94df4d8b94e7dbd496a4a83cccf110060798f712ba39aba522711cd722362532",
-    "c_core/src/http_cli.c": "4722672c9b79bdd0705e9b86af33d9b2c04135fa9ca26381ba1930465c032d31",
+    "c_core/src/http_cli.c": "0355e1839d86cb16c329adf8e424b987d89dac1ca7e0672c0dcc9bf0e7735345",
     "c_core/src/integrity.c": "a35babfcbb82c6148ff42a13b04e6edfbda83077ee6823867c6b6d3b36d65160",
     "c_core/src/integrity_cli.c": "126b35b177953920cbf20f95f2c29f3be9c4f570a6274d0313a547c647235ef7",
     "c_core/src/law.c": "194df8a876926b9574605bb36b7759c00f45d9e970df00280996e8e34bd2fae8",
@@ -70,5 +70,5 @@
     "scripts/sync_upstream_surface.sh": "0e7dbe4443842659ffdc3667010c916c6c1b0f0758a767db73e98e281e4f2363",
     "scripts/test.sh": "850b189feb81bae87b947461c3ca2d0347ce09f14b54313623be1e7a7ead3542"
   },
-  "ts": 1785871725
+  "ts": 1785872500
 }

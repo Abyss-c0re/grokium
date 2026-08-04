@@ -147,11 +147,17 @@ int gk_ability(const gk_consolidator *C, double now_ts, char *json_out,
   if (!C || !json_out || cap < 32) return -1;
   age = (now_ts > 0 ? now_ts : (double)time(NULL)) - C->last_seal_ts;
   fresh = (C->last_seal_ts > 0 && age <= (double)GK_SEAL_TTL_SEC);
+  /* Dual-wire honesty: ability is StateMatrix grade only — not product chat. */
   snprintf(json_out, cap,
-           "{\"schema\":\"grokium.ability.v1\",\"grade\":\"%s\","
-           "\"seal_ok\":%s,\"fresh\":%s,\"n_items\":%d,\"n_concepts\":%d,"
-           "\"bits_set\":%u,\"pack_seq\":%llu,\"ttl_sec\":%d,"
-           "\"share\":\"state_matrix_only\",\"llm\":false}",
+           "{\"schema\":\"grokium.ability.v1\",\"ok\":true,"
+           "\"grade\":\"%s\",\"seal_ok\":%s,\"fresh\":%s,"
+           "\"n_items\":%d,\"n_concepts\":%d,\"bits_set\":%u,"
+           "\"pack_seq\":%llu,\"ttl_sec\":%d,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm\":false,\"llm_is_commander\":false,"
+           "\"llm_on_hot_path\":false,\"python\":0}",
            C->grade, C->seal_ok ? "true" : "false", fresh ? "true" : "false",
            C->n_items, C->n_concepts, C->matrix.bits_set,
            (unsigned long long)C->pack_seq, GK_SEAL_TTL_SEC);
