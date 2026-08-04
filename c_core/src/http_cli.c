@@ -9,6 +9,7 @@
 #include "grokium_http.h"
 #include "grokium_law.h"
 #include <arpa/inet.h>
+#include <limits.h>
 #include <netinet/in.h>
 #include <signal.h>
 #include <stdio.h>
@@ -89,9 +90,15 @@ static int selftest(void) {
   int port = 17444 + (int)(getpid() % 200);
   pid_t child;
   char resp[4096];
+  char cwd[PATH_MAX];
   const char *b;
   int st, fails = 0;
-  setenv("GROKIUM_SERVE_MAX", "36", 1);
+  setenv("GROKIUM_SERVE_MAX", "40", 1);
+  /* Integrity tick needs repo root (CODE_SEAL + privacy plate). */
+  if (getcwd(cwd, sizeof cwd))
+    setenv("GROKIUM_ROOT", cwd, 1);
+  else
+    setenv("GROKIUM_ROOT", ".", 1);
   {
     gk_commander cmd;
     const char *law = "/tmp/gk_law_serve";
@@ -110,7 +117,7 @@ static int selftest(void) {
     grokium_law L;
     char cdir[] = "data/contracts_selftest";
     setenv("GROKIUM_CONTRACT_DIR", cdir, 1);
-    /* GROKIUM_LAW_DIR inherited from parent */
+    /* GROKIUM_LAW_DIR + GROKIUM_ROOT inherited from parent */
     gk_init(&C, "serve-selftest");
     fleet_default_roles(&F);
     grokium_law_default(&L);
@@ -340,6 +347,46 @@ static int selftest(void) {
       fails++;
     }
   }
+  /* Integrity: CODE_SEAL + privacy fail-closed on loopback plane.
+   * Compact tick JSON; policy file may be pretty-printed (space after :). */
+  if (http_get("127.0.0.1", port, "/v1/integrity", resp, sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if (!strstr(b, "grokium.integrity_report.v1") ||
+        !strstr(b, "\"fail_closed\":true") ||
+        !strstr(b, "\"share\":\"state_matrix_only\"") ||
+        !strstr(b, "\"not\":\"data_collector\"") ||
+        !strstr(b, "\"privacy_ok\":true")) {
+      fprintf(stderr, "selftest: integrity tick plate fail: %.400s\n", resp);
+      fails++;
+    } else if (strstr(b, "\"ok\":true")) {
+      if (!strstr(b, "\"code_seal_ok\":true") ||
+          (!strstr(resp, "200") && !strstr(resp, "HTTP/1.1 200"))) {
+        fprintf(stderr, "selftest: integrity pass should be 200: %.200s\n",
+                resp);
+        fails++;
+      }
+    } else if (!strstr(resp, "503") && !strstr(resp, "HTTP/1.1 503")) {
+      /* fail-closed: seal mismatch / privacy fail → 503 */
+      fprintf(stderr, "selftest: integrity fail-closed needs 503: %.200s\n",
+              resp);
+      fails++;
+    }
+  }
+  if (http_get("127.0.0.1", port, "/v1/integrity/policy", resp, sizeof resp) <
+      0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if (!strstr(b, "grokium.integrity_policy.v1") ||
+        !strstr(b, "fail_closed") || !strstr(b, "state_matrix_only") ||
+        !strstr(b, "data_collector") || !strstr(b, "grok_model") ||
+        !strstr(b, "INTEGRITY_NO_LEAK_LAW")) {
+      fprintf(stderr, "selftest: integrity policy fail: %.400s\n", resp);
+      fails++;
+    }
+  }
 
   kill(child, SIGTERM);
   waitpid(child, &st, 0);
@@ -349,7 +396,7 @@ static int selftest(void) {
   }
   printf("LOOPBACK_HTTP_OK port=%d dual_wire=honest smx_filter=on "
          "contracts=on commander=on llama_probe=on smx_sse=on chat=on "
-         "cube_status=on sessions=on ui=on agent=on\n",
+         "cube_status=on sessions=on ui=on agent=on integrity=on\n",
          port);
   return 0;
 }
