@@ -123,7 +123,15 @@ hive: test-filter test-consolidate test-serve test-commander test-integrity \
 	@$(BUILD)/grokium-fleet defaults | grep -q nb-manager
 	@set -e; \
 	$(BIN_FILTER) allow-check "$$(cat ../compat/nexus_coord.v1.plate)" | grep -q '"allow":true'; \
+	$(BIN_FILTER) allow-check "$$(cat ../compat/smx.bits.v1.plate)" | grep -q '"allow":true'; \
 	$(BIN_FILTER) allow-check "$$(cat ../compat/nexus_coord.smuggle.plate)" | grep -q '"allow":false'; \
+	$(BIN_FILTER) allow-check "$$(cat ../compat/nexus_coord.hold_flash0.plate)" | grep -q '"allow":false'; \
+	P=$$($(BIN_FILTER) allow-check "$$(cat ../compat/prose.chat.deny.txt)"); \
+	echo "$$P" | grep -q '"allow":false'; \
+	echo "$$P" | grep -q '"prose":true'; \
+	echo "$$P" | grep -q '"product_wire":"smx2"'; \
+	echo "$$P" | grep -q '"llm_is_commander":false'; \
+	test -s ../compat/commander.reject_model.txt; \
 	echo COMPAT_WIRE_OK
 	@set -e; \
 	sleep 120 & P1=$$!; sleep 120 & P2=$$!; \
