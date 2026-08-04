@@ -314,11 +314,13 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     return;
   }
 
-  if (!strcmp(path, "/v1/nanobot/separate")) {
+  if (!strcmp(path, "/v1/nanobot/separate") ||
+      !strcmp(path, "/v1/nanobot/spawn")) {
     char plate[512];
     char id[64];
     const char *src;
     size_t i, j;
+    int do_spawn = !strcmp(path, "/v1/nanobot/spawn");
     if (strcmp(method, "POST") != 0) {
       http_reply(cfd, 405, "application/json",
                  "{\"ok\":false,\"error\":\"method\"}");
@@ -329,7 +331,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
                  "{\"ok\":false,\"error\":\"no_fleet\"}");
       return;
     }
-    /* body: raw bot id or {"id":"nb-…"} */
+    /* body: raw bot id, empty=spawn-all, or {"id":"nb-…"} */
     id[0] = 0;
     src = body && body_n ? body : "";
     if (src[0] == '{') {
@@ -349,6 +351,33 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
         id[j++] = src[i];
       }
       id[j] = 0;
+    }
+    if (do_spawn) {
+      int n;
+      if (id[0]) {
+        if (fleet_spawn(F, id) != 0) {
+          http_reply(cfd, 500, "application/json",
+                     "{\"ok\":false,\"error\":\"spawn_failed\"}");
+          return;
+        }
+        n = 1;
+      } else {
+        n = fleet_spawn_all(F);
+        if (n < 0) {
+          http_reply(cfd, 500, "application/json",
+                     "{\"ok\":false,\"error\":\"spawn_all_failed\"}");
+          return;
+        }
+      }
+      snprintf(plate, sizeof plate, "%s/home/FLEET.json", root);
+      fleet_save(F, plate);
+      snprintf(resp, sizeof resp,
+               "{\"ok\":true,\"spawned\":%d,\"id\":\"%s\",\"alive\":%d,"
+               "\"path\":\"%s\",\"product_wire\":\"smx2\","
+               "\"peer_http\":\"lab_ops_only\"}",
+               n, id[0] ? id : "*", fleet_status(F), plate);
+      http_reply(cfd, 200, "application/json", resp);
+      return;
     }
     if (!id[0]) {
       http_reply(cfd, 400, "application/json",

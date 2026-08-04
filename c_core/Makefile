@@ -95,6 +95,17 @@ hive: test-filter test-consolidate test-serve $(BUILD)/grokium-fleet
 	$(BUILD)/grokium-fleet note-pid nb-manager 999999999 /tmp/gk_fleet_dead.json >/dev/null; \
 	grep -q '"pid": null' /tmp/gk_fleet_dead.json; \
 	grep -q '"offline": true' /tmp/gk_fleet_dead.json; \
-	rm -f /tmp/gk_fleet_honesty.json /tmp/gk_fleet_dead.json; \
+	printf '%s\n' '#!/bin/sh' 'exec sleep 120' > /tmp/gk_fake_nanobot; \
+	chmod +x /tmp/gk_fake_nanobot; \
+	rm -rf /tmp/gk_fleet_spawn_home; mkdir -p /tmp/gk_fleet_spawn_home; \
+	GROKIUM_HOME_ROOT=/tmp/gk_fleet_spawn_home NANOBOT_BIN=/tmp/gk_fake_nanobot \
+	  $(BUILD)/grokium-fleet spawn nb-manager /tmp/gk_fleet_spawn.json >/dev/null; \
+	grep -q '"status": "running"' /tmp/gk_fleet_spawn.json; \
+	$(BUILD)/grokium-fleet status /tmp/gk_fleet_spawn.json | grep -q '"alive":1'; \
+	$(BUILD)/grokium-fleet stop-all /tmp/gk_fleet_spawn.json >/dev/null; \
+	$(BUILD)/grokium-fleet status /tmp/gk_fleet_spawn.json | grep -q '"alive":0'; \
+	rm -f /tmp/gk_fleet_honesty.json /tmp/gk_fleet_dead.json /tmp/gk_fleet_spawn.json \
+	  /tmp/gk_fake_nanobot; \
+	rm -rf /tmp/gk_fleet_spawn_home; \
 	echo FLEET_HONESTY_OK
 	@echo HIVE_MIND_CORE_OK

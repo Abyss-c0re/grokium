@@ -6,11 +6,13 @@
 #define _POSIX_C_SOURCE 200809L
 #include "grokium_fleet.h"
 #include <errno.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 
 static int pid_alive(int pid) {
@@ -114,6 +116,89 @@ int fleet_note_pid(gk_fleet *F, const char *bot_id, int pid) {
     return 0;
   }
   return -1;
+}
+
+int fleet_spawn(gk_fleet *F, const char *bot_id) {
+  int i;
+  pid_t pid;
+  if (!F || !bot_id || !F->binary[0]) return -1;
+  (void)fleet_status(F);
+  for (i = 0; i < F->n; i++) {
+    gk_bot *b = &F->bots[i];
+    char port[16], logpath[320], purpose[320];
+    FILE *pf;
+    int logfd, devnull;
+    if (strcmp(b->id, bot_id) != 0) continue;
+    if (b->running && b->pid > 0) return 0; /* already live */
+    mkdir(F->home_root, 0755);
+    mkdir(b->home, 0755);
+    snprintf(purpose, sizeof purpose, "%s/PURPOSE.txt", b->home);
+    pf = fopen(purpose, "w");
+    if (pf) {
+      fprintf(pf,
+              "id=%s\npurpose=%s\nwire=%s\nhold_flash=1\n"
+              "share=state_matrix_only\npeer_http=lab_ops_only\n",
+              b->id, b->purpose,
+              strcmp(b->id, "nb-manager") == 0 ? "smx_motivate" : "smx2");
+      fclose(pf);
+    }
+    snprintf(port, sizeof port, "%d", b->port);
+    pid = fork();
+    if (pid < 0) return -1;
+    if (pid == 0) {
+      /* detach stdio into home log; peer port is lab ops only */
+      devnull = open("/dev/null", O_RDWR);
+      if (devnull >= 0) {
+        dup2(devnull, STDIN_FILENO);
+      }
+      snprintf(logpath, sizeof logpath, "%s/nanobot.log", b->home);
+      logfd = open(logpath, O_WRONLY | O_CREAT | O_APPEND, 0644);
+      if (logfd >= 0) {
+        dup2(logfd, STDOUT_FILENO);
+        dup2(logfd, STDERR_FILENO);
+        if (logfd > STDERR_FILENO) close(logfd);
+      } else if (devnull >= 0) {
+        dup2(devnull, STDOUT_FILENO);
+        dup2(devnull, STDERR_FILENO);
+      }
+      if (devnull > STDERR_FILENO) close(devnull);
+      setenv("NANOBOT_HOME", b->home, 1);
+      setenv("NANOBOT_BASE_URL", F->base_url, 1);
+      setenv("NANOBOT_MODEL", F->model, 1);
+      setenv("GROKIUM_BOT_ID", b->id, 1);
+      setenv("GROKIUM_PRODUCT_WIRE", "smx2", 1);
+      if (strchr(F->binary, '/')) {
+        execl(F->binary, F->binary, "--home", b->home, "--port", port,
+              "--offline", "--base-url", F->base_url, "--model", F->model,
+              (char *)NULL);
+      } else {
+        execlp(F->binary, F->binary, "--home", b->home, "--port", port,
+               "--offline", "--base-url", F->base_url, "--model", F->model,
+               (char *)NULL);
+      }
+      _exit(127);
+    }
+    {
+      struct timespec ts = {0, 80000000L}; /* 80ms settle */
+      nanosleep(&ts, NULL);
+    }
+    if (!pid_alive((int)pid)) return -1;
+    if (fleet_note_pid(F, bot_id, (int)pid) != 0) {
+      (void)kill(pid, SIGTERM);
+      return -1;
+    }
+    return 0;
+  }
+  return -1;
+}
+
+int fleet_spawn_all(gk_fleet *F) {
+  int i, n = 0;
+  if (!F) return -1;
+  for (i = 0; i < F->n; i++) {
+    if (fleet_spawn(F, F->bots[i].id) == 0) n++;
+  }
+  return n;
 }
 
 static void bot_clear_live(gk_bot *b) {

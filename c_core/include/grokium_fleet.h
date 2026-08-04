@@ -30,6 +30,10 @@ int  fleet_deploy(gk_fleet *F);
 int  fleet_status(gk_fleet *F);
 /* Host/hub records a spawned bot pid (or -1 to clear). */
 int  fleet_note_pid(gk_fleet *F, const char *bot_id, int pid);
+/* Fork/exec F->binary (--home/--port/--offline). Peer HTTP = lab_ops only. */
+int  fleet_spawn(gk_fleet *F, const char *bot_id);
+/* Spawn every role; returns count started (already-up counts as started). */
+int  fleet_spawn_all(gk_fleet *F);
 /* SIGTERM live pid if any, then mark separated. */
 int  fleet_separate(gk_fleet *F, const char *bot_id);
 /* SIGTERM all live bots. */

@@ -29,6 +29,7 @@ make -C c_core all
 | GET | `/v1/stream/smx/latest` | same as matrix/latest |
 | GET | `/v1/nanobot/status` | fleet plate (honest pid/status) |
 | POST | `/v1/nanobot/deploy` | deploy homes + FLEET.json |
+| POST | `/v1/nanobot/spawn` | fork/exec bot(s); body = id, `{"id":…}`, or empty=all |
 | POST | `/v1/nanobot/separate` | SIGTERM one bot; body = id or `{"id":…}` |
 
 Headers: `X-Grokium-Telemetry: off`, `X-Grokium-Product-Wire: smx2`,

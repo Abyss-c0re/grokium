@@ -8,11 +8,14 @@
 static void usage(void) {
   fprintf(stderr,
           "grokium-fleet defaults|deploy|save [path]|status [path]|"
+          "spawn ID [path]|spawn-all [path]|"
           "note-pid ID PID [path]|separate ID [path]|stop-all [path]\n"
           "  defaults  — print roles including nb-manager\n"
           "  deploy    — mkdir homes; clear live pids on plate\n"
           "  save      — write honest FLEET.json (loads plate first)\n"
           "  status    — load plate, kill(0) probe, alive count\n"
+          "  spawn     — fork/exec NANOBOT_BIN (peer HTTP = lab_ops)\n"
+          "  spawn-all — spawn every role\n"
           "  note-pid  — record spawn pid; preserves other bots\n"
           "  separate  — SIGTERM bot if live; mark separated\n"
           "  stop-all  — SIGTERM all live bots\n");
@@ -59,6 +62,44 @@ int main(int argc, char **argv) {
            "\"path\":\"%s\"}\n",
            alive, F.n, path);
     return 0;
+  }
+  if (!strcmp(argv[1], "spawn")) {
+    int i;
+    if (argc < 3) {
+      fprintf(stderr, "usage: grokium-fleet spawn BOT_ID [path]\n");
+      return 2;
+    }
+    if (argc > 3) path = argv[3];
+    fleet_load(&F, path);
+    if (fleet_spawn(&F, argv[2]) != 0) {
+      fprintf(stderr, "spawn failed (binary=%s id=%s)\n", F.binary, argv[2]);
+      return 1;
+    }
+    fleet_save(&F, path);
+    for (i = 0; i < F.n; i++) {
+      if (strcmp(F.bots[i].id, argv[2]) != 0) continue;
+      printf("{\"ok\":true,\"id\":\"%s\",\"pid\":%d,\"running\":%s,"
+             "\"status\":\"%s\",\"path\":\"%s\",\"wire\":\"%s\","
+             "\"peer_http\":\"lab_ops_only\"}\n",
+             F.bots[i].id, F.bots[i].pid > 0 ? F.bots[i].pid : 0,
+             F.bots[i].running ? "true" : "false",
+             F.bots[i].running ? "running" : "separated", path,
+             strcmp(F.bots[i].id, "nb-manager") == 0 ? "smx_motivate" : "smx2");
+      return 0;
+    }
+    return 1;
+  }
+  if (!strcmp(argv[1], "spawn-all")) {
+    int n;
+    if (argc > 2) path = argv[2];
+    fleet_load(&F, path);
+    n = fleet_spawn_all(&F);
+    fleet_save(&F, path);
+    if (n < 0) return 1;
+    printf("{\"ok\":true,\"spawned\":%d,\"n\":%d,\"alive\":%d,\"path\":\"%s\","
+           "\"peer_http\":\"lab_ops_only\",\"product_wire\":\"smx2\"}\n",
+           n, F.n, fleet_status(&F), path);
+    return n > 0 ? 0 : 1;
   }
   if (!strcmp(argv[1], "note-pid")) {
     int pid, i;
