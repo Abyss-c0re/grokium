@@ -136,6 +136,23 @@ int main(int argc, char **argv) {
                 body);
         return 1;
       }
+      f = fopen("/tmp/gk_consolidate_selftest/matrix.json", "r");
+      if (!f) {
+        fprintf(stderr, "selftest: matrix.json missing\n");
+        return 1;
+      }
+      n = fread(body, 1, sizeof body - 1, f);
+      body[n] = 0;
+      fclose(f);
+      if (!strstr(body, "\"schema\":\"grokium.smx.v1\"") ||
+          !strstr(body, "\"product_wire\":\"smx2\"") ||
+          !strstr(body, "\"peer_http\":\"lab_ops_only\"") ||
+          !strstr(body, "\"peer_http_is_product_bus\":false") ||
+          !strstr(body, "\"llm_is_commander\":false") ||
+          !strstr(body, "\"share\":\"state_matrix_only\"")) {
+        fprintf(stderr, "selftest: matrix.json dual-wire fail: %s\n", body);
+        return 1;
+      }
     }
     printf("CONSOLIDATOR_OK grade=%s concepts=%d bits=%u smx_filter=on "
            "dual_wire=honest\n",

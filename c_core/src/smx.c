@@ -129,9 +129,15 @@ int smx_save_json(const grokium_smx *m, const char *path, int algodigit) {
   smx_sha256_hex(m, hex);
   f = fopen(path, "w");
   if (!f) return -1;
+  /* Compact on-disk plate: dual-wire honesty (lab/ops ≠ product bus). */
   fprintf(f,
-          "{\"schema\":\"grokium.smx.v1\",\"seq\":%llu,\"bits_set\":%u,"
-          "\"ticks\":%u,\"host\":\"%s\",\"digit\":%d,\"sha256\":\"%s\","
+          "{\"schema\":\"grokium.smx.v1\",\"ok\":true,"
+          "\"seq\":%llu,\"bits_set\":%u,\"ticks\":%u,"
+          "\"host\":\"%s\",\"digit\":%d,\"sha256\":\"%s\","
+          "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+          "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+          "\"peer_http_is_product_bus\":false,"
+          "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
           "\"bits\":\"%.64s...\"}\n",
           (unsigned long long)m->seq, m->bits_set, m->ticks, m->host_id,
           algodigit, hex, bits);

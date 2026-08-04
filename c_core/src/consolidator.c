@@ -176,6 +176,9 @@ int gk_save_dir(const gk_consolidator *C, const char *dir) {
   if (smx_save_bin(&C->matrix, path) != 0) return -1;
   snprintf(path, sizeof path, "%s/concept.bin", dir);
   smx_save_bin(&C->concept_mx, path);
+  /* Compact dual-wire SMX plate for lab/ops inspection (bits truncated). */
+  snprintf(path, sizeof path, "%s/matrix.json", dir);
+  if (smx_save_json(&C->matrix, path, 0) != 0) return -1;
   smx_bits_ascii(&C->matrix, bits, sizeof bits);
   smx_sha256_hex(&C->matrix, hex);
   gk_ability(C, 0, ability, sizeof ability);
