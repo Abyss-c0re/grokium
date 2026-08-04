@@ -20,6 +20,7 @@ make -C c_core all
 | Method | Path | Role |
 |--------|------|------|
 | GET | `/healthz` | liveness |
+| GET | `/ui` | minimal lab/ops HTML plate (dual-wire honesty) |
 | GET | `/v1/status` | law + dual-wire honesty (`product_wire=smx2`) |
 | GET | `/v1/cube/status` | AlgoCube bridge plate (digit/blueprint, dual-wire) |
 | GET/POST | `/v1/sessions` | list imported session metas (`?q=` optional) |
@@ -66,15 +67,14 @@ Host CLI: `contract`, `manager-tick`, `commander`, `llama`, `integrity tick|rese
 | Method | Path | Role |
 |--------|------|------|
 | POST | `/v1/agent` | tool agent (host TUI / nanobot path today) |
-| GET | `/ui` | minimal UI |
 
 Session routes return **meta only** (id/title/updated/model counts) from
 `{data_root}/import/*.meta.json` — no chat transcripts on the lab/ops wire.
 Full resume/import of messages stays host TUI / nanobot.
 
-`POST /v1/chat` is implemented as a short non-streaming loopback completion
-(lab/ops). It never elevates the LLM to Commander. Multi-peer product talk
-stays SMX2; host TUI still owns rich agent/tool sessions.
+`GET /ui` is a static-ish lab/ops HTML plate (live matrix/fleet counts), not a
+product chat UI. `POST /v1/chat` is short non-streaming loopback completion.
+Neither elevates the LLM to Commander. Multi-peer product talk stays SMX2.
 
 ## MCP (stdio)
 

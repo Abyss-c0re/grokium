@@ -91,7 +91,7 @@ static int selftest(void) {
   char resp[4096];
   const char *b;
   int st, fails = 0;
-  setenv("GROKIUM_SERVE_MAX", "30", 1);
+  setenv("GROKIUM_SERVE_MAX", "32", 1);
   {
     gk_commander cmd;
     const char *law = "/tmp/gk_law_serve";
@@ -130,6 +130,16 @@ static int selftest(void) {
   if (!strstr(b, "\"ok\":true") ||
       !strstr(resp, "X-Grokium-Product-Wire: smx2")) {
     fprintf(stderr, "selftest: healthz bad: %.200s\n", resp);
+    fails++;
+  }
+  if (http_get("127.0.0.1", port, "/ui", resp, sizeof resp) < 0)
+    fails++;
+  else if (!strstr(resp, "text/html") ||
+           !strstr(body_of(resp), "product_wire") ||
+           !strstr(body_of(resp), "lab_ops_only") ||
+           !strstr(body_of(resp), "llm_is_commander") ||
+           !strstr(body_of(resp), "state matrix only")) {
+    fprintf(stderr, "selftest: /ui fail: %.300s\n", resp);
     fails++;
   }
   if (http_get("127.0.0.1", port, "/v1/status", resp, sizeof resp) < 0)
@@ -311,7 +321,7 @@ static int selftest(void) {
   }
   printf("LOOPBACK_HTTP_OK port=%d dual_wire=honest smx_filter=on "
          "contracts=on commander=on llama_probe=on smx_sse=on chat=on "
-         "cube_status=on sessions=on\n",
+         "cube_status=on sessions=on ui=on\n",
          port);
   return 0;
 }

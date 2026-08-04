@@ -1103,6 +1103,68 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     return;
   }
 
+  /* Minimal lab/ops UI — not product chat; dual-wire honesty plate. */
+  if (!strcmp(path, "/ui") || !strcmp(path, "/ui/")) {
+    char html[4096];
+    int n;
+    if (strcmp(method, "GET") != 0) {
+      http_reply(cfd, 405, "text/plain", "method\n");
+      return;
+    }
+    n = snprintf(
+        html, sizeof html,
+        "<!DOCTYPE html>\n"
+        "<html lang=\"en\"><head><meta charset=\"utf-8\"/>\n"
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/>\n"
+        "<meta name=\"grokium-telemetry\" content=\"off\"/>\n"
+        "<title>Grokium lab/ops</title>\n"
+        "<style>\n"
+        "body{font:15px/1.45 system-ui,sans-serif;max-width:44rem;margin:2rem auto;"
+        "padding:0 1rem;background:#0b0f14;color:#e6edf3}\n"
+        "h1{font-size:1.25rem;margin:0 0 .5rem}\n"
+        "code,a{color:#7ee787} a{text-decoration:none} a:hover{text-decoration:underline}\n"
+        "ul{padding-left:1.2rem} .plate{border:1px solid #30363d;border-radius:8px;"
+        "padding:1rem;background:#161b22;margin:1rem 0}\n"
+        ".muted{color:#8b949e;font-size:.9rem}\n"
+        "</style></head><body>\n"
+        "<h1>Grokium · loopback lab/ops</h1>\n"
+        "<p class=\"muted\">Not affiliated with xAI. Product bus = "
+        "<strong>SMX2</strong>; this HTTP surface is lab/ops only. "
+        "Commander ≠ model. Telemetry off. Share = state matrix only.</p>\n"
+        "<div class=\"plate\">\n"
+        "<div><b>product_wire</b>: smx2</div>\n"
+        "<div><b>peer_http</b>: lab_ops_only</div>\n"
+        "<div><b>matrix_bits</b>: %u · <b>grade</b>: %s</div>\n"
+        "<div><b>fleet_n</b>: %d · <b>hold_flash</b>: %d</div>\n"
+        "<div><b>llm_is_commander</b>: false</div>\n"
+        "</div>\n"
+        "<p><b>JSON routes</b></p>\n"
+        "<ul>\n"
+        "<li><a href=\"/healthz\"><code>/healthz</code></a></li>\n"
+        "<li><a href=\"/v1/status\"><code>/v1/status</code></a></li>\n"
+        "<li><a href=\"/v1/cube/status\"><code>/v1/cube/status</code></a></li>\n"
+        "<li><a href=\"/v1/matrix/latest\"><code>/v1/matrix/latest</code></a></li>\n"
+        "<li><a href=\"/v1/stream/smx\"><code>/v1/stream/smx</code></a> (SSE snapshot)</li>\n"
+        "<li><a href=\"/v1/sessions\"><code>/v1/sessions</code></a> (meta only)</li>\n"
+        "<li><a href=\"/v1/nanobot/status\"><code>/v1/nanobot/status</code></a></li>\n"
+        "<li><a href=\"/v1/llama/probe\"><code>/v1/llama/probe</code></a></li>\n"
+        "<li><a href=\"/v1/commander\"><code>/v1/commander</code></a></li>\n"
+        "<li><a href=\"/v1/integrity\"><code>/v1/integrity</code></a></li>\n"
+        "</ul>\n"
+        "<p class=\"muted\">POST <code>/v1/chat</code> and <code>/v1/coord</code> "
+        "from clients; tool agent remains host TUI / nanobot. "
+        "HOLD_FLASH ack_held.</p>\n"
+        "</body></html>\n",
+        C ? C->matrix.bits_set : 0, C ? C->grade : "EMPTY", F ? F->n : 0,
+        L ? L->hold_flash : 1);
+    if (n < 0 || (size_t)n >= sizeof html) {
+      http_reply(cfd, 500, "text/plain", "ui_overflow\n");
+      return;
+    }
+    http_reply(cfd, 200, "text/html; charset=utf-8", html);
+    return;
+  }
+
   if (!strcmp(path, "/v1/status")) {
     if (strcmp(method, "GET") != 0) {
       http_reply(cfd, 405, "application/json",
@@ -1787,7 +1849,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
 
   http_reply(cfd, 404, "application/json",
              "{\"ok\":false,\"error\":\"not_found\","
-             "\"hint\":\"/healthz /v1/status /v1/cube/status /v1/sessions "
+             "\"hint\":\"/ui /healthz /v1/status /v1/cube/status /v1/sessions "
              "/v1/commander /v1/chat /v1/coord /v1/stream/smx "
              "/v1/contract/form /v1/manager/tick /v1/nanobot/status\"}");
 }
