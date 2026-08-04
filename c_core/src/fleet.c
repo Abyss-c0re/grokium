@@ -116,14 +116,24 @@ int fleet_note_pid(gk_fleet *F, const char *bot_id, int pid) {
   return -1;
 }
 
+static void bot_clear_live(gk_bot *b) {
+  if (!b) return;
+  if (b->pid > 0) {
+    /* polite stop; host may SIGKILL later if needed */
+    if (pid_alive(b->pid))
+      (void)kill(b->pid, SIGTERM);
+  }
+  b->pid = -1;
+  b->running = 0;
+  b->separated = 1;
+}
+
 int fleet_separate(gk_fleet *F, const char *bot_id) {
   int i;
   if (!F || !bot_id) return -1;
   for (i = 0; i < F->n; i++) {
     if (!strcmp(F->bots[i].id, bot_id)) {
-      F->bots[i].separated = 1;
-      F->bots[i].running = 0;
-      F->bots[i].pid = -1;
+      bot_clear_live(&F->bots[i]);
       return 0;
     }
   }
@@ -133,11 +143,8 @@ int fleet_separate(gk_fleet *F, const char *bot_id) {
 int fleet_stop_all(gk_fleet *F) {
   int i;
   if (!F) return -1;
-  for (i = 0; i < F->n; i++) {
-    F->bots[i].running = 0;
-    F->bots[i].pid = -1;
-    F->bots[i].separated = 1;
-  }
+  for (i = 0; i < F->n; i++)
+    bot_clear_live(&F->bots[i]);
   return 0;
 }
 
@@ -216,16 +223,71 @@ int fleet_save(gk_fleet *F, const char *path) {
   return 0;
 }
 
+/* Pull "pid": N|null from a bot object window after its id key. */
+static int parse_bot_pid(const char *json, const char *id) {
+  char key[96];
+  const char *p, *pidk, *win_end;
+  int pid;
+  if (!json || !id) return -1;
+  snprintf(key, sizeof key, "\"id\": \"%s\"", id);
+  p = strstr(json, key);
+  if (!p) {
+    snprintf(key, sizeof key, "\"id\":\"%s\"", id);
+    p = strstr(json, key);
+  }
+  if (!p) return -1;
+  win_end = strchr(p, '}');
+  pidk = strstr(p, "\"pid\":");
+  if (!pidk || (win_end && pidk > win_end)) return -1;
+  pidk += 6;
+  while (*pidk == ' ' || *pidk == '\t') pidk++;
+  if (!strncmp(pidk, "null", 4)) return -1;
+  pid = atoi(pidk);
+  return pid > 0 ? pid : -1;
+}
+
 int fleet_load(gk_fleet *F, const char *path) {
-  /* Minimal: reset defaults if file missing; full JSON load optional later */
   FILE *f;
+  char *buf = NULL;
+  long sz;
+  int i, nread;
   if (!F) return -1;
-  f = path ? fopen(path, "r") : NULL;
-  if (!f) {
-    fleet_default_roles(F);
+  fleet_default_roles(F);
+  if (!path || !path[0]) return 0;
+  f = fopen(path, "r");
+  if (!f) return 0;
+  if (fseek(f, 0, SEEK_END) != 0) {
+    fclose(f);
     return 0;
   }
+  sz = ftell(f);
+  if (sz <= 0 || sz > 256 * 1024) {
+    fclose(f);
+    return 0;
+  }
+  rewind(f);
+  buf = (char *)malloc((size_t)sz + 1);
+  if (!buf) {
+    fclose(f);
+    return -1;
+  }
+  nread = (int)fread(buf, 1, (size_t)sz, f);
   fclose(f);
-  fleet_default_roles(F);
+  if (nread <= 0) {
+    free(buf);
+    return 0;
+  }
+  buf[nread] = 0;
+  /* overlay live pids from plate; dead pids cleared by fleet_status */
+  for (i = 0; i < F->n; i++) {
+    int pid = parse_bot_pid(buf, F->bots[i].id);
+    if (pid > 0) {
+      F->bots[i].pid = pid;
+      F->bots[i].running = pid_alive(pid) ? 1 : 0;
+      F->bots[i].separated = F->bots[i].running ? 0 : 1;
+      if (!F->bots[i].running) F->bots[i].pid = -1;
+    }
+  }
+  free(buf);
   return 0;
 }

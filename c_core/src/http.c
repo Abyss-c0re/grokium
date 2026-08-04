@@ -314,6 +314,62 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     return;
   }
 
+  if (!strcmp(path, "/v1/nanobot/separate")) {
+    char plate[512];
+    char id[64];
+    const char *src;
+    size_t i, j;
+    if (strcmp(method, "POST") != 0) {
+      http_reply(cfd, 405, "application/json",
+                 "{\"ok\":false,\"error\":\"method\"}");
+      return;
+    }
+    if (!F) {
+      http_reply(cfd, 500, "application/json",
+                 "{\"ok\":false,\"error\":\"no_fleet\"}");
+      return;
+    }
+    /* body: raw bot id or {"id":"nb-…"} */
+    id[0] = 0;
+    src = body && body_n ? body : "";
+    if (src[0] == '{') {
+      const char *k = strstr(src, "\"id\"");
+      if (k) {
+        k = strchr(k + 4, '"');
+        if (k) {
+          k++;
+          for (j = 0; j + 1 < sizeof id && k[j] && k[j] != '"'; j++)
+            id[j] = k[j];
+          id[j] = 0;
+        }
+      }
+    } else {
+      for (i = 0, j = 0; i < body_n && j + 1 < sizeof id; i++) {
+        if (src[i] == '\n' || src[i] == '\r' || src[i] == ' ') continue;
+        id[j++] = src[i];
+      }
+      id[j] = 0;
+    }
+    if (!id[0]) {
+      http_reply(cfd, 400, "application/json",
+                 "{\"ok\":false,\"error\":\"need_bot_id\"}");
+      return;
+    }
+    if (fleet_separate(F, id) != 0) {
+      http_reply(cfd, 404, "application/json",
+                 "{\"ok\":false,\"error\":\"unknown_bot\"}");
+      return;
+    }
+    snprintf(plate, sizeof plate, "%s/home/FLEET.json", root);
+    fleet_save(F, plate);
+    snprintf(resp, sizeof resp,
+             "{\"ok\":true,\"id\":\"%s\",\"status\":\"separated\","
+             "\"path\":\"%s\",\"wire\":\"smx2\"}",
+             id, plate);
+    http_reply(cfd, 200, "application/json", resp);
+    return;
+  }
+
   if (!strcmp(path, "/v1/matrix/latest") || !strcmp(path, "/v1/stream/smx/latest")) {
     if (strcmp(method, "GET") != 0) {
       http_reply(cfd, 405, "application/json",

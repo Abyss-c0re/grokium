@@ -80,10 +80,18 @@ test-serve: $(BUILD)/grokium-serve
 hive: test-filter test-consolidate test-serve $(BUILD)/grokium-fleet
 	@$(BUILD)/grokium-fleet defaults | grep -q nb-manager
 	@set -e; \
-	$(BUILD)/grokium-fleet note-pid nb-manager $$$$ /tmp/gk_fleet_honesty.json >/dev/null; \
-	grep -q "\"pid\": $$$$" /tmp/gk_fleet_honesty.json; \
+	sleep 120 & P1=$$!; sleep 120 & P2=$$!; \
+	$(BUILD)/grokium-fleet note-pid nb-manager $$P1 /tmp/gk_fleet_honesty.json >/dev/null; \
+	grep -q "\"pid\": $$P1" /tmp/gk_fleet_honesty.json; \
 	grep -q '"offline": false' /tmp/gk_fleet_honesty.json; \
 	grep -q '"status": "running"' /tmp/gk_fleet_honesty.json; \
+	$(BUILD)/grokium-fleet note-pid nb-integrity $$P2 /tmp/gk_fleet_honesty.json >/dev/null; \
+	grep -q "\"pid\": $$P2" /tmp/gk_fleet_honesty.json; \
+	grep -c '"status": "running"' /tmp/gk_fleet_honesty.json | grep -q 2; \
+	$(BUILD)/grokium-fleet status /tmp/gk_fleet_honesty.json | grep -q '"alive":2'; \
+	$(BUILD)/grokium-fleet separate nb-manager /tmp/gk_fleet_honesty.json >/dev/null; \
+	$(BUILD)/grokium-fleet status /tmp/gk_fleet_honesty.json | grep -q '"alive":1'; \
+	kill $$P2 2>/dev/null || true; wait $$P2 2>/dev/null || true; \
 	$(BUILD)/grokium-fleet note-pid nb-manager 999999999 /tmp/gk_fleet_dead.json >/dev/null; \
 	grep -q '"pid": null' /tmp/gk_fleet_dead.json; \
 	grep -q '"offline": true' /tmp/gk_fleet_dead.json; \

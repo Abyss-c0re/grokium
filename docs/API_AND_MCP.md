@@ -29,9 +29,12 @@ make -C c_core all
 | GET | `/v1/stream/smx/latest` | same as matrix/latest |
 | GET | `/v1/nanobot/status` | fleet plate (honest pid/status) |
 | POST | `/v1/nanobot/deploy` | deploy homes + FLEET.json |
+| POST | `/v1/nanobot/separate` | SIGTERM one bot; body = id or `{"id":…}` |
 
 Headers: `X-Grokium-Telemetry: off`, `X-Grokium-Product-Wire: smx2`,
 `X-Grokium-Peer-HTTP: lab_ops_only`. Share: **state matrix only**.
+
+Fleet plate load preserves pids across `note-pid` / `status` / `separate`.
 
 ### Planned / not yet in pure-C serve
 
@@ -43,7 +46,6 @@ Headers: `X-Grokium-Telemetry: off`, `X-Grokium-Product-Wire: smx2`,
 | POST | `/v1/chat` | local-first chat (host TUI path today) |
 | POST | `/v1/agent` | tool agent |
 | GET/POST | `/v1/sessions/*` | search/pickup/resume/import |
-| POST | `/v1/nanobot/separate` | stop one bot |
 | GET | `/v1/cube/status` | Cube bridge |
 | GET | `/ui` | minimal UI |
 | GET | `/v1/integrity*` | integrity tick / reseal |

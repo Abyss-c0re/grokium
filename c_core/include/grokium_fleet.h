@@ -30,11 +30,14 @@ int  fleet_deploy(gk_fleet *F);
 int  fleet_status(gk_fleet *F);
 /* Host/hub records a spawned bot pid (or -1 to clear). */
 int  fleet_note_pid(gk_fleet *F, const char *bot_id, int pid);
+/* SIGTERM live pid if any, then mark separated. */
 int  fleet_separate(gk_fleet *F, const char *bot_id);
+/* SIGTERM all live bots. */
 int  fleet_stop_all(gk_fleet *F);
 int  fleet_post_raw_bits(const gk_fleet *F, const char *bot_id,
                          const char *bits01);
 /* Refresh live status then write honest plate (pid/status/offline). */
 int  fleet_save(gk_fleet *F, const char *path);
+/* Defaults + overlay pids from plate; dead pids dropped. */
 int  fleet_load(gk_fleet *F, const char *path);
 #endif

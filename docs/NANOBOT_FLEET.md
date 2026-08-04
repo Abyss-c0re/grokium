@@ -7,8 +7,10 @@ Primary fleet plate is **pure C** (`c_core`): purpose-assigned roles including
 make -C c_core all
 ./scripts/grokium fleet              # defaults (roles)
 ./scripts/grokium fleet deploy       # mkdir homes + write data/home/FLEET.json
-./scripts/grokium fleet status       # kill(0) probe
-./scripts/grokium fleet note-pid ID PID
+./scripts/grokium fleet status       # load plate + kill(0) probe
+./scripts/grokium fleet note-pid ID PID   # preserves other bots' pids
+./scripts/grokium fleet separate ID  # SIGTERM if live, mark separated
+./scripts/grokium fleet stop-all
 ./scripts/grokium fleet cubalc       # optional CubalC board path
 ```
 
