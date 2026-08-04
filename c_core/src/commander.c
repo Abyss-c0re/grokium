@@ -377,7 +377,13 @@ int gk_commander_envelope_json(const gk_commander *C,
     "\"sig\":\"%s\","
     "\"fingerprint_sha256\":\"%s\","
     "\"unforgeable\":true,"
-    "\"model_is_not_commander\":true"
+    "\"model_is_not_commander\":true,"
+    "\"llm_is_commander\":false,"
+    "\"product_wire\":\"smx2\","
+    "\"peer_http\":\"lab_ops_only\","
+    "\"peer_http_is_product_bus\":false,"
+    "\"share\":\"state_matrix_only\","
+    "\"hold_flash\":1"
     "%s%s%s"
     "}",
     GK_CMD_DOMAIN, GK_CMD_PRODUCT, GK_CMD_NOT,

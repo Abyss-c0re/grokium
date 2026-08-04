@@ -66,7 +66,13 @@ int main(int argc, char **argv) {
     if (!law_dir) { usage(); return 2; }
     if (gk_commander_generate(&C) != 0) { fprintf(stderr, "keygen failed\n"); return 1; }
     if (gk_commander_save(&C, law_dir) != 0) { fprintf(stderr, "save failed\n"); return 1; }
-    printf("{\"ok\":true,\"product\":\"grokium\",\"not\":\"grok_model\",\"fingerprint\":\"%s\",\"law_dir\":\"%s\",\"unforgeable\":true}\n",
+    printf("{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
+           "\"product\":\"grokium\",\"not\":\"grok_model\","
+           "\"fingerprint\":\"%s\",\"law_dir\":\"%s\",\"unforgeable\":true,"
+           "\"llm_is_commander\":false,\"commander_is_model\":false,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1}\n",
            C.fingerprint_hex, law_dir);
     return 0;
   }
@@ -74,7 +80,14 @@ int main(int argc, char **argv) {
   if (!strcmp(cmd, "show")) {
     if (!law_dir) { usage(); return 2; }
     if (gk_commander_load(&C, law_dir) != 0) { fprintf(stderr, "load failed\n"); return 1; }
-    printf("{\"ok\":true,\"product\":\"grokium\",\"not\":\"grok_model\",\"domain\":\"%s\",\"fingerprint\":\"%s\",\"has_sk\":%s,\"unforgeable\":true}\n",
+    printf("{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
+           "\"product\":\"grokium\",\"not\":\"grok_model\","
+           "\"domain\":\"%s\",\"fingerprint\":\"%s\",\"has_sk\":%s,"
+           "\"unforgeable\":true,\"llm_is_commander\":false,"
+           "\"commander_is_model\":false,\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1}\n",
            GK_CMD_DOMAIN, C.fingerprint_hex, C.has_sk ? "true" : "false");
     return 0;
   }
@@ -111,7 +124,12 @@ int main(int argc, char **argv) {
     if (body_path) read_all(body_path, &body, &blen);
     ok = gk_commander_verify_override(&C, device, action, nonce, ts, body, blen, sig);
     free(body);
-    printf("{\"ok\":%s,\"commander\":%s,\"not\":\"grok_model\",\"unforgeable\":true}\n",
+    printf("{\"schema\":\"grokium.commander_verify.v1\",\"ok\":%s,"
+           "\"commander\":%s,\"not\":\"grok_model\",\"unforgeable\":true,"
+           "\"llm_is_commander\":false,\"commander_is_model\":false,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1}\n",
            ok ? "true" : "false", ok ? "\"grokium\"" : "null");
     return ok ? 0 : 1;
   }
@@ -122,7 +140,13 @@ int main(int argc, char **argv) {
     if (gk_commander_install_nanobot_law(&C, home, bot ? bot : "nb", purpose ? purpose : "assigned") != 0) {
       fprintf(stderr, "install failed\n"); return 1;
     }
-    printf("{\"ok\":true,\"home\":\"%s\",\"bot\":\"%s\",\"fingerprint\":\"%s\",\"law\":\"installed\"}\n",
+    printf("{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
+           "\"home\":\"%s\",\"bot\":\"%s\",\"fingerprint\":\"%s\","
+           "\"law\":\"installed\",\"not\":\"grok_model\","
+           "\"llm_is_commander\":false,\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1}\n",
            home, bot ? bot : "nb", C.fingerprint_hex);
     return 0;
   }

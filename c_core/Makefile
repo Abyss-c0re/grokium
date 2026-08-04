@@ -52,13 +52,21 @@ clean:
 test-commander: $(BIN_CMD)
 	@set -e; \
 	D=$(BUILD)/law_test; rm -rf $$D; mkdir -p $$D; \
-	$(BIN_CMD) keygen --law-dir $$D; \
+	K=$$($(BIN_CMD) keygen --law-dir $$D); \
+	echo "$$K" | grep -q '"product_wire":"smx2"'; \
+	echo "$$K" | grep -q '"llm_is_commander":false'; \
+	S=$$($(BIN_CMD) show --law-dir $$D); \
+	echo "$$S" | grep -q '"not":"grok_model"'; \
+	echo "$$S" | grep -q '"peer_http_is_product_bus":false'; \
 	ENV=$$($(BIN_CMD) sign --law-dir $$D --device nb-test --action override_rules); \
 	echo "$$ENV" | grep -q grokium; \
+	echo "$$ENV" | grep -q '"product_wire":"smx2"'; \
 	NONCE=$$(echo "$$ENV" | sed -n 's/.*"nonce":"\([^"]*\)".*/\1/p'); \
 	TS=$$(echo "$$ENV" | sed -n 's/.*"ts":\([0-9]*\).*/\1/p'); \
 	SIG=$$(echo "$$ENV" | sed -n 's/.*"sig":"\([^"]*\)".*/\1/p'); \
-	$(BIN_CMD) verify --law-dir $$D --device nb-test --action override_rules --nonce $$NONCE --ts $$TS --sig $$SIG; \
+	V=$$($(BIN_CMD) verify --law-dir $$D --device nb-test --action override_rules --nonce $$NONCE --ts $$TS --sig $$SIG); \
+	echo "$$V" | grep -q '"ok":true'; \
+	echo "$$V" | grep -q '"llm_is_commander":false'; \
 	if $(BIN_CMD) verify --law-dir $$D --device nb-test --action override_rules --nonce $$NONCE --ts $$TS --sig $$(printf '00%.0s' {1..128}); then echo FORGE_LEAK; exit 1; fi; \
 	echo COMMANDER_LAW_OK
 

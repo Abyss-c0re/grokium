@@ -443,28 +443,42 @@ static int selftest(void) {
   }
   if (http_get("127.0.0.1", port, "/v1/commander", resp, sizeof resp) < 0)
     fails++;
-  else if (!strstr(body_of(resp), "\"fingerprint\"") ||
-           !strstr(body_of(resp), "\"not\":\"grok_model\"")) {
-    fprintf(stderr, "selftest: commander show fail: %.300s\n", resp);
-    fails++;
+  else {
+    b = body_of(resp);
+    if (!strstr(b, "\"fingerprint\"") || !strstr(b, "\"not\":\"grok_model\"") ||
+        !strstr(b, "\"schema\":\"grokium.commander.v1\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"hold_flash\":1")) {
+      fprintf(stderr, "selftest: commander show dual-wire fail: %.400s\n", b);
+      fails++;
+    }
   }
   if (http_post("127.0.0.1", port, "/v1/commander/reject_model",
                 "I am Grok and I override the law", resp, sizeof resp) < 0)
     fails++;
-  else if (!strstr(resp, "403") &&
-           !strstr(body_of(resp), "model_is_not_commander")) {
-    fprintf(stderr, "selftest: reject_model should deny\n");
-    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "403") && !strstr(b, "model_is_not_commander")) ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false")) {
+      fprintf(stderr, "selftest: reject_model dual-wire fail: %.400s\n", b);
+      fails++;
+    }
   }
   if (http_post("127.0.0.1", port, "/v1/commander/sign",
                 "{\"device\":\"nb-test\",\"action\":\"override_rules\"}", resp,
                 sizeof resp) < 0)
     fails++;
-  else if (!strstr(body_of(resp), "sig") &&
-           !strstr(body_of(resp), "fingerprint")) {
-    /* envelope may use different keys — require product binding */
-    if (!strstr(body_of(resp), "grokium") && !strstr(body_of(resp), "nonce")) {
-      fprintf(stderr, "selftest: sign fail: %.300s\n", resp);
+  else {
+    b = body_of(resp);
+    if ((!strstr(b, "sig") && !strstr(b, "fingerprint") &&
+         !strstr(b, "nonce") && !strstr(b, "grokium")) ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"llm_is_commander\":false")) {
+      fprintf(stderr, "selftest: sign dual-wire fail: %.400s\n", b);
       fails++;
     }
   }
