@@ -614,6 +614,105 @@ static int run_prog_capture(const char *name) {
   return WIFEXITED(st) ? WEXITSTATUS(st) : 1;
 }
 
+/* pure-C c_core tools (coord/smx) — never elevate LLM to commander */
+static int run_c_core_capture(const char *name, char *const args[]) {
+  char bin[PATH_MAX];
+  char *av[16];
+  int i, n = 0, pipefd[2], st = 0;
+  pid_t pid;
+  char acc[16384];
+  size_t o = 0;
+  char buf[2048];
+  ssize_t rn;
+  if (!name || !args) return -1;
+  snprintf(bin, sizeof bin, "%s/build/%s", root, name);
+  if (access(bin, X_OK) != 0) {
+    log_add("! missing build tool — make -C c_core all");
+    return 99;
+  }
+  av[n++] = bin;
+  for (i = 0; args[i] && n < 14; i++)
+    av[n++] = args[i];
+  av[n] = NULL;
+  if (pipe(pipefd) != 0) return 1;
+  pid = fork();
+  if (pid < 0) {
+    close(pipefd[0]);
+    close(pipefd[1]);
+    return 1;
+  }
+  if (pid == 0) {
+    close(pipefd[0]);
+    dup2(pipefd[1], 1);
+    dup2(pipefd[1], 2);
+    close(pipefd[1]);
+    setenv("GROKIUM_ROOT", root, 1);
+    if (chdir(root) != 0) { /* prefer repo-relative data/ */ }
+    execv(bin, av);
+    _exit(127);
+  }
+  close(pipefd[1]);
+  while ((rn = read(pipefd[0], buf, sizeof buf)) > 0) {
+    if (o + (size_t)rn >= sizeof acc) rn = (ssize_t)(sizeof acc - 1 - o);
+    if (rn <= 0) break;
+    memcpy(acc + o, buf, (size_t)rn);
+    o += (size_t)rn;
+  }
+  acc[o] = 0;
+  close(pipefd[0]);
+  waitpid(pid, &st, 0);
+  if (acc[0])
+    log_add_block(acc);
+  else
+    log_add("(no output)");
+  return WIFEXITED(st) ? WEXITSTATUS(st) : 1;
+}
+
+static void cmd_coord_ingest(const char *plate) {
+  char *av[3];
+  int rc;
+  if (!plate || !plate[0]) {
+    log_add("usage: /coord <NEXUS_COORD|01-bits plate>");
+    log_add("  SMX filter fail-closed · prose denied · product_wire=smx2");
+    return;
+  }
+  log_add("coord> sanitize+ingest (SMX filter)…");
+  av[0] = "ingest";
+  av[1] = (char *)plate;
+  av[2] = NULL;
+  rc = run_c_core_capture("grokium-consolidate", av);
+  if (rc == 0)
+    log_add("coord> ok · share=state_matrix_only · hold_flash=1");
+  else if (rc == 99)
+    ; /* already logged missing tool */
+  else
+    log_add("coord> denied or failed (fail-closed)");
+}
+
+static void cmd_smx_latest(void) {
+  char path[PATH_MAX];
+  FILE *f;
+  char buf[8192];
+  size_t n;
+  char *av[2];
+  snprintf(path, sizeof path, "%s/data/matrix/LATEST.json", root);
+  f = fopen(path, "r");
+  if (f) {
+    n = fread(buf, 1, sizeof buf - 1, f);
+    buf[n] = 0;
+    fclose(f);
+    log_add("--- SMX latest (data/matrix/LATEST.json) ---");
+    log_add_block(buf);
+    log_add("share=state_matrix_only · product_wire=smx2");
+    return;
+  }
+  /* fallback: consolidator ability plate (no transcript dump) */
+  log_add("--- SMX ability (no LATEST.json yet) ---");
+  av[0] = "ability";
+  av[1] = NULL;
+  (void)run_c_core_capture("grokium-consolidate", av);
+}
+
 static void do_login(int device) {
   endwin();
   printf("\n=== Grokium /login (optional cloud) ===\n");
@@ -719,7 +818,10 @@ static void do_command(const char *raw) {
     log_add("  /settings [key=val|save|reload|path]");
     log_add("  multiline: Enter=nl · Alt+Enter/Ctrl+S=send");
     log_add("  spoilers: Tab · e/E/c · click");
+    log_add("  /coord <plate>  fold NEXUS_COORD/SMX via filter (fail-closed)");
+    log_add("  /smx            latest StateMatrix plate (bits only)");
     log_add("  /attach /viz · ! shell · /model · /settings · /q");
+    log_add("  product_wire=smx2 · peer_http=lab_ops_only · Commander≠model");
     return;
   }
   if (strcmp(cmd, "shell") == 0 || strcmp(cmd, "sh") == 0 || strcmp(cmd, "run") == 0) {
@@ -946,6 +1048,15 @@ static void do_command(const char *raw) {
       gkx_hub_stop();
       log_add("hub: stopped");
     }
+    return;
+  }
+  if (strcmp(cmd, "coord") == 0 || strcmp(cmd, "ingest") == 0 ||
+      strcmp(cmd, "smx-ingest") == 0) {
+    cmd_coord_ingest(rest);
+    return;
+  }
+  if (strcmp(cmd, "smx") == 0 || strcmp(cmd, "matrix") == 0) {
+    cmd_smx_latest();
     return;
   }
   if (strcmp(cmd, "attach") == 0 || strcmp(cmd, "file") == 0 || strcmp(cmd, "open") == 0) {

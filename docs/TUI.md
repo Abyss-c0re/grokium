@@ -15,8 +15,11 @@
 | resume | `/pickup <id>` then messages |
 
 ## Slash commands
-`/help` `/status` `/integrity` `/law` `/commander` `/sessions [q]` `/pickup <id>`  
-`/mode chat|agent|resume` `/smx` `/clear` `/quit`
+`/help` `/status` `/settings` `/model` `/backend` `/clear` `/quit`  
+`/coord <NEXUS_COORD|01-bits>` — fold plate via SMX filter (fail-closed; prose denied)  
+`/smx` (or `/matrix`) — latest StateMatrix plate (`data/matrix/LATEST.json` or ability)  
+
+Product bus remains **SMX2**; Commander ≠ model; share = state_matrix_only.
 
 ## Optional web
 ```bash
