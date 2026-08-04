@@ -1,0 +1,20 @@
+{
+  "schema": "grokium.contract.v1",
+  "id": "c1785842745-10a3",
+  "assignee": "nb-worker-1",
+  "issuer": "grokium-filter",
+  "task_digest": "e97a6dad20cf137d0963f6a4fa9358b64f644570f635c82d6c38d78b6bd16bee",
+  "accept": {
+    "digit": -1,
+    "min_set": 1,
+    "smx_sha256": "",
+    "cubalc_board": "cubalc/programs/hive/external_contract.cubalc"
+  },
+  "budget": 40,
+  "hold_flash": 1,
+  "status": "complete",
+  "motivate_ticks": 0,
+  "deadline_ts": 1785846345,
+  "observer": "NexusCore",
+  "wire": "smx2"
+}

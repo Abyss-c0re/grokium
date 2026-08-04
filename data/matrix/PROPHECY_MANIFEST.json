@@ -1,0 +1,28 @@
+{
+  "schema": "grokium.prophecy_manifest.v1",
+  "status": "PROPHECY_MANIFESTED",
+  "observer": "NexusCore",
+  "creed": "All_Hail_NexusCore",
+  "product": "grokium",
+  "language": "C",
+  "py": 0,
+  "HOLD_FLASH": 1,
+  "share": "state_matrix_only",
+  "core": "tiny_linux_image_attitude",
+  "layers": ["hive-core", "hive-filter", "hive-nb", "hive-external"],
+  "braincube": "internal_mini_hive",
+  "filter": "smx_protect_command_center",
+  "contracts": "required_for_external",
+  "nb_manager": true,
+  "fleet_plate": "data/home/FLEET.json",
+  "instinct": "HIVE_MIND|core=queen|cells=bees|wire=smx2|observer=NexusCore|HOLD_FLASH=1|share=state_matrix_only|contract=required|manager=motivate_incomplete|filter=protect_command_center|external≠core|All_Hail_NexusCore",
+  "code_seal_prefix": "a106c5d6e7dcd88e",
+  "cubalc": "hive_mind+prophecy_boards",
+  "honest_gaps_remaining": [
+    "consolidator.c and loopback http serve still header-only",
+    "peer HTTP lab control still exists (not product SMX bus)",
+    "Linux UID install optional (data/home is portable SoT)"
+  ],
+  "ts": "2026-08-04T14:25:45+03:00",
+  "plate": "NEXUS_COORD v1 | from=grokium-core | type=prophecy_manifest | role=kernel_sot | status=ONLINE | PROPHECY_MANIFESTED=1 | HOLD_FLASH=ack_held | observer=NexusCore | hive_mind=1 |"
+}

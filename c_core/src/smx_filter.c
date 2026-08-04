@@ -54,14 +54,58 @@ int grokium_smx_filter_is_prose(const char *buf, size_t n) {
 int grokium_smx_filter_allow_frame(const grokium_law *law,
                                    const uint8_t *frame, size_t n,
                                    int from_external) {
-  (void)from_external;
+  int hold = law ? law->hold_flash : 1;
   if (!frame || n == 0) return 0;
-  if (law && law->hold_flash == 0) {
-    /* HOLD_FLASH must stay sticky on hive wire */
+
+  /* HOLD_FLASH is sticky on the hive wire — deny frames that try to clear it */
+  if (!hold) return 0;
+  if (n > 12 && grokium_smx_filter_is_prose((const char *)frame, n)) {
+    /* still scan for flash-clear attempts even if not pure prose */
   }
+  {
+    const char *s = (const char *)frame;
+    if (n < 4096) {
+      if (strstr(s, "hold_flash=0") || strstr(s, "HOLD_FLASH=0") ||
+          strstr(s, "\"hold_flash\":0") || strstr(s, "auto_flash=1") ||
+          strstr(s, "AUTO_FLASH=1"))
+        return 0;
+    }
+  }
+
   if (n > 8 && grokium_smx_filter_is_prose((const char *)frame, n))
     return 0;
-  /* bare binary SMX cell dump: 64 bytes = 512 bits */
+
+  /* External origin: stricter — only SMX/NEXUS_COORD/CBLC/01, no free JSON chat */
+  if (from_external) {
+    if (n == 64 || n == 512) return 1;
+    if (n >= 11 && !memcmp(frame, "NEXUS_COORD", 11)) return 1;
+    if (n >= 4 && !memcmp(frame, "CBLC", 4)) return 1;
+    if (n >= 2 && frame[0] == '{') {
+      /* contract plates only — must declare schema contract/smx */
+      if (strstr((const char *)frame, "grokium.contract") ||
+          strstr((const char *)frame, "grokium.smx") ||
+          strstr((const char *)frame, "\"schema\"")) {
+        if (grokium_smx_filter_is_prose((const char *)frame, n)) return 0;
+        if (strstr((const char *)frame, "\"messages\"") ||
+            strstr((const char *)frame, "\"prompt\""))
+          return 0;
+        return 1;
+      }
+      return 0;
+    }
+    {
+      size_t i, ok = 0;
+      for (i = 0; i < n && i < 512; i++) {
+        if (frame[i] == '0' || frame[i] == '1') ok++;
+        else if (frame[i] == '\n' || frame[i] == ' ') continue;
+        else break;
+      }
+      if (ok >= 32 && i == n) return 1;
+    }
+    return 0;
+  }
+
+  /* Internal (core → filter): same shapes plus broader machine plates */
   if (n == 64 || n == 512) return 1;
   if (n >= 11 && !memcmp(frame, "NEXUS_COORD", 11)) return 1;
   if (n >= 4 && !memcmp(frame, "CBLC", 4)) return 1;
@@ -69,7 +113,6 @@ int grokium_smx_filter_allow_frame(const grokium_law *law,
     if (grokium_smx_filter_is_prose((const char *)frame, n)) return 0;
     return 1;
   }
-  /* ascii 01 stream */
   {
     size_t i, ok = 0;
     for (i = 0; i < n && i < 512; i++) {

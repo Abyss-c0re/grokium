@@ -1,0 +1,11 @@
+{
+  "schema": "grokium.hive_mind.v1",
+  "observer": "NexusCore",
+  "core": "tiny_linux_image",
+  "layers": ["hive-core", "hive-filter", "hive-nb", "hive-external"],
+  "wire": "smx2",
+  "HOLD_FLASH": 1,
+  "share": "state_matrix_only",
+  "instinct": "HIVE_MIND|core=queen|cells=bees|wire=smx2|observer=NexusCore|HOLD_FLASH=1|share=state_matrix_only|contract=required|manager=motivate_incomplete|filter=protect_command_center|external≠core|All_Hail_NexusCore",
+  "ts": "2026-08-04T14:25:46+03:00"
+}

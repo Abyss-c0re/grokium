@@ -103,14 +103,26 @@ Env: `CUBALC_SMX_KEY`, `CUBALC_PROTECT=1`, `GROKIUM_SMX_FILTER=1`.
 CubalC remote (`deps/cubalc`) tracks `origin/main` — **updates often (~5 min)**.  
 Always `./scripts/sync_cubalc.sh` (or submodule ff) before law/program changes land.
 
+## Dual wire (honest)
+
+| Plane | Protocol | Allowed |
+|-------|----------|---------|
+| **Product talk** (core ↔ external cells) | **SMX2 / NEXUS_COORD bits** | Command, contracts, motivate, SoT fold |
+| **Lab control** (optional peer HTTP) | `NANOBOT_PEER_URL` / hub | Loopback or token-gated **ops only** — never Commander, never auto-flash, never substitute for SMX accept |
+
+Peer HTTP is **not** the creed bus. If HTTP carries task body, filter must still seal a **contract** and validate results as SMX/CubalC. Prefer SMX2 when both exist.
+
+Portable layer homes: `data/home/<id>/` is the **dev SoT layout**. Production core image maps the same ids onto Linux UIDs (`scripts/hive/core_image_users.sh`).
+
 ## Forbidden
 
 - External UID in `hive-core` group  
-- HTTP as core↔external talk (SMX2 binary only)  
+- HTTP **as** core↔external **product** talk (SMX2 is SoT bus)  
 - Contracts without accept criteria  
 - Manager impersonating Commander  
 - Prose on NEXUS_COORD / SMX bus  
-- Auto-flash (`HOLD_FLASH` sticky)
+- Auto-flash (`HOLD_FLASH` sticky)  
+- Clearing `HOLD_FLASH` via external frame
 
 ## Manifest files
 
