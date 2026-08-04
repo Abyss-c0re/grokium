@@ -219,6 +219,7 @@ static void usage(void) {
           "  serve [port]           loopback control plane (c_core, :17444)\n"
           "  fleet [defaults|deploy|status|…]  c_core plate (or fleet cubalc)\n"
           "  filter <allow-check|…> SMX / NEXUS_COORD sanitize gate\n"
+          "  coord|ingest <plate>   fold SMX/NEXUS_COORD via filter (fail-closed)\n"
           "  contract form|validate|…  external cell contracts (c_core)\n"
           "  manager-tick [DIR]     motivate incomplete contracts\n"
           "  commander show|sign|verify|…  Ed25519 law (≠ model)\n"
@@ -383,6 +384,33 @@ int main(int argc, char **argv) {
   if (strcmp(cmd, "filter") == 0 || strcmp(cmd, "smx-filter") == 0) {
     return run_c_core("grokium-smx-filter", argc - ai - 1, argv + ai + 1);
   }
+  /* External coord/ingest → pure-C consolidator with SMX filter sanitize */
+  if (strcmp(cmd, "coord") == 0 || strcmp(cmd, "ingest") == 0 ||
+      strcmp(cmd, "smx-ingest") == 0) {
+    int i = ai + 1;
+    char *av[3];
+    char plate[4096];
+    size_t o = 0;
+    if (i >= argc) {
+      fprintf(stderr,
+              "usage: grokium coord|ingest <NEXUS_COORD|SMX bits plate>\n"
+              "  SMX filter fail-closed; prose denied; product_wire=smx2\n");
+      return 2;
+    }
+    plate[0] = 0;
+    for (; i < argc; i++) {
+      size_t n = strlen(argv[i]);
+      if (o && o + 1 < sizeof plate) plate[o++] = ' ';
+      if (o + n >= sizeof plate) break;
+      memcpy(plate + o, argv[i], n);
+      o += n;
+      plate[o] = 0;
+    }
+    av[0] = "ingest";
+    av[1] = plate;
+    av[2] = NULL;
+    return run_c_core("grokium-consolidate", 2, av);
+  }
   if (strcmp(cmd, "contract") == 0) {
     if (ai + 1 >= argc) {
       fprintf(stderr,
@@ -544,6 +572,8 @@ int main(int argc, char **argv) {
           strcmp(cmd, "selftest") != 0 && strcmp(cmd, "status") != 0 &&
           strcmp(cmd, "serve") != 0 && strcmp(cmd, "filter") != 0 &&
           strcmp(cmd, "smx-filter") != 0 && strcmp(cmd, "fleet") != 0 &&
+          strcmp(cmd, "coord") != 0 && strcmp(cmd, "ingest") != 0 &&
+          strcmp(cmd, "smx-ingest") != 0 &&
           strcmp(cmd, "contract") != 0 && strcmp(cmd, "manager") != 0 &&
           strcmp(cmd, "manager-tick") != 0 &&
           strcmp(cmd, "commander") != 0 &&

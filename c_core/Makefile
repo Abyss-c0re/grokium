@@ -10,7 +10,8 @@ BIN_FILTER := $(BUILD)/grokium-smx-filter
 FILTER_SRC := src/smx_filter_cli.c src/smx_filter.c src/smx.c src/algocube.c \
 	src/law.c src/sha256.c
 FLEET_SRC := src/fleet_cli.c src/fleet.c
-CONS_SRC := src/consolidator_cli.c src/consolidator.c src/smx.c src/sha256.c
+CONS_SRC := src/consolidator_cli.c src/consolidator.c src/smx_filter.c \
+	src/smx.c src/algocube.c src/law.c src/sha256.c
 HTTP_SRC := src/http_cli.c src/http.c src/consolidator.c src/fleet.c \
 	src/smx_filter.c src/smx.c src/algocube.c src/law.c src/sha256.c \
 	src/commander.c src/integrity.c
