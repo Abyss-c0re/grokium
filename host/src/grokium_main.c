@@ -160,6 +160,48 @@ static int run_cubalc_args(char *const argv[]) {
   return WIFEXITED(st) ? WEXITSTATUS(st) : 1;
 }
 
+/* c_core tools (fleet / serve / SMX filter) — pure C Hive Mind path */
+static int resolve_c_core_bin(const char *name, char *out, size_t n) {
+  if (!name || !out || n < 8) return -1;
+  snprintf(out, n, "%s/build/%s", root, name);
+  if (access(out, X_OK) == 0) return 0;
+  return -1;
+}
+
+static int run_c_core(const char *name, int argc, char **argv) {
+  char bin[PATH_MAX];
+  char *av[64];
+  int i, n = 0;
+  pid_t pid;
+  int st = 0;
+  if (resolve_c_core_bin(name, bin, sizeof bin) != 0) {
+    fprintf(stderr,
+            "grokium: missing build/%s — run: make -C c_core all\n", name);
+    return 99;
+  }
+  if (argc + 1 >= (int)(sizeof av / sizeof av[0])) {
+    fprintf(stderr, "grokium: too many args for %s\n", name);
+    return 2;
+  }
+  av[n++] = bin;
+  for (i = 0; i < argc && n < 63; i++)
+    av[n++] = argv[i];
+  av[n] = NULL;
+  pid = fork();
+  if (pid < 0) die("fork");
+  if (pid == 0) {
+    setenv("GROKIUM_ROOT", root, 1);
+    if (chdir(root) != 0) {
+      /* still try; relative data/home paths prefer repo root */
+    }
+    execv(bin, av);
+    fprintf(stderr, "grokium: exec %s: %s\n", bin, strerror(errno));
+    _exit(127);
+  }
+  if (waitpid(pid, &st, 0) < 0) die("waitpid");
+  return WIFEXITED(st) ? WEXITSTATUS(st) : 1;
+}
+
 static void usage(void) {
   fprintf(stderr,
           "grokium %s  core=nanobot host=C py=0 tok=%s\n"
@@ -171,8 +213,11 @@ static void usage(void) {
           "  chat <text>            non-TUI chat (streamed)\n"
           "  hub [start|stop|status]  LLM request hub (nanobot peer)\n"
           "  compat                 refresh official CLI version track\n"
-          "  board|fleet|selftest   CubalC board (optional)\n"
-          "  Not affiliated with xAI.\n",
+          "  serve [port]           loopback control plane (c_core, :17444)\n"
+          "  fleet [defaults|deploy|status|…]  c_core plate (or fleet cubalc)\n"
+          "  filter <allow-check|…> SMX / NEXUS_COORD sanitize gate\n"
+          "  board|selftest         CubalC board (optional)\n"
+          "  product_wire=smx2  peer_http=lab_ops_only  Not affiliated with xAI.\n",
           GROKIUM_VERSION, GROKIUM_TOK);
 }
 
@@ -323,8 +368,24 @@ int main(int argc, char **argv) {
     return run_cubalc_program("board.cubalc", NULL);
   if (strcmp(cmd, "law") == 0)
     return run_cubalc_program("law.cubalc", NULL);
-  if (strcmp(cmd, "fleet") == 0 || strcmp(cmd, "nanobot") == 0)
-    return run_cubalc_program("fleet.cubalc", NULL);
+  /* Hive Mind pure-C surface (product bus = SMX2; HTTP loopback = lab/ops) */
+  if (strcmp(cmd, "serve") == 0) {
+    return run_c_core("grokium-serve", argc - ai - 1, argv + ai + 1);
+  }
+  if (strcmp(cmd, "filter") == 0 || strcmp(cmd, "smx-filter") == 0) {
+    return run_c_core("grokium-smx-filter", argc - ai - 1, argv + ai + 1);
+  }
+  if (strcmp(cmd, "fleet") == 0 || strcmp(cmd, "nanobot") == 0) {
+    const char *sub = (ai + 1 < argc) ? argv[ai + 1] : "defaults";
+    /* opt into CubalC board fleet when asked; default is c_core plate */
+    if (strcmp(sub, "cubalc") == 0)
+      return run_cubalc_program("fleet.cubalc", NULL);
+    if (ai + 1 >= argc) {
+      char *def[] = {"defaults"};
+      return run_c_core("grokium-fleet", 1, def);
+    }
+    return run_c_core("grokium-fleet", argc - ai - 1, argv + ai + 1);
+  }
   if (strcmp(cmd, "heartbeat") == 0)
     return run_cubalc_program("heartbeat.cubalc", NULL);
   if (strcmp(cmd, "selftest") == 0)
@@ -419,7 +480,9 @@ int main(int argc, char **argv) {
       if (strcmp(cmd, "help") != 0 && strcmp(cmd, "version") != 0 &&
           strcmp(cmd, "models") != 0 && strcmp(cmd, "compat") != 0 &&
           strcmp(cmd, "chat") != 0 && strcmp(cmd, "tui") != 0 &&
-          strcmp(cmd, "selftest") != 0 && strcmp(cmd, "status") != 0) {
+          strcmp(cmd, "selftest") != 0 && strcmp(cmd, "status") != 0 &&
+          strcmp(cmd, "serve") != 0 && strcmp(cmd, "filter") != 0 &&
+          strcmp(cmd, "smx-filter") != 0 && strcmp(cmd, "fleet") != 0) {
         /* Prefer TUI for bare `grokium`; multi-word → prompt */
         if (argc > 2 || (argc == 2 && strchr(argv[1], ' ')))
           return cmd_prompt(&cfg, msg);

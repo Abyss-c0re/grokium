@@ -1,35 +1,53 @@
 # Grokium API + MCP
 
-## HTTP API (loopback)
+## Dual wire (honest)
+
+| Plane | Protocol | Status |
+|-------|----------|--------|
+| **Product bus** | SMX2 / NEXUS_COORD bits | SoT; filter + contracts |
+| **Lab/ops** | loopback HTTP only | `grokium-serve` — not product talk |
+
+Peer HTTP elsewhere is ops-only; never Commander; never auto-flash.
+
+## HTTP API (loopback) — implemented in `c_core`
 
 ```bash
-./scripts/grokium serve
-# http://127.0.0.1:17444
+make -C c_core all
+./scripts/grokium serve          # or: build/grokium-serve
+# http://127.0.0.1:17444  (non-loopback bind refused)
 ```
 
 | Method | Path | Role |
 |--------|------|------|
 | GET | `/healthz` | liveness |
-| GET | `/v1/status` | capabilities + law |
+| GET | `/v1/status` | law + dual-wire honesty (`product_wire=smx2`) |
 | GET | `/v1/law` | law plate |
+| GET | `/v1/ability` | consolidator ability card |
+| POST | `/v1/coord` | NEXUS_COORD → matrix (**SMX filter sanitize**) |
+| POST | `/v1/stream/smx/publish` | same as coord |
+| GET | `/v1/matrix/latest` | last SMX |
+| GET | `/v1/stream/smx/latest` | same as matrix/latest |
+| GET | `/v1/nanobot/status` | fleet plate (honest pid/status) |
+| POST | `/v1/nanobot/deploy` | deploy homes + FLEET.json |
+
+Headers: `X-Grokium-Telemetry: off`, `X-Grokium-Product-Wire: smx2`,
+`X-Grokium-Peer-HTTP: lab_ops_only`. Share: **state matrix only**.
+
+### Planned / not yet in pure-C serve
+
+| Method | Path | Role |
+|--------|------|------|
 | GET | `/v1/license` | Apache + affiliation |
-| GET | `/v1/commander` | commander fingerprint |
-| POST | `/v1/commander/sign` | `{device,action}` → envelope |
-| POST | `/v1/commander/verify` | envelope → ok/deny |
+| GET/POST | `/v1/commander*` | Ed25519 commander CLI exists separately |
 | GET | `/v1/llama/probe` | local llama |
-| POST | `/v1/chat` | local-first chat |
+| POST | `/v1/chat` | local-first chat (host TUI path today) |
 | POST | `/v1/agent` | tool agent |
 | GET/POST | `/v1/sessions/*` | search/pickup/resume/import |
-| POST | `/v1/coord` | NEXUS_COORD → matrix |
-| GET | `/v1/matrix/latest` | last SMX |
-| GET | `/v1/nanobot/status` | fleet |
-| POST | `/v1/nanobot/deploy` | deploy + law pin |
 | POST | `/v1/nanobot/separate` | stop one bot |
 | GET | `/v1/cube/status` | Cube bridge |
 | GET | `/ui` | minimal UI |
-
-Telemetry header: `X-Grokium-Telemetry: off`  
-Share: **state matrix only** on coord path.
+| GET | `/v1/integrity*` | integrity tick / reseal |
+| GET | `/v1/stream/smx` | SSE stream |
 
 ## MCP (stdio)
 

@@ -64,7 +64,8 @@ void gkx_config_init(gkx_config *c) {
   snprintf(c->adapter_tool_style, sizeof c->adapter_tool_style, "auto");
   snprintf(c->adapter_thinking_tags, sizeof c->adapter_thinking_tags,
            "think,thinking,reasoning,redacted_reasoning");
-  snprintf(c->viz_desktop_cmd, sizeof c->viz_desktop_cmd, "xdg-open %s");
+  /* template keeps literal %%s for later path fill — never pass as format alone */
+  snprintf(c->viz_desktop_cmd, sizeof c->viz_desktop_cmd, "%s", "xdg-open %s");
   c->viz_vr_cmd[0] = 0; /* empty = use desktop cmd */
   c->viz_term_width = 64;
   c->viz_term_height = 16;
