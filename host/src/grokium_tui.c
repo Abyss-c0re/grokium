@@ -10,6 +10,7 @@
 #include "ng_sched.h"
 #include "shell.h"
 #include <ncurses.h>
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -713,6 +714,189 @@ static void cmd_smx_latest(void) {
   (void)run_c_core_capture("grokium-consolidate", av);
 }
 
+/* Minimal JSON string field extract (meta plates only). */
+static int meta_get_str(const char *body, const char *key, char *out, size_t cap) {
+  char pat[96];
+  const char *p, *q;
+  size_t klen, i;
+  if (!body || !key || !out || cap < 2) return -1;
+  out[0] = 0;
+  klen = strlen(key);
+  if (klen + 3 >= sizeof pat) return -1;
+  snprintf(pat, sizeof pat, "\"%s\"", key);
+  p = strstr(body, pat);
+  if (!p) return -1;
+  p += klen + 2;
+  while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
+  if (*p != ':') return -1;
+  p++;
+  while (*p == ' ' || *p == '\t') p++;
+  if (*p != '"') return -1;
+  p++;
+  q = p;
+  while (*q && *q != '"') {
+    if (*q == '\\' && q[1]) q += 2;
+    else q++;
+  }
+  i = (size_t)(q - p);
+  if (i >= cap) i = cap - 1;
+  memcpy(out, p, i);
+  out[i] = 0;
+  return 0;
+}
+
+static int contains_ci(const char *hay, const char *needle) {
+  size_t nlen, hlen, i, j;
+  if (!needle || !needle[0]) return 1;
+  if (!hay) return 0;
+  nlen = strlen(needle);
+  hlen = strlen(hay);
+  if (nlen > hlen) return 0;
+  for (i = 0; i + nlen <= hlen; i++) {
+    for (j = 0; j < nlen; j++) {
+      char a = hay[i + j], b = needle[j];
+      if (a >= 'A' && a <= 'Z') a = (char)(a + 32);
+      if (b >= 'A' && b <= 'Z') b = (char)(b + 32);
+      if (a != b) break;
+    }
+    if (j == nlen) return 1;
+  }
+  return 0;
+}
+
+static int session_id_safe(const char *id) {
+  size_t i;
+  if (!id || !id[0] || strlen(id) > 80) return 0;
+  for (i = 0; id[i]; i++) {
+    char c = id[i];
+    if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
+        (c >= 'A' && c <= 'F') || c == '-')
+      continue;
+    return 0;
+  }
+  return 1;
+}
+
+/* Imported Grok Build metas only — no chat transcripts on the TUI log. */
+static void cmd_sessions_search(const char *q) {
+  char dir[PATH_MAX], path[PATH_MAX], meta[2048], line[320];
+  char id[96], title[96], updated[48], model[48];
+  DIR *d;
+  struct dirent *e;
+  int matched = 0, scanned = 0;
+  FILE *f;
+  size_t nread, tlen;
+
+  snprintf(dir, sizeof dir, "%s/data/import", root);
+  d = opendir(dir);
+  if (!d) {
+    log_add("sessions> no data/import (meta only)");
+    return;
+  }
+  snprintf(line, sizeof line, "--- sessions meta-only q=%s ---",
+           q && q[0] ? q : "*");
+  log_add(line);
+  while ((e = readdir(d)) != NULL && matched < 12 && scanned < 500) {
+    size_t len = strlen(e->d_name);
+    if (len < 11 || strcmp(e->d_name + len - 10, ".meta.json") != 0)
+      continue;
+    scanned++;
+    snprintf(path, sizeof path, "%s/%s", dir, e->d_name);
+    f = fopen(path, "r");
+    if (!f) continue;
+    nread = fread(meta, 1, sizeof meta - 1, f);
+    meta[nread] = 0;
+    fclose(f);
+    if (q && q[0] && !contains_ci(meta, q) && !contains_ci(e->d_name, q))
+      continue;
+    id[0] = title[0] = updated[0] = model[0] = 0;
+    meta_get_str(meta, "id", id, sizeof id);
+    meta_get_str(meta, "title", title, sizeof title);
+    meta_get_str(meta, "updated_at", updated, sizeof updated);
+    meta_get_str(meta, "model", model, sizeof model);
+    if (!id[0]) {
+      /* filename uuid.meta.json */
+      snprintf(id, sizeof id, "%s", e->d_name);
+      tlen = strlen(id);
+      if (tlen > 10) id[tlen - 10] = 0;
+    }
+    if (!title[0]) snprintf(title, sizeof title, "%s", id);
+    if (strlen(title) > 48) title[48] = 0;
+    snprintf(line, sizeof line, "%s | %s | %s | %s", id, title,
+             updated[0] ? updated : "-", model[0] ? model : "-");
+    log_add(line);
+    matched++;
+  }
+  closedir(d);
+  snprintf(line, sizeof line,
+           "sessions> n=%d scanned=%d · content=meta_only · "
+           "resume messages=host (not on product bus)",
+           matched, scanned);
+  log_add(line);
+}
+
+static void cmd_session_pickup(const char *id) {
+  char path[PATH_MAX], meta[2048], line[320];
+  char title[96], updated[48], model[48];
+  FILE *f;
+  size_t nread;
+  if (!session_id_safe(id)) {
+    log_add("usage: /pickup <session-id>  (hex/uuid meta only)");
+    return;
+  }
+  snprintf(path, sizeof path, "%s/data/import/%s.meta.json", root, id);
+  f = fopen(path, "r");
+  if (!f) {
+    snprintf(line, sizeof line, "pickup> not found: %s", id);
+    log_add(line);
+    log_add("pickup> meta only — no transcript dump on TUI wire");
+    return;
+  }
+  nread = fread(meta, 1, sizeof meta - 1, f);
+  meta[nread] = 0;
+  fclose(f);
+  title[0] = updated[0] = model[0] = 0;
+  meta_get_str(meta, "title", title, sizeof title);
+  meta_get_str(meta, "updated_at", updated, sizeof updated);
+  meta_get_str(meta, "model", model, sizeof model);
+  snprintf(line, sizeof line, "pickup> id=%s", id);
+  log_add(line);
+  if (title[0]) {
+    snprintf(line, sizeof line, "  title=%s", title);
+    log_add(line);
+  }
+  if (updated[0]) {
+    snprintf(line, sizeof line, "  updated=%s", updated);
+    log_add(line);
+  }
+  if (model[0]) {
+    snprintf(line, sizeof line, "  model=%s", model);
+    log_add(line);
+  }
+  log_add("  content=meta_only · share=state_matrix_only");
+  log_add("  full resume stays host/nanobot path (not SMX product bus)");
+}
+
+static void cmd_integrity_tick(void) {
+  char *av[2];
+  log_add("--- integrity tick (CODE_SEAL + privacy, fail-closed) ---");
+  av[0] = "tick";
+  av[1] = NULL;
+  (void)run_c_core_capture("grokium-integrity", av);
+}
+
+static void cmd_commander_show(void) {
+  char *av[4];
+  char law[PATH_MAX];
+  log_add("--- commander (Ed25519 law · never a model) ---");
+  snprintf(law, sizeof law, "%s/data/law", root);
+  av[0] = "show";
+  av[1] = "--law-dir";
+  av[2] = law;
+  av[3] = NULL;
+  (void)run_c_core_capture("grokium-commander", av);
+}
+
 static void do_login(int device) {
   endwin();
   printf("\n=== Grokium /login (optional cloud) ===\n");
@@ -820,6 +1004,10 @@ static void do_command(const char *raw) {
     log_add("  spoilers: Tab · e/E/c · click");
     log_add("  /coord <plate>  fold NEXUS_COORD/SMX via filter (fail-closed)");
     log_add("  /smx            latest StateMatrix plate (bits only)");
+    log_add("  /sessions [q]   imported session metas (no transcripts)");
+    log_add("  /pickup|/load <id>  session meta pickup");
+    log_add("  /integrity      CODE_SEAL + privacy fail-closed tick");
+    log_add("  /commander      Ed25519 law fingerprint (≠ model)");
     log_add("  /attach /viz · ! shell · /model · /settings · /q");
     log_add("  product_wire=smx2 · peer_http=lab_ops_only · Commander≠model");
     return;
@@ -1057,6 +1245,23 @@ static void do_command(const char *raw) {
   }
   if (strcmp(cmd, "smx") == 0 || strcmp(cmd, "matrix") == 0) {
     cmd_smx_latest();
+    return;
+  }
+  if (strcmp(cmd, "sessions") == 0 || strcmp(cmd, "session") == 0) {
+    cmd_sessions_search(rest);
+    return;
+  }
+  if (strcmp(cmd, "pickup") == 0 || strcmp(cmd, "load") == 0 ||
+      strcmp(cmd, "resume") == 0) {
+    cmd_session_pickup(rest);
+    return;
+  }
+  if (strcmp(cmd, "integrity") == 0 || strcmp(cmd, "seal") == 0) {
+    cmd_integrity_tick();
+    return;
+  }
+  if (strcmp(cmd, "commander") == 0 || strcmp(cmd, "cmd") == 0) {
+    cmd_commander_show();
     return;
   }
   if (strcmp(cmd, "attach") == 0 || strcmp(cmd, "file") == 0 || strcmp(cmd, "open") == 0) {
