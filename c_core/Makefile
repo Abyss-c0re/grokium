@@ -10,10 +10,11 @@ BIN_FILTER := $(BUILD)/grokium-smx-filter
 FILTER_SRC := src/smx_filter_cli.c src/smx_filter.c src/smx.c src/algocube.c \
 	src/law.c src/sha256.c
 FLEET_SRC := src/fleet_cli.c src/fleet.c
+CONS_SRC := src/consolidator_cli.c src/consolidator.c src/smx.c src/sha256.c
 
-.PHONY: all clean test-commander test-filter hive
+.PHONY: all clean test-commander test-filter hive test-consolidate
 
-all: $(BIN_CMD) $(BIN_FILTER) $(BUILD)/grokium-fleet
+all: $(BIN_CMD) $(BIN_FILTER) $(BUILD)/grokium-fleet $(BUILD)/grokium-consolidate
 
 $(BUILD):
 	mkdir -p $(BUILD)
@@ -26,6 +27,9 @@ $(BIN_FILTER): $(FILTER_SRC) | $(BUILD)
 
 $(BUILD)/grokium-fleet: $(FLEET_SRC) | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $(FLEET_SRC)
+
+$(BUILD)/grokium-consolidate: $(CONS_SRC) | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ $(CONS_SRC) -lm
 
 clean:
 	rm -f $(BIN_CMD) $(BIN_FILTER)
@@ -58,6 +62,9 @@ test-filter: $(BIN_FILTER)
 	$(BIN_FILTER) manager-tick "$$D" | grep -q motivated; \
 	echo SMX_FILTER_OK
 
-hive: test-filter $(BUILD)/grokium-fleet
+test-consolidate: $(BUILD)/grokium-consolidate
+	@$(BUILD)/grokium-consolidate selftest
+
+hive: test-filter test-consolidate $(BUILD)/grokium-fleet
 	@$(BUILD)/grokium-fleet defaults | grep -q nb-manager
 	@echo HIVE_MIND_CORE_OK
