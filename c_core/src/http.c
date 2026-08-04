@@ -1728,8 +1728,11 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     int code;
     if (strcmp(method, "POST") != 0) {
       http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\","
-                 "\"llm_is_commander\":false}");
+                 "{\"schema\":\"grokium.chat.v1\",\"ok\":false,"
+                 "\"error\":\"method\",\"llm_is_commander\":false,"
+                 "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false,"
+                 "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
       return;
     }
     msg[0] = 0;
@@ -1750,15 +1753,22 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     }
     if (!msg[0]) {
       http_reply(cfd, 400, "application/json",
-                 "{\"ok\":false,\"error\":\"need_message\","
+                 "{\"schema\":\"grokium.chat.v1\",\"ok\":false,"
+                 "\"error\":\"need_message\","
                  "\"hint\":\"{\\\"message\\\":\\\"…\\\"}\","
-                 "\"llm_is_commander\":false,\"share\":\"state_matrix_only\"}");
+                 "\"llm_is_commander\":false,\"share\":\"state_matrix_only\","
+                 "\"hold_flash\":1,\"product_wire\":\"smx2\","
+                 "\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false}");
       return;
     }
     if (grokium_llama_chat(msg, resp, sizeof resp) != 0) {
       http_reply(cfd, 500, "application/json",
-                 "{\"ok\":false,\"error\":\"chat_failed\","
-                 "\"llm_is_commander\":false}");
+                 "{\"schema\":\"grokium.chat.v1\",\"ok\":false,"
+                 "\"error\":\"chat_failed\",\"llm_is_commander\":false,"
+                 "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false,"
+                 "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
       return;
     }
     if (strstr(resp, "\"ok\":true"))
@@ -1781,8 +1791,13 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     int code, ok;
     if (strcmp(method, "POST") != 0) {
       http_reply(cfd, 405, "application/json",
-                 "{\"ok\":false,\"error\":\"method\","
-                 "\"tools\":false,\"llm_is_commander\":false}");
+                 "{\"schema\":\"grokium.agent.v1\",\"ok\":false,"
+                 "\"error\":\"method\",\"tools\":false,"
+                 "\"tool_agent\":\"host_nanobot\","
+                 "\"llm_is_commander\":false,\"product_wire\":\"smx2\","
+                 "\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false,"
+                 "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
       return;
     }
     if (body_requests_tools(body, body_n)) {
@@ -1795,7 +1810,9 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
                  " POST /v1/agent without tools for local chat\","
                  "\"llm_is_commander\":false,\"commander_is_model\":false,"
                  "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-                 "\"share\":\"state_matrix_only\",\"telemetry\":\"off\"}");
+                 "\"peer_http_is_product_bus\":false,"
+                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                 "\"telemetry\":\"off\"}");
       return;
     }
     msg[0] = 0;
@@ -1819,14 +1836,21 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
                  "{\"schema\":\"grokium.agent.v1\",\"ok\":false,"
                  "\"error\":\"need_message\",\"tools\":false,"
                  "\"tool_agent\":\"host_nanobot\","
-                 "\"llm_is_commander\":false,\"share\":\"state_matrix_only\"}");
+                 "\"llm_is_commander\":false,\"share\":\"state_matrix_only\","
+                 "\"hold_flash\":1,\"product_wire\":\"smx2\","
+                 "\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false}");
       return;
     }
     if (grokium_llama_chat(msg, chat, sizeof chat) != 0) {
       http_reply(cfd, 500, "application/json",
                  "{\"schema\":\"grokium.agent.v1\",\"ok\":false,"
                  "\"error\":\"agent_chat_failed\",\"tools\":false,"
-                 "\"llm_is_commander\":false}");
+                 "\"tool_agent\":\"host_nanobot\","
+                 "\"llm_is_commander\":false,\"product_wire\":\"smx2\","
+                 "\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false,"
+                 "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
       return;
     }
     ok = strstr(chat, "\"ok\":true") != NULL;
@@ -1847,7 +1871,9 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
                "\"agent_mode\":\"lab_ops_chat_only\","
                "\"content\":\"%s\",\"llm_is_commander\":false,"
                "\"commander_is_model\":false,\"product_wire\":\"smx2\","
-               "\"peer_http\":\"lab_ops_only\",\"share\":\"state_matrix_only\","
+               "\"peer_http\":\"lab_ops_only\","
+               "\"peer_http_is_product_bus\":false,"
+               "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
                "\"local_first\":true,\"telemetry\":\"off\"}",
                content_esc);
       code = 200;
@@ -1858,7 +1884,9 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
                "\"agent_mode\":\"lab_ops_chat_only\","
                "\"error\":\"%s\",\"llm_is_commander\":false,"
                "\"commander_is_model\":false,\"product_wire\":\"smx2\","
-               "\"peer_http\":\"lab_ops_only\",\"share\":\"state_matrix_only\","
+               "\"peer_http\":\"lab_ops_only\","
+               "\"peer_http_is_product_bus\":false,"
+               "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
                "\"local_first\":true}",
                errf[0] ? errf : "unreachable");
       code = 503;
@@ -1868,7 +1896,9 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
                "\"tools\":false,\"tool_agent\":\"host_nanobot\","
                "\"agent_mode\":\"lab_ops_chat_only\","
                "\"error\":\"%s\",\"llm_is_commander\":false,"
-               "\"product_wire\":\"smx2\",\"share\":\"state_matrix_only\"}",
+               "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+               "\"peer_http_is_product_bus\":false,"
+               "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
                errf[0] ? errf : "no_content");
       code = 502;
     }

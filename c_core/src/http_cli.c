@@ -478,9 +478,17 @@ static int selftest(void) {
   /* chat: empty body denied; non-empty always asserts LLM ≠ commander */
   if (http_post("127.0.0.1", port, "/v1/chat", "", resp, sizeof resp) < 0)
     fails++;
-  else if (!strstr(resp, "400") && !strstr(body_of(resp), "need_message")) {
-    fprintf(stderr, "selftest: chat empty should 400: %.200s\n", resp);
-    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "400") && !strstr(b, "need_message")) ||
+        !strstr(b, "\"schema\":\"grokium.chat.v1\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"hold_flash\":1")) {
+      fprintf(stderr, "selftest: chat need_message dual-wire fail: %.400s\n", b);
+      fails++;
+    }
   }
   if (http_post("127.0.0.1", port, "/v1/chat", "{\"message\":\"ping\"}", resp,
                 sizeof resp) < 0)
@@ -497,16 +505,30 @@ static int selftest(void) {
   if (http_post("127.0.0.1", port, "/v1/agent",
                 "{\"message\":\"x\",\"tools\":true}", resp, sizeof resp) < 0)
     fails++;
-  else if (!strstr(resp, "501") &&
-           !strstr(body_of(resp), "tools_not_on_lab_ops")) {
-    fprintf(stderr, "selftest: agent tools should 501: %.300s\n", resp);
-    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "501") && !strstr(b, "tools_not_on_lab_ops")) ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"hold_flash\":1")) {
+      fprintf(stderr, "selftest: agent tools dual-wire fail: %.400s\n", b);
+      fails++;
+    }
   }
   if (http_post("127.0.0.1", port, "/v1/agent", "", resp, sizeof resp) < 0)
     fails++;
-  else if (!strstr(resp, "400") && !strstr(body_of(resp), "need_message")) {
-    fprintf(stderr, "selftest: agent empty should 400: %.200s\n", resp);
-    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "400") && !strstr(b, "need_message")) ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"hold_flash\":1")) {
+      fprintf(stderr, "selftest: agent need_message dual-wire fail: %.400s\n",
+              b);
+      fails++;
+    }
   }
   if (http_post("127.0.0.1", port, "/v1/agent", "{\"message\":\"ping\"}", resp,
                 sizeof resp) < 0)
@@ -516,7 +538,9 @@ static int selftest(void) {
     if (!strstr(b, "\"schema\":\"grokium.agent.v1\"") ||
         !strstr(b, "\"tools\":false") ||
         !strstr(b, "tool_agent\":\"host_nanobot") ||
-        !strstr(b, "llm_is_commander\":false")) {
+        !strstr(b, "llm_is_commander\":false") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false")) {
       fprintf(stderr, "selftest: agent honesty fail: %.400s\n", resp);
       fails++;
     }
