@@ -108,8 +108,11 @@ static int fleet_selftest(void) {
   body[n] = 0;
   fclose(f);
   if (!strstr(body, "\"share\": \"state_matrix_only\"") ||
-      !strstr(body, "nb-manager") || !strstr(body, "peer_http")) {
-    fprintf(stderr, "selftest: plate missing honesty fields\n");
+      !strstr(body, "\"product_wire\": \"smx2\"") ||
+      !strstr(body, "\"peer_http\": \"lab_ops_only\"") ||
+      !strstr(body, "\"peer_http_is_product_bus\": false") ||
+      !strstr(body, "\"hold_flash\": 1") || !strstr(body, "nb-manager")) {
+    fprintf(stderr, "selftest: plate missing dual-wire honesty fields\n");
     return 1;
   }
   /* ensure dead pid not serialized as positive */

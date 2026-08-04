@@ -1370,9 +1370,16 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     fleet_deploy(F);
     snprintf(plate, sizeof plate, "%s/home/FLEET.json", root);
     fleet_save(F, plate);
+    /* Deploy clears live pids; plate is honest offline until spawn. */
     snprintf(resp, sizeof resp,
-             "{\"ok\":true,\"deployed\":%d,\"path\":\"%s\","
-             "\"spawn\":\"host_responsibility\",\"wire\":\"smx2\"}",
+             "{\"schema\":\"grokium.nanobot_deploy.v1\",\"ok\":true,"
+             "\"deployed\":%d,\"path\":\"%s\","
+             "\"spawn\":\"host_responsibility\","
+             "\"product_wire\":\"smx2\",\"wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false}",
              F->n, plate);
     http_reply(cfd, 200, "application/json", resp);
     return;
@@ -1435,10 +1442,15 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       }
       snprintf(plate, sizeof plate, "%s/home/FLEET.json", root);
       fleet_save(F, plate);
+      /* Peer HTTP on bot ports is lab/ops; product talk stays SMX2. */
       snprintf(resp, sizeof resp,
-               "{\"ok\":true,\"spawned\":%d,\"id\":\"%s\",\"alive\":%d,"
+               "{\"schema\":\"grokium.nanobot_spawn.v1\",\"ok\":true,"
+               "\"spawned\":%d,\"id\":\"%s\",\"alive\":%d,"
                "\"path\":\"%s\",\"product_wire\":\"smx2\","
-               "\"peer_http\":\"lab_ops_only\"}",
+               "\"peer_http\":\"lab_ops_only\","
+               "\"peer_http_is_product_bus\":false,"
+               "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+               "\"llm_is_commander\":false}",
                n, id[0] ? id : "*", fleet_status(F), plate);
       http_reply(cfd, 200, "application/json", resp);
       return;
@@ -1456,8 +1468,13 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     snprintf(plate, sizeof plate, "%s/home/FLEET.json", root);
     fleet_save(F, plate);
     snprintf(resp, sizeof resp,
-             "{\"ok\":true,\"id\":\"%s\",\"status\":\"separated\","
-             "\"path\":\"%s\",\"wire\":\"smx2\"}",
+             "{\"schema\":\"grokium.nanobot_separate.v1\",\"ok\":true,"
+             "\"id\":\"%s\",\"status\":\"separated\","
+             "\"path\":\"%s\",\"product_wire\":\"smx2\",\"wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false}",
              id, plate);
     http_reply(cfd, 200, "application/json", resp);
     return;
