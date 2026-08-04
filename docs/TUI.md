@@ -25,6 +25,8 @@
 `/mode chat|agent|resume` — tools toggle; resume is host-local only (not product bus)  
 `/law` — Cube Standards plate (share=state_matrix_only; dual-wire honesty)  
 `/fleet [status|defaults|deploy|spawn …|cubalc]` — pure-C plate (honest pid/status)  
+`/manager [DIR]` — motivate incomplete contracts (nb-manager / SMX2)  
+`/contract form|validate|manager-tick …` — external cell contracts (SMX filter)  
 `/integrity` — CODE_SEAL + privacy fail-closed tick  
 `/commander` — Ed25519 law fingerprint (never a Grok model)  
 

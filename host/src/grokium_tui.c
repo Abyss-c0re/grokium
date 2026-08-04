@@ -644,11 +644,14 @@ static int run_c_core_capture(const char *name, char *const args[]) {
     return 1;
   }
   if (pid == 0) {
+    char cdir[PATH_MAX];
     close(pipefd[0]);
     dup2(pipefd[1], 1);
     dup2(pipefd[1], 2);
     close(pipefd[1]);
     setenv("GROKIUM_ROOT", root, 1);
+    snprintf(cdir, sizeof cdir, "%s/data/contracts", root);
+    setenv("GROKIUM_CONTRACT_DIR", cdir, 1);
     if (chdir(root) != 0) { /* prefer repo-relative data/ */ }
     execv(bin, av);
     _exit(127);
@@ -1236,6 +1239,127 @@ static void cmd_mode(const char *arg) {
   log_add("usage: /mode chat|agent|resume|show");
 }
 
+/* Hive Mind manager — motivate incomplete external contracts (SMX2). */
+static void cmd_manager_tick(const char *arg) {
+  char *av[4];
+  char dir[PATH_MAX];
+  const char *p = arg ? arg : "";
+  int n = 0;
+  while (*p == ' ') p++;
+  log_add("--- manager-tick (nb-manager · incomplete contracts → NexusCore) ---");
+  av[n++] = "manager-tick";
+  if (p[0] && strcmp(p, "tick") != 0 && strcmp(p, "help") != 0 &&
+      strcmp(p, "?") != 0) {
+    /* optional contract dir (relative under repo) */
+    if (strchr(p, '/') || (p[0] != '-' && !strchr(p, ' '))) {
+      snprintf(dir, sizeof dir, "%s", p);
+      av[n++] = dir;
+    }
+  }
+  if (p[0] && (!strcmp(p, "help") || !strcmp(p, "?"))) {
+    log_add("usage: /manager [DIR]  or  /manager-tick [DIR]");
+    log_add("  pure-C grokium-smx-filter · product_wire=smx2 · HOLD_FLASH");
+    return;
+  }
+  av[n] = NULL;
+  (void)run_c_core_capture("grokium-smx-filter", av);
+  log_add("  share=state_matrix_only · contracts under data/contracts");
+}
+
+/* Parse --flag VALUE from plate (VALUE may include spaces until next --). */
+static int contract_flag_val(const char *s, const char *flag, char *out,
+                             size_t cap) {
+  const char *p, *e;
+  size_t fl, n;
+  if (!s || !flag || !out || cap < 2) return -1;
+  out[0] = 0;
+  fl = strlen(flag);
+  p = strstr(s, flag);
+  if (!p) return -1;
+  p += fl;
+  while (*p == ' ' || *p == '\t') p++;
+  if (!*p) return -1;
+  e = strstr(p, " --");
+  n = e ? (size_t)(e - p) : strlen(p);
+  while (n > 0 && (p[n - 1] == ' ' || p[n - 1] == '\t')) n--;
+  if (n >= cap) n = cap - 1;
+  memcpy(out, p, n);
+  out[n] = 0;
+  return out[0] ? 0 : -1;
+}
+
+/* External cell contracts — form/validate/manager-tick via SMX filter. */
+static void cmd_contract(const char *arg) {
+  char *av[14];
+  char tok[12][256];
+  char rest_copy[IN_MAX];
+  char assignee[80], task[400], digit[16], minset[16];
+  char *save = NULL, *w;
+  int n = 0;
+  const char *p = arg ? arg : "";
+  while (*p == ' ') p++;
+  if (!p[0] || !strcmp(p, "help") || !strcmp(p, "?")) {
+    log_add("usage: /contract form --assignee ID --task TEXT […]");
+    log_add("       /contract validate PATH [--bits 01…]");
+    log_add("       /contract manager-tick [DIR]  (same as /manager)");
+    log_add("  external cells only · product_wire=smx2 · prose denied on bus");
+    return;
+  }
+  if (!strncmp(p, "manager", 7) || !strcmp(p, "tick") ||
+      !strncmp(p, "manager-tick", 12)) {
+    const char *sp = strchr(p, ' ');
+    cmd_manager_tick(sp ? sp + 1 : "");
+    return;
+  }
+  /* form: multi-word --task supported (until next --flag) */
+  if (!strncmp(p, "form", 4) && (p[4] == ' ' || p[4] == 0)) {
+    assignee[0] = task[0] = digit[0] = minset[0] = 0;
+    (void)contract_flag_val(p, "--assignee", assignee, sizeof assignee);
+    (void)contract_flag_val(p, "--task", task, sizeof task);
+    (void)contract_flag_val(p, "--digit", digit, sizeof digit);
+    (void)contract_flag_val(p, "--min-set", minset, sizeof minset);
+    if (!assignee[0] || !task[0]) {
+      log_add("usage: /contract form --assignee ID --task TEXT");
+      log_add("  optional: --digit N --min-set N");
+      return;
+    }
+    av[n++] = "form";
+    av[n++] = "--assignee";
+    av[n++] = assignee;
+    av[n++] = "--task";
+    av[n++] = task;
+    if (digit[0]) {
+      av[n++] = "--digit";
+      av[n++] = digit;
+    }
+    if (minset[0]) {
+      av[n++] = "--min-set";
+      av[n++] = minset;
+    }
+    av[n] = NULL;
+    log_add("--- contract form (pure-C SMX filter · external cells) ---");
+    (void)run_c_core_capture("grokium-smx-filter", av);
+    log_add("  share=state_matrix_only · Commander≠model · peer_http=lab_ops");
+    return;
+  }
+  /* validate / other: tokenize */
+  snprintf(rest_copy, sizeof rest_copy, "%s", p);
+  for (w = strtok_r(rest_copy, " \t", &save); w && n < 12;
+       w = strtok_r(NULL, " \t", &save)) {
+    snprintf(tok[n], sizeof tok[n], "%s", w);
+    av[n] = tok[n];
+    n++;
+  }
+  av[n] = NULL;
+  if (n < 1) {
+    log_add("usage: /contract form|validate|manager-tick …");
+    return;
+  }
+  log_add("--- contract (pure-C SMX filter · external cells) ---");
+  (void)run_c_core_capture("grokium-smx-filter", av);
+  log_add("  share=state_matrix_only · Commander≠model · peer_http=lab_ops");
+}
+
 /* Fleet plate: pure-C grokium-fleet (honest pid/status). CubalC opt-in. */
 static void cmd_fleet(const char *arg) {
   char *av[6];
@@ -1387,6 +1511,8 @@ static void do_command(const char *raw) {
     log_add("  /law            Cube Standards plate (share=state_matrix_only)");
     log_add("  /status         dual-wire honesty (fleet+matrix · SMX2≠peer HTTP)");
     log_add("  /fleet [status…]  pure-C plate (honest pid · peer HTTP lab_ops)");
+    log_add("  /manager [DIR]  motivate incomplete contracts (nb-manager)");
+    log_add("  /contract form|validate|…  external cell contracts (SMX filter)");
     log_add("  /hub [start|stop]  LLM request hub");
     log_add("  /integrity      CODE_SEAL + privacy fail-closed tick");
     log_add("  /commander      Ed25519 law fingerprint (≠ model)");
@@ -1768,6 +1894,14 @@ static void do_command(const char *raw) {
   }
   if (strcmp(cmd, "fleet") == 0 || strcmp(cmd, "nanobot") == 0) {
     cmd_fleet(rest);
+    return;
+  }
+  if (strcmp(cmd, "manager") == 0 || strcmp(cmd, "manager-tick") == 0) {
+    cmd_manager_tick(rest);
+    return;
+  }
+  if (strcmp(cmd, "contract") == 0 || strcmp(cmd, "contracts") == 0) {
+    cmd_contract(rest);
     return;
   }
   if (strcmp(cmd, "selftest") == 0) {

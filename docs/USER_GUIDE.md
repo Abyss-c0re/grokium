@@ -159,6 +159,8 @@ Cores stay **unmixed** (no silent cloud fallback).
 | `/law` | Cube Standards plate (share=state_matrix_only) |
 | `/status` | Dual-wire honesty (fleet + matrix; SMX2 ≠ peer HTTP) |
 | `/fleet [status…]` | Pure-C fleet plate (honest pid; peer HTTP lab_ops) |
+| `/manager [DIR]` | Motivate incomplete contracts (nb-manager) |
+| `/contract form\|validate…` | External cell contracts (SMX filter) |
 | `/integrity` | CODE_SEAL + privacy fail-closed tick |
 | `/commander` | Ed25519 law fingerprint (≠ model) |
 | `/coord <NEXUS_COORD plate>` | Fold plate → StateMatrix (SMX filter) |
