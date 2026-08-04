@@ -61,7 +61,8 @@ Fleet plate load preserves pids across `note-pid` / `status` / `separate`.
 
 Law dir: `GROKIUM_LAW_DIR` or `{data_root}/law`.  
 Llama base: `GROKIUM_LLAMA_BASE` / `NANOBOT_BASE_URL` (loopback only).  
-Host CLI: `contract`, `manager-tick`, `commander`, `llama`, `integrity tick|reseal`.
+Host CLI: `contract`, `manager-tick`, `commander`, `llama`, `integrity tick|reseal`,
+`sessions [q]`, `pickup|load <id>` (meta only; same honesty plate as HTTP).
 
 ### Planned / not yet in pure-C serve
 

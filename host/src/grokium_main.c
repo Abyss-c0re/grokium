@@ -5,6 +5,7 @@
 #include "grokium_config.h"
 #include "grokium_version.h"
 #include "grokium_hub.h"
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +14,7 @@
 #include <sys/stat.h>
 #include <limits.h>
 #include <errno.h>
+#include <ctype.h>
 
 /* Grokium = nanobot core (agent) + C host (TUI) + optional CubalC board. */
 
@@ -223,11 +225,227 @@ static void usage(void) {
           "  contract form|validate|…  external cell contracts (c_core)\n"
           "  manager-tick [DIR]     motivate incomplete contracts\n"
           "  commander show|sign|verify|…  Ed25519 law (≠ model)\n"
+          "  sessions [q]           import session metas only (no transcripts)\n"
+          "  pickup|load <id>       session meta pickup (resume msgs = host)\n"
           "  llama|llama-probe      local llama.cpp reachability\n"
           "  integrity tick|policy|reseal  code seal / privacy fail-closed\n"
           "  board|selftest         CubalC board (optional)\n"
           "  product_wire=smx2  peer_http=lab_ops_only  Not affiliated with xAI.\n",
           GROKIUM_VERSION, GROKIUM_TOK);
+}
+
+/* Imported Grok Build metas only — never dump chat transcripts on CLI wire. */
+static int meta_get_str(const char *body, const char *key, char *out, size_t cap) {
+  char pat[96];
+  const char *p, *q;
+  size_t klen, i;
+  if (!body || !key || !out || cap < 2) return -1;
+  out[0] = 0;
+  klen = strlen(key);
+  if (klen + 3 >= sizeof pat) return -1;
+  snprintf(pat, sizeof pat, "\"%s\"", key);
+  p = strstr(body, pat);
+  if (!p) return -1;
+  p += klen + 2;
+  while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
+  if (*p != ':') return -1;
+  p++;
+  while (*p == ' ' || *p == '\t') p++;
+  if (*p != '"') return -1;
+  p++;
+  q = p;
+  while (*q && *q != '"') {
+    if (*q == '\\' && q[1]) q += 2;
+    else q++;
+  }
+  i = (size_t)(q - p);
+  if (i >= cap) i = cap - 1;
+  memcpy(out, p, i);
+  out[i] = 0;
+  return 0;
+}
+
+static int contains_ci(const char *hay, const char *needle) {
+  size_t nlen, hlen, i, j;
+  if (!needle || !needle[0]) return 1;
+  if (!hay) return 0;
+  nlen = strlen(needle);
+  hlen = strlen(hay);
+  if (nlen > hlen) return 0;
+  for (i = 0; i + nlen <= hlen; i++) {
+    for (j = 0; j < nlen; j++) {
+      char a = hay[i + j], b = needle[j];
+      if (a >= 'A' && a <= 'Z') a = (char)(a + 32);
+      if (b >= 'A' && b <= 'Z') b = (char)(b + 32);
+      if (a != b) break;
+    }
+    if (j == nlen) return 1;
+  }
+  return 0;
+}
+
+static int session_id_safe(const char *id) {
+  size_t i;
+  if (!id || !id[0] || strlen(id) > 80) return 0;
+  for (i = 0; id[i]; i++) {
+    char c = id[i];
+    if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
+        (c >= 'A' && c <= 'F') || c == '-')
+      continue;
+    return 0;
+  }
+  return 1;
+}
+
+static void json_escape(const char *in, char *out, size_t cap) {
+  size_t o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in) return;
+  for (; *in && o + 2 < cap; in++) {
+    unsigned char c = (unsigned char)*in;
+    if (c == '"' || c == '\\') {
+      if (o + 3 >= cap) break;
+      out[o++] = '\\';
+      out[o++] = (char)c;
+    } else if (c < 0x20) {
+      continue;
+    } else {
+      out[o++] = (char)c;
+    }
+  }
+  out[o] = 0;
+}
+
+static int cmd_session_pickup(const char *id) {
+  char path[PATH_MAX], meta[2048];
+  char title[96], updated[48], model[96];
+  char te[128], ue[64], me[128];
+  FILE *f;
+  size_t nread;
+  if (!session_id_safe(id)) {
+    fprintf(stderr,
+            "usage: grokium pickup|load <session-id>\n"
+            "  meta only from data/import/*.meta.json (no transcripts)\n");
+    return 2;
+  }
+  snprintf(path, sizeof path, "%s/data/import/%s.meta.json", root, id);
+  f = fopen(path, "r");
+  if (!f) {
+    printf("{\"schema\":\"grokium.session_pickup.v1\",\"ok\":false,"
+           "\"error\":\"not_found\",\"id\":\"%s\",\"content\":\"meta_only\","
+           "\"share\":\"state_matrix_only\",\"hint\":\"import meta only; "
+           "full resume stays host/nanobot path\"}\n",
+           id);
+    return 1;
+  }
+  nread = fread(meta, 1, sizeof meta - 1, f);
+  meta[nread] = 0;
+  fclose(f);
+  title[0] = updated[0] = model[0] = 0;
+  meta_get_str(meta, "title", title, sizeof title);
+  meta_get_str(meta, "updated_at", updated, sizeof updated);
+  meta_get_str(meta, "model", model, sizeof model);
+  json_escape(title, te, sizeof te);
+  json_escape(updated, ue, sizeof ue);
+  json_escape(model, me, sizeof me);
+  printf("{\"schema\":\"grokium.session_pickup.v1\",\"ok\":true,"
+         "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
+         "\"peer_http\":\"lab_ops_only\",\"share\":\"state_matrix_only\","
+         "\"telemetry\":\"off\",\"resume\":\"host_path\","
+         "\"session\":{\"id\":\"%s\",\"title\":\"%s\",\"updated_at\":\"%s\","
+         "\"model\":\"%s\"}}\n",
+         id, te, ue, me);
+  return 0;
+}
+
+static int cmd_sessions(int argc, char **argv) {
+  char dir[PATH_MAX], path[PATH_MAX], meta[2048];
+  char id[96], title[96], updated[48], model[96];
+  char te[128], q_esc[128];
+  const char *q = "";
+  DIR *d;
+  struct dirent *e;
+  int matched = 0, scanned = 0;
+  FILE *f;
+  size_t nread, tlen;
+  int first = 1;
+
+  if (argc >= 1 &&
+      (!strcmp(argv[0], "pickup") || !strcmp(argv[0], "load") ||
+       !strcmp(argv[0], "get"))) {
+    if (argc < 2) {
+      fprintf(stderr, "usage: grokium sessions pickup <id>\n");
+      return 2;
+    }
+    return cmd_session_pickup(argv[1]);
+  }
+  if (argc >= 1 &&
+      (!strcmp(argv[0], "help") || !strcmp(argv[0], "-h") ||
+       !strcmp(argv[0], "--help"))) {
+    fprintf(stderr,
+            "usage: grokium sessions [q]\n"
+            "       grokium sessions pickup|load <id>\n"
+            "  content=meta_only · share=state_matrix_only · no transcripts\n");
+    return 0;
+  }
+  if (argc >= 1) q = argv[0];
+
+  json_escape(q, q_esc, sizeof q_esc);
+  snprintf(dir, sizeof dir, "%s/data/import", root);
+  d = opendir(dir);
+  if (!d) {
+    printf("{\"schema\":\"grokium.sessions.v1\",\"ok\":true,\"n\":0,"
+           "\"sessions\":[],\"q\":\"%s\",\"import_dir\":\"%s/data/import\","
+           "\"error\":\"no_import_dir\",\"content\":\"meta_only\","
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"share\":\"state_matrix_only\",\"telemetry\":\"off\"}\n",
+           q_esc, root);
+    return 0;
+  }
+  printf("{\"schema\":\"grokium.sessions.v1\",\"ok\":true,"
+         "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
+         "\"peer_http\":\"lab_ops_only\",\"share\":\"state_matrix_only\","
+         "\"telemetry\":\"off\",\"q\":\"%s\",\"import_dir\":\"%s\","
+         "\"sessions\":[",
+         q_esc, dir);
+  while ((e = readdir(d)) != NULL && matched < 24 && scanned < 800) {
+    size_t len = strlen(e->d_name);
+    if (len < 11 || strcmp(e->d_name + len - 10, ".meta.json") != 0)
+      continue;
+    scanned++;
+    snprintf(path, sizeof path, "%s/%s", dir, e->d_name);
+    f = fopen(path, "r");
+    if (!f) continue;
+    nread = fread(meta, 1, sizeof meta - 1, f);
+    meta[nread] = 0;
+    fclose(f);
+    if (q[0] && !contains_ci(meta, q) && !contains_ci(e->d_name, q))
+      continue;
+    id[0] = title[0] = updated[0] = model[0] = 0;
+    meta_get_str(meta, "id", id, sizeof id);
+    meta_get_str(meta, "title", title, sizeof title);
+    meta_get_str(meta, "updated_at", updated, sizeof updated);
+    meta_get_str(meta, "model", model, sizeof model);
+    if (!id[0]) {
+      snprintf(id, sizeof id, "%s", e->d_name);
+      tlen = strlen(id);
+      if (tlen > 10) id[tlen - 10] = 0;
+    }
+    if (!session_id_safe(id)) continue;
+    if (!title[0]) snprintf(title, sizeof title, "%s", id);
+    json_escape(title, te, sizeof te);
+    printf("%s{\"id\":\"%s\",\"title\":\"%s\",\"updated_at\":\"%s\","
+           "\"model\":\"%s\"}",
+           first ? "" : ",", id, te, updated, model);
+    first = 0;
+    matched++;
+  }
+  closedir(d);
+  printf("],\"n\":%d,\"scanned\":%d,\"limit\":24,"
+         "\"resume\":\"host_path\"}\n",
+         matched, scanned);
+  return 0;
 }
 
 static int cmd_models(gkx_config *cfg) {
@@ -456,6 +674,17 @@ int main(int argc, char **argv) {
     }
     return run_c_core("grokium-integrity", argc - ai - 1, argv + ai + 1);
   }
+  if (strcmp(cmd, "sessions") == 0 || strcmp(cmd, "session") == 0)
+    return cmd_sessions(argc - ai - 1, argv + ai + 1);
+  if (strcmp(cmd, "pickup") == 0 || strcmp(cmd, "load") == 0) {
+    if (ai + 1 >= argc) {
+      fprintf(stderr,
+              "usage: grokium pickup|load <session-id>\n"
+              "  meta only · full resume stays host/nanobot path\n");
+      return 2;
+    }
+    return cmd_session_pickup(argv[ai + 1]);
+  }
   if (strcmp(cmd, "fleet") == 0 || strcmp(cmd, "nanobot") == 0) {
     const char *sub = (ai + 1 < argc) ? argv[ai + 1] : "defaults";
     /* opt into CubalC board fleet when asked; default is c_core plate */
@@ -577,7 +806,9 @@ int main(int argc, char **argv) {
           strcmp(cmd, "contract") != 0 && strcmp(cmd, "manager") != 0 &&
           strcmp(cmd, "manager-tick") != 0 &&
           strcmp(cmd, "commander") != 0 &&
-          strcmp(cmd, "integrity") != 0) {
+          strcmp(cmd, "integrity") != 0 &&
+          strcmp(cmd, "sessions") != 0 && strcmp(cmd, "session") != 0 &&
+          strcmp(cmd, "pickup") != 0 && strcmp(cmd, "load") != 0) {
         /* Prefer TUI for bare `grokium`; multi-word → prompt */
         if (argc > 2 || (argc == 2 && strchr(argv[1], ' ')))
           return cmd_prompt(&cfg, msg);
