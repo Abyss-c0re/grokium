@@ -11,10 +11,13 @@ FILTER_SRC := src/smx_filter_cli.c src/smx_filter.c src/smx.c src/algocube.c \
 	src/law.c src/sha256.c
 FLEET_SRC := src/fleet_cli.c src/fleet.c
 CONS_SRC := src/consolidator_cli.c src/consolidator.c src/smx.c src/sha256.c
+HTTP_SRC := src/http_cli.c src/http.c src/consolidator.c src/fleet.c \
+	src/smx_filter.c src/smx.c src/algocube.c src/law.c src/sha256.c
 
-.PHONY: all clean test-commander test-filter hive test-consolidate
+.PHONY: all clean test-commander test-filter hive test-consolidate test-serve
 
-all: $(BIN_CMD) $(BIN_FILTER) $(BUILD)/grokium-fleet $(BUILD)/grokium-consolidate
+all: $(BIN_CMD) $(BIN_FILTER) $(BUILD)/grokium-fleet $(BUILD)/grokium-consolidate \
+	$(BUILD)/grokium-serve
 
 $(BUILD):
 	mkdir -p $(BUILD)
@@ -31,8 +34,12 @@ $(BUILD)/grokium-fleet: $(FLEET_SRC) | $(BUILD)
 $(BUILD)/grokium-consolidate: $(CONS_SRC) | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $(CONS_SRC) -lm
 
+$(BUILD)/grokium-serve: $(HTTP_SRC) | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ $(HTTP_SRC) -lm
+
 clean:
-	rm -f $(BIN_CMD) $(BIN_FILTER)
+	rm -f $(BIN_CMD) $(BIN_FILTER) $(BUILD)/grokium-fleet \
+		$(BUILD)/grokium-consolidate $(BUILD)/grokium-serve
 
 test-commander: $(BIN_CMD)
 	@set -e; \
@@ -65,7 +72,10 @@ test-filter: $(BIN_FILTER)
 test-consolidate: $(BUILD)/grokium-consolidate
 	@$(BUILD)/grokium-consolidate selftest
 
-hive: test-filter test-consolidate $(BUILD)/grokium-fleet
+test-serve: $(BUILD)/grokium-serve
+	@$(BUILD)/grokium-serve selftest
+
+hive: test-filter test-consolidate test-serve $(BUILD)/grokium-fleet
 	@$(BUILD)/grokium-fleet defaults | grep -q nb-manager
 	@set -e; \
 	$(BUILD)/grokium-fleet note-pid nb-manager $$$$ /tmp/gk_fleet_honesty.json >/dev/null; \
