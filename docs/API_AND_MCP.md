@@ -29,7 +29,7 @@ make -C c_core all
 | GET | `/v1/sessions/{id}` | meta pickup by id |
 | GET | `/v1/law` | law plate |
 | GET | `/v1/ability` | consolidator ability card |
-| POST | `/v1/coord` | NEXUS_COORD → matrix (**SMX filter sanitize**) |
+| POST | `/v1/coord` | NEXUS_COORD → matrix (SMX filter; dual-wire honesty plate) |
 | POST | `/v1/stream/smx/publish` | same as coord |
 | GET | `/v1/matrix/latest` | last SMX |
 | GET | `/v1/stream/smx/latest` | same as matrix/latest |

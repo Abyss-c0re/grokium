@@ -1524,8 +1524,12 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     allow = grokium_smx_filter_allow_frame(L, (const uint8_t *)body, body_n, 1);
     if (!allow) {
       http_reply(cfd, 403, "application/json",
-                 "{\"ok\":false,\"error\":\"smx_filter_deny\","
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
+                 "{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
+                 "\"error\":\"smx_filter_deny\","
+                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                 "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false,"
+                 "\"llm_on_hot_path\":false,\"llm_is_commander\":false}");
       return;
     }
     snprintf(id, sizeof id, "coord_%llu", (unsigned long long)C->pack_seq + 1);
@@ -1534,10 +1538,15 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     {
       char hex[65];
       smx_sha256_hex(&C->matrix, hex);
+      /* Lab/ops ingest plate; product multi-peer bus remains SMX2. */
       snprintf(resp, sizeof resp,
-               "{\"ok\":true,\"ingested\":true,\"grade\":\"%s\","
+               "{\"schema\":\"grokium.coord.v1\",\"ok\":true,"
+               "\"ingested\":true,\"grade\":\"%s\","
                "\"bits_set\":%u,\"seq\":%llu,\"sha256\":\"%s\","
-               "\"share\":\"state_matrix_only\"}",
+               "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+               "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+               "\"peer_http_is_product_bus\":false,"
+               "\"llm_on_hot_path\":false,\"llm_is_commander\":false}",
                C->grade, C->matrix.bits_set,
                (unsigned long long)C->matrix.seq, hex);
     }
