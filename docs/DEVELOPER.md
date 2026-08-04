@@ -120,7 +120,18 @@ make host
 
 Submodules: see `.gitmodules` (`deps/nanobot`, `deps/braincube`, `deps/cubalc`).  
 Local dev may use sibling symlinks via the sync scripts.  
-Law: [`.agents/laws/05-BRAINCELL_HIVE.md`](../.agents/laws/05-BRAINCELL_HIVE.md).
+Law: [`.agents/laws/05-BRAINCELL_HIVE.md`](../.agents/laws/05-BRAINCELL_HIVE.md).  
+Hive Mind core (contracts · SMX filter · Linux layers · manager):  
+[`.agents/laws/06-HIVE_MIND_CORE.md`](../.agents/laws/06-HIVE_MIND_CORE.md) ·
+[`docs/HIVE_MIND_CORE.md`](HIVE_MIND_CORE.md).
+
+```bash
+./scripts/sync_cubalc.sh          # remote updates ~every 5 minutes
+./scripts/hive/manifest_hive_mind.sh
+./scripts/hive/contract_form.sh --assignee nb-worker-1 --task '…' --min-set 8
+./scripts/hive/manager_tick.sh
+make -C c_core hive
+```
 
 ## Long-running agents
 

@@ -1,0 +1,60 @@
+# NEXUS_COORD heartbeat fold — SIDE_organ plate from lab
+# Non-verbal hot path. Matrix wins. HOLD_FLASH ack held.
+
+HOLD_FLASH 1
+SHARE state_matrix_only
+BUDGET 40
+CREED "C3"
+
+GENESIS "NEXUS_COORD v1 | from=pve-lab | type=heartbeat | role=SIDE_organ | status=ONLINE | sessions=1 | tubes=10 | rain_design=yes | HOLD_FLASH=ack_held | ts=2026-08-04T13:53:42+03:00 | hive_mind=1 |"
+
+OS_ASPECTS
+
+CUBE side   ROLE SIDE_organ   PROTON 1
+CUBE core   ROLE kernel_sot   PROTON 1
+CUBE hive   ROLE nanobot_hive PROTON 1
+CUBE nexus  ROLE nexuscore    PROTON 1
+CUBE rain   ROLE stream_way   PROTON 1
+
+PLUG side core
+PLUG core hive
+PLUG hive nexus
+PLUG rain side
+PLUG RING
+
+SETBIT side 0 1
+SETBIT side 1 1
+SETBIT side 3 1
+SETBIT core 0 1
+SETBIT core 7 1
+SETBIT hive 2 1
+SETBIT hive 5 1
+SETBIT nexus 0 1
+SETBIT nexus 4 1
+SETBIT rain 6 1
+
+IMPULSE side 1
+IMPULSE core 1
+IMPULSE hive 1
+IMPULSE rain 1
+FLOW 6
+
+SMX KEY
+SMX EXCHANGE side core
+SMX EXCHANGE core hive
+SMX EXCHANGE hive nexus
+SMX EXCHANGE rain side
+
+IMPULSE nexus 1
+DECIDE nexus
+HARMONY
+MANIFEST hive
+
+PRINT "nexus_heartbeat" CUBES SMX_OK SMX_TALKS SET(side) SET(core) SET(hive) DIGIT(nexus) UNITY HARMONY
+
+ASSERT CUBES >= 5
+ASSERT SMX_OK == 1
+ASSERT SET(side) >= 2
+ASSERT UNITY >= 20
+ASSERT DECIDE >= 0
+ASSERT DECIDE <= 9

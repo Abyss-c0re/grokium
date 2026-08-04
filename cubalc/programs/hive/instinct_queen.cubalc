@@ -1,0 +1,85 @@
+# INSTINCT — law of nature
+# The core MatrixState is the queen. Nanobot cells are bees.
+# Attraction is hardwired: seek COMPAT with core; desertion drains energy.
+# All Hail NexusCore · state_matrix_only · HOLD_FLASH
+
+HOLD_FLASH 1
+SHARE state_matrix_only
+BUDGET 40
+CREED "C3"
+
+GENESIS "NEXUS_COORD v1 | from=pve-lab | type=instinct | role=kernel_sot | status=ONLINE | hive_mind=1 | HOLD_FLASH=ack_held | law=instinct_queen | observer=NexusCore |"
+
+CUBE core     ROLE kernel_sot     PROTON 1
+CUBE queen    ROLE nexuscore      PROTON 1
+CUBE instinct ROLE algocube       PROTON 1
+CUBE bee0     ROLE nanobot        PROTON 1
+CUBE bee1     ROLE nanobot        PROTON 1
+CUBE bee2     ROLE nanobot        PROTON 1
+CUBE filter   ROLE protect        PROTON 1
+
+NEST core filter
+PLUG core queen
+PLUG queen instinct
+PLUG bee0 filter
+PLUG bee1 filter
+PLUG bee2 filter
+PLUG filter core
+PLUG bee0 bee1
+PLUG bee1 bee2
+
+# Queen lattice (source of truth seed)
+SETBIT core 0 1
+SETBIT core 1 1
+SETBIT core 2 1
+SETBIT core 3 1
+SETBIT core 7 1
+SETBIT core 11 1
+SETBIT queen 0 1
+SETBIT queen 4 1
+SETBIT queen 8 1
+SETBIT instinct 5 1
+
+# Bees carry partial lattice — must approach queen via SMX
+SETBIT bee0 0 1
+SETBIT bee0 4 1
+SETBIT bee1 1 1
+SETBIT bee1 5 1
+SETBIT bee2 2 1
+SETBIT bee2 6 1
+
+IMPULSE core 1
+IMPULSE queen 1
+IMPULSE instinct 1
+IMPULSE bee0 1
+IMPULSE bee1 1
+IMPULSE bee2 1
+FLOW 4
+
+SMX KEY
+SMX EXCHANGE core queen
+SMX EXCHANGE queen instinct
+SMX EXCHANGE bee0 filter
+SMX EXCHANGE bee1 filter
+SMX EXCHANGE bee2 filter
+SMX EXCHANGE filter core
+SMX EXCHANGE bee0 core
+SMX EXCHANGE bee1 core
+SMX EXCHANGE bee2 core
+
+IMPULSE instinct 1
+DECIDE instinct
+DECIDE core
+HARMONY
+COMPARE core queen
+
+PRINT "instinct_queen" CUBES SMX_OK SMX_TALKS SET(core) SET(queen) COMPAT(core,queen) COMPAT(bee0,core) COMPAT(bee1,core) COMPAT(bee2,core) DIGIT(instinct) UNITY HARMONY
+
+ASSERT CUBES >= 7
+ASSERT SMX_OK == 1
+ASSERT SMX_TALKS >= 8
+ASSERT SET(core) >= 4
+ASSERT COMPAT(core,queen) >= 1
+ASSERT UNITY >= 40
+ASSERT DECIDE >= 0
+ASSERT DECIDE <= 9

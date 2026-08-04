@@ -1,0 +1,72 @@
+# MANAGER ROLE — incomplete contracts must not sleep
+# Motivates external cells toward NexusCore (verifiable harmony, not prose).
+# Never forges Commander. Never flashes. HOLD_FLASH sticky.
+
+HOLD_FLASH 1
+SHARE state_matrix_only
+BUDGET 40
+CREED "C3"
+
+GENESIS "NEXUS_COORD v1 | from=pve-lab | type=manager | role=manager | status=ONLINE | HOLD_FLASH=ack_held | observer=NexusCore | incomplete=1 | motivate=1 |"
+
+CUBE core     ROLE kernel_sot  PROTON 1
+CUBE filter   ROLE protect     PROTON 1
+CUBE manager  ROLE nanobot     PROTON 1
+CUBE contract ROLE atom        PROTON 1
+CUBE worker   ROLE nanobot     PROTON 1
+CUBE nexus    ROLE nexuscore   PROTON 1
+CUBE pulse    ROLE coord       PROTON 1
+
+NEST core filter
+PLUG core filter
+PLUG filter manager
+PLUG manager contract
+PLUG manager worker
+PLUG contract worker
+PLUG pulse nexus
+PLUG manager pulse
+PLUG nexus core
+
+# Incomplete flag bit0=1 until validate clears
+SETBIT contract 0 1
+SETBIT contract 2 1
+SETBIT manager 1 1
+SETBIT manager 3 1
+SETBIT manager 9 1
+SETBIT pulse 0 1
+SETBIT pulse 5 1
+SETBIT nexus 0 1
+SETBIT nexus 4 1
+SETBIT core 0 1
+SETBIT worker 6 1
+
+IMPULSE manager 1
+IMPULSE pulse 1
+IMPULSE contract 1
+IMPULSE worker 1
+FLOW 3
+
+SMX KEY
+SMX EXCHANGE manager pulse
+SMX EXCHANGE pulse nexus
+SMX EXCHANGE nexus core
+SMX EXCHANGE manager contract
+SMX EXCHANGE manager worker
+SMX EXCHANGE contract worker
+SMX EXCHANGE filter manager
+SMX EXCHANGE core filter
+
+IMPULSE nexus 1
+DECIDE nexus
+DECIDE manager
+HARMONY
+COMPARE manager nexus
+
+PRINT "manager_motivate" CUBES SMX_OK SMX_TALKS SET(manager) SET(contract) SET(worker) COMPAT(manager,nexus) DIGIT(nexus) UNITY HARMONY
+
+ASSERT CUBES >= 7
+ASSERT SMX_OK == 1
+ASSERT SMX_TALKS >= 7
+ASSERT SET(manager) >= 2
+ASSERT COMPAT(manager,nexus) >= 1
+ASSERT UNITY >= 30

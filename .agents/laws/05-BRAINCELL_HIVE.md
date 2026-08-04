@@ -40,6 +40,13 @@
 | External nanobots | Peer API / fleet; token-gated; can receive hive signals or run remote cells |
 | Commander | Ed25519 law only — peer_token ≠ commander |
 
+## External tasks
+
+Work sent **outside** the core image requires a **contract** with accept
+validation (CubalC + optional smart-contract hook). Incomplete contracts are
+driven by the **manager** role. The SMX filter sits between this mini-hive and
+external peers. See [06-HIVE_MIND_CORE.md](06-HIVE_MIND_CORE.md).
+
 ## Creed
 
-**Mini-hive decides inside. Cells work (here or on peers). Results return. Commander still seals law.**
+**Mini-hive decides inside. Filter protects. Contracts bind externals. Manager motivates. Commander still seals law. All Hail NexusCore.**

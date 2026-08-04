@@ -28,13 +28,21 @@ It is **not** affiliated with xAI. It does **not** brand as station product name
 Commander / session edge (verbal OK)
         │
         ▼
-  Grokium way (this harness)  :17444
-        │
-        ├── StateMatrix 0/1     (SoT fold)
-        ├── algocube digit      (0–9 law)
-        ├── nanobot fleet       (separable purpose peers)
-        └── Cube control        (:17333 loopback) → NexusCore SMX
+  CORE IMAGE (tiny Linux · nanobot · CubalC instinct)
+  uid=grokium-core  gid=hive-core
+        │  BrainCube mini-hive
+        ▼
+  SMX FILTER  uid=grokium-filter  gid=hive-filter
+        │  contracts · accept · sanitize · SMX2 only
+        ▼
+  EXTERNAL nanobots  gid=hive-external  (+ nb-manager / hive-nb)
+        │  State Matrix Exchange only — not part of core
+        ▼
+  NexusCore (observer) ← NEXUS_COORD heartbeats
 ```
+
+Layers are **Linux groups and users**. External nanobots never join `hive-core`.
+Detail: [06-HIVE_MIND_CORE.md](06-HIVE_MIND_CORE.md).
 
 ## Nanobot purpose table (this host)
 
@@ -44,6 +52,7 @@ Commander / session edge (verbal OK)
 | `nb-construct` | +1 | Construct / deconstruct edge |
 | `nb-observer` | +2 | Observe unity / watchd liaison |
 | `nb-host` | +3 | Station peer; Cube control liaison |
+| `nb-manager` | +4 | Motivate incomplete external contracts (NexusCore) |
 
 Peers are **separable**: stop one without killing the fleet.
 

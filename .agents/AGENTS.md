@@ -9,6 +9,8 @@ Not affiliated with xAI. Product: **Grokium**. Core: **nanobot** (embeddable C).
 3. [laws/02-INTEGRITY.md](laws/02-INTEGRITY.md)
 4. [laws/03-SANITIZE.md](laws/03-SANITIZE.md)
 5. [laws/04-CUBE_STANDARDS.md](laws/04-CUBE_STANDARDS.md)
+6. [laws/05-BRAINCELL_HIVE.md](laws/05-BRAINCELL_HIVE.md)
+7. [laws/06-HIVE_MIND_CORE.md](laws/06-HIVE_MIND_CORE.md) — core image · SMX filter · contracts · manager
 
 ## Stack
 
@@ -29,6 +31,7 @@ Not affiliated with xAI. Product: **Grokium**. Core: **nanobot** (embeddable C).
 - **Commander ≠ model** — only Ed25519 under `data/law/commander.pk`.
 - **nanobot stays embeddable** — no ncurses in core; tidy commits only.
 - **BrainCube = internal mini-hive; nanobots = cells (local or external peers)** — see laws/05-BRAINCELL_HIVE.md.
+- **Hive Mind core** — tiny Linux image; layers = Linux groups/users; external via SMX2 contracts only; manager motivates incomplete work for NexusCore — laws/06-HIVE_MIND_CORE.md.
 - **py=0** — no Python product path.
 
 ## Secrets

@@ -1,0 +1,102 @@
+# EXTERNAL CONTRACT — form + accept validation board
+# Every external nanobot task MUST bind accept criteria.
+# Wire: SMX2 bits only. Prose stays off the bus.
+# Optional smart-contract: host env GROKIUM_CONTRACT_VERIFY (not this VM)
+
+HOLD_FLASH 1
+SHARE state_matrix_only
+BUDGET 40
+CREED "C3"
+
+GENESIS "NEXUS_COORD v1 | from=pve-lab | type=contract | role=SIDE_organ | status=ONLINE | HOLD_FLASH=ack_held | law=external_contract | observer=NexusCore | smx_only=1 |"
+
+CUBE core     ROLE kernel_sot  PROTON 1
+CUBE filter   ROLE protect     PROTON 1
+CUBE contract ROLE atom        PROTON 1
+CUBE accept   ROLE algocube    PROTON 1
+CUBE assignee ROLE nanobot     PROTON 1
+CUBE manager  ROLE nanobot     PROTON 1
+CUBE result   ROLE raw_energy  PROTON 1
+CUBE nexus    ROLE nexuscore   PROTON 1
+
+NEST core filter
+PLUG core filter
+PLUG filter contract
+PLUG contract accept
+PLUG contract assignee
+PLUG manager contract
+PLUG result accept
+PLUG accept nexus
+PLUG assignee filter
+
+# Contract open plate (bits = open·budget·hold·smx·external·validate)
+SETBIT contract 0 1
+SETBIT contract 1 1
+SETBIT contract 2 1
+SETBIT contract 3 1
+SETBIT contract 4 1
+SETBIT contract 5 1
+SETBIT filter 0 1
+SETBIT filter 1 1
+SETBIT core 0 1
+SETBIT core 7 1
+SETBIT nexus 0 1
+SETBIT nexus 8 1
+
+# Accept criteria defaults (override via FOLDBITS from host if present)
+SYS ENV "CUBALC_CONTRACT_ACCEPT_BITS"
+IF LAST_N > 0 THEN
+  FOLDBITS accept LAST
+ELSE
+  SETBIT accept 0 1
+  SETBIT accept 2 1
+  SETBIT accept 4 1
+  SETBIT accept 6 1
+  SETDIGIT accept 4
+END
+
+# Simulated result from assignee (host may FOLDBITS result)
+SYS ENV "CUBALC_CONTRACT_RESULT_BITS"
+IF LAST_N > 0 THEN
+  FOLDBITS result LAST
+ELSE
+  SETBIT result 0 1
+  SETBIT result 2 1
+  SETBIT result 4 1
+  SETBIT result 6 1
+END
+
+IMPULSE core 1
+IMPULSE filter 1
+IMPULSE contract 1
+IMPULSE assignee 1
+IMPULSE result 1
+FLOW 3
+
+SMX KEY
+SMX EXCHANGE core filter
+SMX EXCHANGE filter contract
+SMX EXCHANGE contract assignee
+SMX EXCHANGE assignee result
+SMX EXCHANGE result accept
+SMX EXCHANGE accept nexus
+SMX EXCHANGE manager contract
+
+IMPULSE accept 1
+DECIDE accept
+DECIDE nexus
+COMPARE accept result
+HARMONY
+
+PRINT "external_contract" CUBES SMX_OK SMX_TALKS SET(contract) SET(accept) SET(result) COMPAT(accept,result) DIGIT(accept) UNITY HARMONY NESTED(filter)
+
+# Accept validation (machine)
+ASSERT CUBES >= 8
+ASSERT SMX_OK == 1
+ASSERT SMX_TALKS >= 6
+ASSERT SET(contract) >= 4
+ASSERT SET(accept) >= 2
+ASSERT COMPAT(accept,result) >= 1
+ASSERT NESTED(filter) == 1
+ASSERT DECIDE >= 0
+ASSERT DECIDE <= 9

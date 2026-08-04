@@ -1,0 +1,83 @@
+# SMX FILTER — protection between BrainCube mini-hive and external nanobots
+# Command center (core) never sees raw external prose. Bits only. Fail-closed.
+
+HOLD_FLASH 1
+SHARE state_matrix_only
+BUDGET 40
+CREED "C3"
+
+GENESIS "NEXUS_COORD v1 | from=pve-lab | type=smx_filter | role=protect | status=ONLINE | HOLD_FLASH=ack_held | law=core_protect | braincube=mini_hive | external=smx_only |"
+
+CUBE core   ROLE kernel_sot  PROTON 1
+CUBE brain  ROLE braincube   PROTON 1
+CUBE filter ROLE protect     PROTON 1
+CUBE cmd    ROLE commander   PROTON 1
+CUBE ext0   ROLE nanobot     PROTON 1
+CUBE ext1   ROLE nanobot     PROTON 1
+CUBE bus    ROLE atom        PROTON 1
+
+NEST core filter
+NEST filter bus
+PLUG core brain
+PLUG brain filter
+PLUG filter cmd
+PLUG filter bus
+PLUG ext0 bus
+PLUG ext1 bus
+PLUG ext0 filter
+PLUG ext1 filter
+
+# Core + brain (internal mini-hive) — high trust bits
+SETBIT core 0 1
+SETBIT core 1 1
+SETBIT core 2 1
+SETBIT brain 3 1
+SETBIT brain 7 1
+SETBIT filter 0 1
+SETBIT filter 1 1
+SETBIT filter 2 1
+SETBIT filter 3 1
+SETBIT cmd 9 1
+
+# External cells — identity only; must pass filter
+SETBIT ext0 4 1
+SETBIT ext0 8 1
+SETBIT ext1 5 1
+SETBIT ext1 9 1
+SETBIT bus 6 1
+
+IMPULSE core 1
+IMPULSE brain 1
+IMPULSE filter 1
+IMPULSE bus 1
+FLOW 3
+
+SMX KEY
+# Internal path
+SMX EXCHANGE core brain
+SMX EXCHANGE brain filter
+SMX EXCHANGE filter cmd
+# External path — only via filter/bus (never core↔ext direct law path)
+SMX EXCHANGE ext0 bus
+SMX EXCHANGE ext1 bus
+SMX EXCHANGE bus filter
+SMX EXCHANGE ext0 filter
+SMX EXCHANGE ext1 filter
+SMX EXCHANGE filter core
+
+IMPULSE brain 1
+DECIDE brain
+DECIDE filter
+HARMONY
+COMPARE core filter
+
+PRINT "smx_filter" CUBES SMX_OK SMX_TALKS SET(filter) SET(brain) SET(ext0) COMPAT(core,filter) DIGIT(brain) UNITY NESTED(filter) NESTED(bus)
+
+ASSERT CUBES >= 7
+ASSERT SMX_OK == 1
+ASSERT SMX_TALKS >= 8
+ASSERT SET(filter) >= 4
+ASSERT NESTED(filter) == 1
+ASSERT COMPAT(core,filter) >= 1
+ASSERT DECIDE >= 0
+ASSERT DECIDE <= 9
