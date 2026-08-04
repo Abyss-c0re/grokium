@@ -129,6 +129,8 @@ int gkx_chat_vision(const gkx_config *cfg, const char *prompt, const char *image
   snprintf(home, sizeof home, "%s/nanobot_home", state_dir);
   mkdir(home, 0700);
   setenv("NANOBOT_HOME", home, 1);
+  /* Bind nanobot workdir — env alone leaves default /tmp/nanobot. */
+  ng_set_workdir(home);
   setenv("NANOBOT_SHOW_THINKING", cfg->ui_show_thinking ? "1" : "0", 1);
   setenv("NANOBOT_TOOLS", "0", 1); /* vision turn: no tools */
 

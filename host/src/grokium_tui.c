@@ -1004,27 +1004,42 @@ static int session_resume_local(const char *id, const char *meta) {
   fclose(f);
   if (ring_n <= 0) return 0;
 
-  /* Seed agent recent memory with complete user/assistant pairs (host-local).
-   * Nanobot keeps only last N turns; visual TUI may show more. Not SMX bus. */
+  /* Seed agent memory with complete user/assistant pairs (host-local).
+   * Last ng_memory_recent_turns() → recent.jsonl; older → summary.txt.
+   * Visual TUI may show more than recent cap. Not SMX product bus. */
   {
     const char *pending_user = NULL;
-    int pairs = 0;
+    const char *pair_u[RESUME_MAX_MSGS];
+    const char *pair_a[RESUME_MAX_MSGS];
+    int pairs = 0, seeded = 0, older = 0;
     for (i = 0; i < ring_n; i++) {
       ix = (ring_start + i) % RESUME_MAX_MSGS;
       if (!ring_text[ix]) continue;
       if (ring_kind[ix] == BK_USER) {
         pending_user = ring_text[ix];
       } else if (ring_kind[ix] == BK_ASST && pending_user) {
-        gkx_memory_seed_exchange(pending_user, ring_text[ix]);
+        if (pairs < RESUME_MAX_MSGS) {
+          pair_u[pairs] = pending_user;
+          pair_a[pairs] = ring_text[ix];
+          pairs++;
+        }
         pending_user = NULL;
-        pairs++;
       }
     }
     if (pairs > 0) {
-      char note[120];
-      snprintf(note, sizeof note,
-               "resume> seeded %d host-local memory pair(s) for next turns",
-               pairs);
+      char note[160];
+      seeded = gkx_memory_seed_pairs(pair_u, pair_a, pairs);
+      older = pairs - seeded;
+      if (older < 0) older = 0;
+      if (older > 0)
+        snprintf(note, sizeof note,
+                 "resume> seeded %d recent pair(s) + %d older in summary "
+                 "(host-local)",
+                 seeded, older);
+      else
+        snprintf(note, sizeof note,
+                 "resume> seeded %d host-local memory pair(s) for next turns",
+                 seeded);
       log_add(note);
     }
   }

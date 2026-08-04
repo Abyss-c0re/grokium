@@ -71,7 +71,10 @@ static void ensure_nanobot_home(const char *state_dir) {
     snprintf(home, sizeof home, "%s/.grokium/nanobot", h ? h : "/tmp");
   }
   mkdir(home, 0700);
+  /* Env alone is not enough: nanobot memory/session use nb_workdir(),
+   * which defaults to /tmp/nanobot until ng_set_workdir binds the home. */
   setenv("NANOBOT_HOME", home, 1);
+  ng_set_workdir(home);
 }
 
 void gkx_memory_seed_exchange(const char *user, const char *assistant) {
@@ -79,6 +82,131 @@ void gkx_memory_seed_exchange(const char *user, const char *assistant) {
   ensure_nanobot_home(state_dir);
   ng_memory_init();
   ng_memory_record_exchange(user, assistant ? assistant : "");
+}
+
+/* UTF-8-safe short prefix for resume summary (no mid-codepoint cut). */
+static void seed_snippet(const char *s, char *out, size_t cap, size_t maxb) {
+  size_t j = 0;
+  const unsigned char *cp;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!s) return;
+  if (maxb + 1 > cap) maxb = cap - 1;
+  cp = (const unsigned char *)s;
+  while (*cp && j < maxb) {
+    unsigned char ch = *cp;
+    int need = 1;
+    if (ch >= 0x80) {
+      if ((ch & 0xE0) == 0xC0)
+        need = 2;
+      else if ((ch & 0xF0) == 0xE0)
+        need = 3;
+      else if ((ch & 0xF8) == 0xF0)
+        need = 4;
+      else {
+        cp++;
+        continue;
+      }
+      if (j + (size_t)need > maxb) break;
+      {
+        int ok = 1, k;
+        for (k = 1; k < need; k++)
+          if ((cp[k] & 0xC0) != 0x80) {
+            ok = 0;
+            break;
+          }
+        if (!ok) {
+          cp++;
+          continue;
+        }
+        for (k = 0; k < need; k++) out[j++] = (char)cp[k];
+        cp += need;
+      }
+    } else {
+      out[j++] = (ch == '\n' || ch == '\r') ? ' ' : (char)ch;
+      cp++;
+    }
+  }
+  out[j] = 0;
+}
+
+/* Fold older-than-recent pairs into summary.txt (host-local, not SMX). */
+static void seed_older_summary(const char *const *users, const char *const *assts,
+                               int from, int to) {
+  char path[PATH_MAX], line[1024], us[56], as[56];
+  char *cur = NULL;
+  size_t len = 0, o = 0, ll, need, cap = 1600;
+  char *nbuf;
+  int i;
+  const char *wd;
+  FILE *f;
+  if (!users || !assts || from >= to) return;
+  wd = ng_workdir();
+  if (!wd || !wd[0]) return;
+  o = (size_t)snprintf(line, sizeof line, "- resume older:");
+  for (i = from; i < to && o + 48 < sizeof line; i++) {
+    seed_snippet(users[i], us, sizeof us, 36);
+    seed_snippet(assts[i], as, sizeof as, 36);
+    if (!us[0] && !as[0]) continue;
+    o += (size_t)snprintf(line + o, sizeof line - o, " [u] %s → [a] %s;", us,
+                          as);
+  }
+  if (o < 16) return;
+  snprintf(path, sizeof path, "%s/memory/summary.txt", wd);
+  cur = ng_read_file(path, &len);
+  ll = strlen(line);
+  need = (cur ? len : 0) + ll + 2;
+  nbuf = malloc(need + 1);
+  if (!nbuf) {
+    free(cur);
+    return;
+  }
+  nbuf[0] = 0;
+  if (cur && cur[0]) {
+    memcpy(nbuf, cur, len);
+    nbuf[len] = 0;
+    if (len && nbuf[len - 1] != '\n') strcat(nbuf, "\n");
+  }
+  strcat(nbuf, line);
+  if (nbuf[strlen(nbuf) - 1] != '\n') strcat(nbuf, "\n");
+  free(cur);
+  {
+    size_t total = strlen(nbuf);
+    const char *write_from = nbuf;
+    if (total > cap) {
+      write_from = nbuf + (total - cap);
+      while (*write_from && *write_from != '\n') write_from++;
+      if (*write_from == '\n') write_from++;
+    }
+    f = fopen(path, "w");
+    if (f) {
+      fputs(write_from, f);
+      fclose(f);
+    }
+  }
+  free(nbuf);
+}
+
+int gkx_memory_seed_pairs(const char *const *users, const char *const *assts,
+                          int n_pairs) {
+  int keep, start, i, seeded = 0;
+  if (!users || !assts || n_pairs <= 0) return 0;
+  ensure_nanobot_home(state_dir);
+  ng_memory_init();
+  keep = ng_memory_recent_turns();
+  if (keep < 1) keep = 1;
+  start = 0;
+  if (n_pairs > keep) {
+    /* Preserve context past recent-turns cap in summary (not discarded). */
+    seed_older_summary(users, assts, 0, n_pairs - keep);
+    start = n_pairs - keep;
+  }
+  for (i = start; i < n_pairs; i++) {
+    if (!users[i] || !users[i][0]) continue;
+    ng_memory_record_exchange(users[i], assts[i] ? assts[i] : "");
+    seeded++;
+  }
+  return seeded;
 }
 
 static int is_auto_model(const char *m) {

@@ -40,6 +40,14 @@ int grokium_load_grok_token(char *out, size_t outn);
  * (capped/pruned by nanobot memory). Never touches SMX product bus. */
 void gkx_memory_seed_exchange(const char *user, const char *assistant);
 
+/* Host-local multi-pair seed for session resume.
+ * Last ng_memory_recent_turns() pairs → recent.jsonl (verbatim).
+ * Older pairs → one compact line in memory/summary.txt so context past the
+ * recent-turns cap is not discarded. Never SMX product bus.
+ * Returns number of pairs written to recent (0 if none). */
+int gkx_memory_seed_pairs(const char *const *users, const char *const *assts,
+                          int n_pairs);
+
 #ifdef __cplusplus
 }
 #endif
