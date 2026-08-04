@@ -33,7 +33,7 @@ SRCS := src/grokium_main.c src/grokium_tui.c src/grokium_chat.c \
 	src/grokium_config.c src/grokium_version.c src/grokium_hub.c \
 	src/grokium_media.c src/grokium_status.c
 
-.PHONY: all clean nanobot install test-status test
+.PHONY: all clean nanobot install test-status test-memory-seed test
 
 all: nanobot out/grokium
 
@@ -54,13 +54,22 @@ out/status_probe_selftest: tests/status_probe_selftest.c src/grokium_status.c \
 	@mkdir -p out
 	$(CC) $(CFLAGS) -o $@ tests/status_probe_selftest.c src/grokium_status.c
 
+# Resume memory seed: chat seed path + nanobot memory (no TUI/ncurses).
+out/memory_seed_selftest: tests/memory_seed_selftest.c src/grokium_chat.c \
+	include/grokium_chat.h nanobot
+	@mkdir -p out
+	$(CC) $(CFLAGS) -o $@ tests/memory_seed_selftest.c src/grokium_chat.c $(LIBS)
+
 test-status: out/status_probe_selftest
 	@./out/status_probe_selftest
 
-test: test-status
+test-memory-seed: out/memory_seed_selftest
+	@./out/memory_seed_selftest
+
+test: test-status test-memory-seed
 
 clean:
-	rm -f out/grokium out/status_probe_selftest
+	rm -f out/grokium out/status_probe_selftest out/memory_seed_selftest
 
 install: all
 	install -m755 out/grokium $(HOME)/.local/bin/grokium
