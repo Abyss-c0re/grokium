@@ -227,11 +227,38 @@ static void usage(void) {
           "  commander show|sign|verify|…  Ed25519 law (≠ model)\n"
           "  sessions [q]           import session metas only (no transcripts)\n"
           "  pickup|load <id>       session meta pickup (resume msgs = host)\n"
+          "  law [cubalc]           Cube Standards plate (pure C; cubalc opt-in)\n"
           "  llama|llama-probe      local llama.cpp reachability\n"
           "  integrity tick|policy|reseal  code seal / privacy fail-closed\n"
           "  board|selftest         CubalC board (optional)\n"
           "  product_wire=smx2  peer_http=lab_ops_only  Not affiliated with xAI.\n",
           GROKIUM_VERSION, GROKIUM_TOK);
+}
+
+/* Pure-C law plate — matches c_core grokium_law_default + dual-wire honesty.
+ * Commander is Ed25519 under data/law; LLM is never commander. */
+static int cmd_law(int argc, char **argv) {
+  const char *sub = (argc >= 1) ? argv[0] : "";
+  if (sub[0] && (!strcmp(sub, "cubalc") || !strcmp(sub, "board")))
+    return run_cubalc_program("law.cubalc", NULL);
+  if (sub[0] && (!strcmp(sub, "help") || !strcmp(sub, "-h") ||
+                 !strcmp(sub, "--help"))) {
+    fprintf(stderr,
+            "usage: grokium law [cubalc]\n"
+            "  pure-C Cube Standards plate (default)\n"
+            "  cubalc — optional CubalC board law program\n");
+    return 0;
+  }
+  printf("{\"schema\":\"grokium.law.v1\",\"ok\":true,"
+         "\"hold_flash\":1,\"no_brain_wires\":1,\"state_matrix_key\":1,"
+         "\"cores_unmixed\":1,\"face_blur\":1,\"zero_telemetry\":1,"
+         "\"commander_only_residual\":1,\"share\":\"state_matrix_only\","
+         "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+         "\"peer_http_is_product_bus\":false,"
+         "\"commander\":\"ed25519\",\"llm_is_commander\":false,"
+         "\"python\":0,\"host\":\"C\",\"product\":\"grokium\","
+         "\"not\":\"grok_model\"}\n");
+  return 0;
 }
 
 /* Imported Grok Build metas only — never dump chat transcripts on CLI wire. */
@@ -593,8 +620,8 @@ int main(int argc, char **argv) {
   }
   if (strcmp(cmd, "status") == 0 || strcmp(cmd, "board") == 0)
     return run_cubalc_program("board.cubalc", NULL);
-  if (strcmp(cmd, "law") == 0)
-    return run_cubalc_program("law.cubalc", NULL);
+  if (strcmp(cmd, "law") == 0 || strcmp(cmd, "laws") == 0)
+    return cmd_law(argc - ai - 1, argv + ai + 1);
   /* Hive Mind pure-C surface (product bus = SMX2; HTTP loopback = lab/ops) */
   if (strcmp(cmd, "serve") == 0) {
     return run_c_core("grokium-serve", argc - ai - 1, argv + ai + 1);
@@ -808,7 +835,8 @@ int main(int argc, char **argv) {
           strcmp(cmd, "commander") != 0 &&
           strcmp(cmd, "integrity") != 0 &&
           strcmp(cmd, "sessions") != 0 && strcmp(cmd, "session") != 0 &&
-          strcmp(cmd, "pickup") != 0 && strcmp(cmd, "load") != 0) {
+          strcmp(cmd, "pickup") != 0 && strcmp(cmd, "load") != 0 &&
+          strcmp(cmd, "law") != 0 && strcmp(cmd, "laws") != 0) {
         /* Prefer TUI for bare `grokium`; multi-word → prompt */
         if (argc > 2 || (argc == 2 && strchr(argv[1], ' ')))
           return cmd_prompt(&cfg, msg);
