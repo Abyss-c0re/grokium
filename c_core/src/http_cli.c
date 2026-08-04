@@ -91,7 +91,7 @@ static int selftest(void) {
   char resp[4096];
   const char *b;
   int st, fails = 0;
-  setenv("GROKIUM_SERVE_MAX", "24", 1);
+  setenv("GROKIUM_SERVE_MAX", "26", 1);
   {
     gk_commander cmd;
     const char *law = "/tmp/gk_law_serve";
@@ -139,6 +139,20 @@ static int selftest(void) {
     if (!strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false")) {
       fprintf(stderr, "selftest: status dual-wire honesty fail\n");
+      fails++;
+    }
+  }
+  if (http_get("127.0.0.1", port, "/v1/cube/status", resp, sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if (!strstr(b, "\"schema\":\"grokium.cube_status.v1\"") ||
+        !strstr(b, "\"bridge\":\"algocube\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"blueprint\"") ||
+        !strstr(b, "llm_is_commander\":false")) {
+      fprintf(stderr, "selftest: cube status fail: %.400s\n", resp);
       fails++;
     }
   }
@@ -268,7 +282,8 @@ static int selftest(void) {
     return 1;
   }
   printf("LOOPBACK_HTTP_OK port=%d dual_wire=honest smx_filter=on "
-         "contracts=on commander=on llama_probe=on smx_sse=on chat=on\n",
+         "contracts=on commander=on llama_probe=on smx_sse=on chat=on "
+         "cube_status=on\n",
          port);
   return 0;
 }

@@ -21,6 +21,7 @@ make -C c_core all
 |--------|------|------|
 | GET | `/healthz` | liveness |
 | GET | `/v1/status` | law + dual-wire honesty (`product_wire=smx2`) |
+| GET | `/v1/cube/status` | AlgoCube bridge plate (digit/blueprint, dual-wire) |
 | GET | `/v1/law` | law plate |
 | GET | `/v1/ability` | consolidator ability card |
 | POST | `/v1/coord` | NEXUS_COORD → matrix (**SMX filter sanitize**) |
@@ -62,7 +63,6 @@ Host CLI: `contract`, `manager-tick`, `commander`, `llama`, `integrity tick|rese
 |--------|------|------|
 | POST | `/v1/agent` | tool agent (host TUI / nanobot path today) |
 | GET/POST | `/v1/sessions/*` | search/pickup/resume/import |
-| GET | `/v1/cube/status` | Cube bridge |
 | GET | `/ui` | minimal UI |
 
 `POST /v1/chat` is implemented as a short non-streaming loopback completion
