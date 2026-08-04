@@ -850,10 +850,16 @@ static void json_matrix(const gk_consolidator *C, char *out, size_t cap) {
   if (!C || !out || cap < 128) return;
   smx_sha256_hex(&C->matrix, hex);
   smx_bits_ascii(&C->matrix, bits, sizeof bits);
+  /* Lab/ops SMX snapshot: bits only on wire; dual-wire honesty plate. */
   snprintf(out, cap,
-           "{\"schema\":\"grokium.smx.v1\",\"seq\":%llu,\"bits_set\":%u,"
+           "{\"schema\":\"grokium.smx.v1\",\"ok\":true,"
+           "\"seq\":%llu,\"bits_set\":%u,"
            "\"host\":\"%s\",\"sha256\":\"%s\",\"grade\":\"%s\","
-           "\"share\":\"state_matrix_only\",\"bits\":\"%s\"}",
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+           "\"bits\":\"%s\"}",
            (unsigned long long)C->matrix.seq, C->matrix.bits_set,
            C->matrix.host_id, hex, C->grade, bits);
 }
