@@ -1004,6 +1004,31 @@ static int session_resume_local(const char *id, const char *meta) {
   fclose(f);
   if (ring_n <= 0) return 0;
 
+  /* Seed agent recent memory with complete user/assistant pairs (host-local).
+   * Nanobot keeps only last N turns; visual TUI may show more. Not SMX bus. */
+  {
+    const char *pending_user = NULL;
+    int pairs = 0;
+    for (i = 0; i < ring_n; i++) {
+      ix = (ring_start + i) % RESUME_MAX_MSGS;
+      if (!ring_text[ix]) continue;
+      if (ring_kind[ix] == BK_USER) {
+        pending_user = ring_text[ix];
+      } else if (ring_kind[ix] == BK_ASST && pending_user) {
+        gkx_memory_seed_exchange(pending_user, ring_text[ix]);
+        pending_user = NULL;
+        pairs++;
+      }
+    }
+    if (pairs > 0) {
+      char note[120];
+      snprintf(note, sizeof note,
+               "resume> seeded %d host-local memory pair(s) for next turns",
+               pairs);
+      log_add(note);
+    }
+  }
+
   blk_free_all();
   for (i = 0; i < ring_n; i++) {
     ix = (ring_start + i) % RESUME_MAX_MSGS;
@@ -1064,7 +1089,8 @@ static void cmd_session_pickup(const char *id) {
              "resume> loaded %d host-local msgs (user/asst, last %d cap)",
              resumed, RESUME_MAX_MSGS);
     log_add(line);
-    log_add("  host-local TUI only · not SMX product bus · share=state_matrix_only");
+    log_add("  host-local TUI + nanobot memory seed · not SMX product bus");
+    log_add("  share=state_matrix_only · next agent turns use recent memory");
   } else {
     log_add("  meta only · no chat_history.jsonl under import_path");
     log_add("  share=state_matrix_only · product_wire=smx2");

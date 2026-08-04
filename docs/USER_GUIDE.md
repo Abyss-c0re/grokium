@@ -167,7 +167,8 @@ Cores stay **unmixed** (no silent cloud fallback).
 | `/smx` | Latest SMX bits |
 | `/quit` | Exit |
 
-Product bus = **SMX2**; peer HTTP = lab/ops only. Session resume is **host-local TUI** only — never the SMX product bus.
+Product bus = **SMX2**; peer HTTP = lab/ops only. Session resume is **host-local**
+(TUI display + nanobot recent memory seed) — never the SMX product bus.
 
 **Enter** sends · **PgUp/PgDn** scroll · **Tab** focus sessions.
 

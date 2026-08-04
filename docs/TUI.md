@@ -31,7 +31,9 @@
 `/commander` — Ed25519 law fingerprint (never a Grok model)  
 
 Product bus remains **SMX2**; peer HTTP = lab/ops only; Commander ≠ model; share = state_matrix_only.  
-Session resume loads user/assistant turns into the local TUI only — never the SMX product bus.
+Session resume loads user/assistant turns into the local TUI and seeds nanobot
+recent memory (host-local) so the next agent turns have context — never the SMX
+product bus.
 
 ## Optional web
 ```bash

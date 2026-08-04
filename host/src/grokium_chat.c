@@ -6,6 +6,7 @@
 
 #include "agent.h"
 #include "auth.h"
+#include "memory.h"
 #include "util.h"
 #include "ng_sched.h"
 
@@ -71,6 +72,13 @@ static void ensure_nanobot_home(const char *state_dir) {
   }
   mkdir(home, 0700);
   setenv("NANOBOT_HOME", home, 1);
+}
+
+void gkx_memory_seed_exchange(const char *user, const char *assistant) {
+  if (!user || !user[0]) return;
+  ensure_nanobot_home(state_dir);
+  ng_memory_init();
+  ng_memory_record_exchange(user, assistant ? assistant : "");
 }
 
 static int is_auto_model(const char *m) {

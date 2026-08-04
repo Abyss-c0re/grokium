@@ -36,6 +36,10 @@ int grokium_resolve_model(const gkx_config *cfg, char *buf, size_t n);
 
 int grokium_load_grok_token(char *out, size_t outn);
 
+/* Host-local only: seed nanobot recent memory with one user/assistant pair
+ * (capped/pruned by nanobot memory). Never touches SMX product bus. */
+void gkx_memory_seed_exchange(const char *user, const char *assistant);
+
 #ifdef __cplusplus
 }
 #endif
