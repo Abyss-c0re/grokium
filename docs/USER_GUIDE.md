@@ -150,16 +150,21 @@ Cores stay **unmixed** (no silent cloud fallback).
 |---------|---------|
 | `/help` | Help |
 | `/new` | Clear chat context |
-| `/sessions [q]` | Search imported Grok Build sessions |
-| `/load <id\|q>` | Pick up session (resume mode) |
-| `/mode chat\|agent\|resume` | Mode |
+| `/sessions [q]` | Imported session **metas** only (`data/import`) |
+| `/pickup` `/load <id>` | Session meta pickup (no transcript dump) |
+| `/mode chat\|agent\|resume` | Tools on/off; resume = meta honesty |
 | `/model …` | Models (above) |
 | `/backend …` | local / grok |
 | `/theme crimson\|matrix\|void\|gold\|mono` | Look |
-| `/integrity` | Anti-collection seal |
-| `/coord <NEXUS_COORD plate>` | Fold plate → StateMatrix |
+| `/law` | Cube Standards plate (share=state_matrix_only) |
+| `/fleet [status…]` | Pure-C fleet plate (honest pid; peer HTTP lab_ops) |
+| `/integrity` | CODE_SEAL + privacy fail-closed tick |
+| `/commander` | Ed25519 law fingerprint (≠ model) |
+| `/coord <NEXUS_COORD plate>` | Fold plate → StateMatrix (SMX filter) |
 | `/smx` | Latest SMX bits |
 | `/quit` | Exit |
+
+Product bus = **SMX2**; peer HTTP = lab/ops only. Full message resume stays host/nanobot — not the product bus.
 
 **Enter** sends · **PgUp/PgDn** scroll · **Tab** focus sessions.
 

@@ -86,19 +86,42 @@ static const char *body_of(const char *http) {
   return p ? p + 4 : http;
 }
 
+/* Resolve repo root even when cwd is c_core/ (make -C c_core hive). */
+static void set_repo_root_env(void) {
+  char cwd[PATH_MAX], try[PATH_MAX], abs[PATH_MAX];
+  char walk[PATH_MAX];
+  int i;
+  if (!getcwd(cwd, sizeof cwd)) {
+    setenv("GROKIUM_ROOT", ".", 1);
+    return;
+  }
+  snprintf(walk, sizeof walk, "%s", cwd);
+  for (i = 0; i < 6; i++) {
+    snprintf(try, sizeof try, "%s/data/integrity/CODE_SEAL.json", walk);
+    if (access(try, R_OK) == 0) {
+      if (realpath(walk, abs))
+        setenv("GROKIUM_ROOT", abs, 1);
+      else
+        setenv("GROKIUM_ROOT", walk, 1);
+      return;
+    }
+    snprintf(try, sizeof try, "%s/..", walk);
+    if (!realpath(try, abs)) break;
+    if (strcmp(abs, walk) == 0) break;
+    snprintf(walk, sizeof walk, "%s", abs);
+  }
+  setenv("GROKIUM_ROOT", cwd, 1);
+}
+
 static int selftest(void) {
   int port = 17444 + (int)(getpid() % 200);
   pid_t child;
   char resp[4096];
-  char cwd[PATH_MAX];
   const char *b;
   int st, fails = 0;
   setenv("GROKIUM_SERVE_MAX", "40", 1);
   /* Integrity tick needs repo root (CODE_SEAL + privacy plate). */
-  if (getcwd(cwd, sizeof cwd))
-    setenv("GROKIUM_ROOT", cwd, 1);
-  else
-    setenv("GROKIUM_ROOT", ".", 1);
+  set_repo_root_env();
   {
     gk_commander cmd;
     const char *law = "/tmp/gk_law_serve";
@@ -115,13 +138,18 @@ static int selftest(void) {
     gk_consolidator C;
     gk_fleet F;
     grokium_law L;
-    char cdir[] = "data/contracts_selftest";
+    char cdir[PATH_MAX], data_root[PATH_MAX];
+    const char *rroot = getenv("GROKIUM_ROOT");
+    if (!rroot || !rroot[0]) rroot = ".";
+    snprintf(cdir, sizeof cdir, "%s/data/contracts_selftest", rroot);
+    snprintf(data_root, sizeof data_root, "%s/data", rroot);
     setenv("GROKIUM_CONTRACT_DIR", cdir, 1);
     /* GROKIUM_LAW_DIR + GROKIUM_ROOT inherited from parent */
     gk_init(&C, "serve-selftest");
     fleet_default_roles(&F);
     grokium_law_default(&L);
-    _exit(grokium_serve("127.0.0.1", port, &C, &F, &L, "data") == 0 ? 0 : 1);
+    _exit(grokium_serve("127.0.0.1", port, &C, &F, &L, data_root) == 0 ? 0
+                                                                         : 1);
   }
   {
     struct timespec ts = {0, 200000000L};

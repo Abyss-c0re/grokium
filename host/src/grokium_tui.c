@@ -897,6 +897,93 @@ static void cmd_commander_show(void) {
   (void)run_c_core_capture("grokium-commander", av);
 }
 
+/* Cube law plate (matches c_core grokium_law_default + dual-wire honesty). */
+static void cmd_law_show(void) {
+  char line[240];
+  log_add("--- law (Cube Standards · pure C defaults) ---");
+  log_add("  hold_flash=1 · no_brain_wires=1 · state_matrix_key=1");
+  log_add("  cores_unmixed=1 · face_blur=1 · zero_telemetry=1");
+  log_add("  commander_only_residual=1 · share=state_matrix_only");
+  log_add("  product_wire=smx2 · peer_http=lab_ops_only · peer_http_is_product_bus=0");
+  log_add("  Commander=Ed25519 (data/law) · LLM is never commander");
+  snprintf(line, sizeof line, "  agent.tools=%d · agent.braincells=%d · backend=%s",
+           cfg.agent_tools, cfg.agent_braincells, cfg.active_backend);
+  log_add(line);
+  log_add("  integrity=/integrity · commander=/commander · fleet=/fleet");
+}
+
+/* Mode is host UX: chat/agent toggle tools; resume = meta pickup honesty. */
+static void cmd_mode(const char *arg) {
+  char line[200];
+  const char *a = arg ? arg : "";
+  while (*a == ' ') a++;
+  if (!a[0] || !strcmp(a, "show") || !strcmp(a, "?")) {
+    snprintf(line, sizeof line, "mode> %s · tools=%d · resume=meta_only (/pickup)",
+             cfg.agent_tools ? "agent" : "chat", cfg.agent_tools);
+    log_add(line);
+    log_add("  usage: /mode chat|agent|resume");
+    log_add("  resume full messages = host/nanobot path (not SMX product bus)");
+    return;
+  }
+  if (!strcmp(a, "chat")) {
+    cfg.agent_tools = 0;
+    config_persist();
+    log_add("mode> chat · tools=0 · share=state_matrix_only");
+    return;
+  }
+  if (!strcmp(a, "agent")) {
+    cfg.agent_tools = 1;
+    config_persist();
+    log_add("mode> agent · tools=1 · share=state_matrix_only");
+    return;
+  }
+  if (!strcmp(a, "resume")) {
+    log_add("mode> resume · meta pickup only on TUI wire");
+    log_add("  use /sessions [q] then /pickup <id> (no transcript dump)");
+    log_add("  full message resume stays host/nanobot (not product bus SMX2)");
+    return;
+  }
+  log_add("usage: /mode chat|agent|resume|show");
+}
+
+/* Fleet plate: pure-C grokium-fleet (honest pid/status). CubalC opt-in. */
+static void cmd_fleet(const char *arg) {
+  char *av[6];
+  char sub[64], a1[PATH_MAX], a2[64];
+  int n = 0;
+  const char *p = arg ? arg : "";
+  while (*p == ' ') p++;
+  sub[0] = a1[0] = a2[0] = 0;
+  sscanf(p, "%63s %511s %63s", sub, a1, a2);
+  if (!sub[0]) {
+    /* default: live status probe */
+    log_add("--- fleet status (pure-C · kill(0) honest) ---");
+    av[0] = "status";
+    av[1] = NULL;
+    (void)run_c_core_capture("grokium-fleet", av);
+    log_add("  product_wire=smx2 · peer_http=lab_ops_only · nb-manager on plate");
+    log_add("  subs: defaults|status|deploy|spawn <id>|spawn-all|stop-all|cubalc");
+    return;
+  }
+  if (!strcmp(sub, "help") || !strcmp(sub, "?")) {
+    log_add("usage: /fleet [status|defaults|deploy|spawn ID|spawn-all|stop-all|cubalc]");
+    log_add("  pure-C plate · pid/status/offline honest · peer HTTP = lab_ops");
+    return;
+  }
+  if (!strcmp(sub, "cubalc")) {
+    log_add("--- fleet (CubalC board opt-in) ---");
+    run_prog_capture("fleet.cubalc");
+    return;
+  }
+  /* pass-through to grokium-fleet; refuse wild paths beyond one path arg */
+  av[n++] = sub;
+  if (a1[0]) av[n++] = a1;
+  if (a2[0]) av[n++] = a2;
+  av[n] = NULL;
+  log_add("--- fleet (pure-C) ---");
+  (void)run_c_core_capture("grokium-fleet", av);
+}
+
 static void do_login(int device) {
   endwin();
   printf("\n=== Grokium /login (optional cloud) ===\n");
@@ -1006,6 +1093,9 @@ static void do_command(const char *raw) {
     log_add("  /smx            latest StateMatrix plate (bits only)");
     log_add("  /sessions [q]   imported session metas (no transcripts)");
     log_add("  /pickup|/load <id>  session meta pickup");
+    log_add("  /mode chat|agent|resume  tools toggle · resume=meta only");
+    log_add("  /law            Cube Standards plate (share=state_matrix_only)");
+    log_add("  /fleet [status…]  pure-C plate (honest pid · peer HTTP lab_ops)");
     log_add("  /integrity      CODE_SEAL + privacy fail-closed tick");
     log_add("  /commander      Ed25519 law fingerprint (≠ model)");
     log_add("  /attach /viz · ! shell · /model · /settings · /q");
@@ -1264,6 +1354,14 @@ static void do_command(const char *raw) {
     cmd_commander_show();
     return;
   }
+  if (strcmp(cmd, "law") == 0 || strcmp(cmd, "laws") == 0) {
+    cmd_law_show();
+    return;
+  }
+  if (strcmp(cmd, "mode") == 0) {
+    cmd_mode(rest);
+    return;
+  }
   if (strcmp(cmd, "attach") == 0 || strcmp(cmd, "file") == 0 || strcmp(cmd, "open") == 0) {
     if (!rest[0]) { log_add("usage: /attach <path> [prompt for vision]"); return; }
     char path[PATH_MAX], prompt[IN_MAX];
@@ -1372,8 +1470,8 @@ static void do_command(const char *raw) {
     run_prog_capture("board.cubalc");
     return;
   }
-  if (strcmp(cmd, "fleet") == 0) {
-    run_prog_capture("fleet.cubalc");
+  if (strcmp(cmd, "fleet") == 0 || strcmp(cmd, "nanobot") == 0) {
+    cmd_fleet(rest);
     return;
   }
   if (strcmp(cmd, "selftest") == 0) {
