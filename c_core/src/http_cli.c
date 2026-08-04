@@ -182,8 +182,13 @@ static int selftest(void) {
   else {
     b = body_of(resp);
     if (!strstr(b, "\"product_wire\":\"smx2\"") ||
-        !strstr(b, "\"peer_http_is_product_bus\":false")) {
-      fprintf(stderr, "selftest: status dual-wire honesty fail\n");
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"commander\":\"ed25519\"") ||
+        !strstr(b, "\"python\":0") ||
+        !strstr(b, "\"llm_on_hot_path\":false")) {
+      fprintf(stderr, "selftest: status dual-wire honesty fail: %.400s\n", b);
       fails++;
     }
   }

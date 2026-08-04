@@ -782,6 +782,7 @@ static void json_law(const grokium_law *L, char *out, size_t cap) {
 
 static void json_status(const grokium_law *L, const gk_consolidator *C,
                         const gk_fleet *F, int alive, char *out, size_t cap) {
+  /* Match host gkx_status_plate_json dual-wire honesty (Commander ≠ model). */
   snprintf(out, cap,
            "{\"schema\":\"grokium.status.v1\","
            "\"ok\":true,\"product\":\"grokium\","
@@ -793,7 +794,8 @@ static void json_status(const grokium_law *L, const gk_consolidator *C,
            "\"hold_flash\":%d,\"telemetry\":\"off\","
            "\"fleet_n\":%d,\"fleet_alive\":%d,"
            "\"matrix_bits\":%u,\"grade\":\"%s\","
-           "\"llm_on_hot_path\":false}",
+           "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+           "\"commander\":\"ed25519\",\"python\":0,\"host\":\"C\"}",
            L ? L->hold_flash : 1, F ? F->n : 0, alive,
            C ? C->matrix.bits_set : 0, C ? C->grade : "EMPTY");
 }
