@@ -1588,10 +1588,16 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
                  "{\"ok\":false,\"error\":\"form_failed\"}");
       return;
     }
+    /* Lab/ops contract form plate; product bus remains SMX2. */
     snprintf(resp, sizeof resp,
-             "{\"ok\":true,\"id\":\"%s\",\"path\":\"%s\",\"status\":\"open\","
-             "\"assignee\":\"%s\",\"hold_flash\":1,\"wire\":\"smx2\","
-             "\"observer\":\"NexusCore\"}",
+             "{\"schema\":\"grokium.contract_form.v1\",\"ok\":true,"
+             "\"id\":\"%s\",\"path\":\"%s\",\"status\":\"open\","
+             "\"assignee\":\"%s\",\"hold_flash\":1,"
+             "\"product_wire\":\"smx2\",\"wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+             "\"share\":\"state_matrix_only\",\"observer\":\"NexusCore\"}",
              c.id, c.path, c.assignee);
     http_reply(cfd, 200, "application/json", resp);
     return;
@@ -1633,8 +1639,14 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     dig = algocube_digit(&m, c.id);
     rc = grokium_contract_validate(&c, &m, dig);
     snprintf(resp, sizeof resp,
-             "{\"ok\":true,\"complete\":%s,\"status\":%d,\"id\":\"%s\","
-             "\"path\":\"%s\",\"wire\":\"smx2\"}",
+             "{\"schema\":\"grokium.contract_validate.v1\",\"ok\":true,"
+             "\"complete\":%s,\"status\":%d,\"id\":\"%s\","
+             "\"path\":\"%s\",\"hold_flash\":1,"
+             "\"product_wire\":\"smx2\",\"wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+             "\"share\":\"state_matrix_only\"}",
              rc == 1 ? "true" : "false", (int)c.status, c.id, c.path);
     http_reply(cfd, 200, "application/json", resp);
     return;
@@ -1650,9 +1662,15 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     }
     snprintf(cdir, sizeof cdir, "%s/contracts", root);
     n = grokium_manager_motivate_dir(cdir);
+    /* Manager motivates incomplete work; HTTP is lab/ops only. */
     snprintf(resp, sizeof resp,
-             "{\"ok\":true,\"motivated\":%d,\"observer\":\"NexusCore\","
-             "\"dir\":\"%s\",\"wire\":\"smx_motivate\"}",
+             "{\"schema\":\"grokium.manager_tick.v1\",\"ok\":true,"
+             "\"motivated\":%d,\"observer\":\"NexusCore\","
+             "\"dir\":\"%s\",\"wire\":\"smx_motivate\","
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"hold_flash\":1,\"share\":\"state_matrix_only\","
+             "\"llm_on_hot_path\":false,\"llm_is_commander\":false}",
              n, cdir);
     http_reply(cfd, 200, "application/json", resp);
     return;

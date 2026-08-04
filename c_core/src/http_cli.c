@@ -349,18 +349,33 @@ static int selftest(void) {
                 "\"min_set\":1}",
                 resp, sizeof resp) < 0)
     fails++;
-  else if (!strstr(body_of(resp), "\"ok\":true") ||
-           !strstr(body_of(resp), "\"status\":\"open\"")) {
-    fprintf(stderr, "selftest: contract form fail: %.300s\n", resp);
-    fails++;
+  else {
+    b = body_of(resp);
+    if (!strstr(b, "\"ok\":true") || !strstr(b, "\"status\":\"open\"") ||
+        !strstr(b, "\"schema\":\"grokium.contract_form.v1\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"hold_flash\":1")) {
+      fprintf(stderr, "selftest: contract form dual-wire fail: %.400s\n", b);
+      fails++;
+    }
   }
   if (http_post("127.0.0.1", port, "/v1/manager/tick", "", resp, sizeof resp) <
       0)
     fails++;
-  else if (!strstr(body_of(resp), "\"motivated\"") &&
-           !strstr(body_of(resp), "\"ok\":true")) {
-    fprintf(stderr, "selftest: manager tick fail: %.200s\n", resp);
-    fails++;
+  else {
+    b = body_of(resp);
+    if (!strstr(b, "\"ok\":true") || !strstr(b, "\"motivated\"") ||
+        !strstr(b, "\"schema\":\"grokium.manager_tick.v1\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"hold_flash\":1")) {
+      fprintf(stderr, "selftest: manager tick dual-wire fail: %.400s\n", b);
+      fails++;
+    }
   }
   if (http_get("127.0.0.1", port, "/v1/instinct", resp, sizeof resp) < 0)
     fails++;
