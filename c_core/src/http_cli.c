@@ -339,11 +339,39 @@ static int selftest(void) {
     fprintf(stderr, "selftest: manager tick fail: %.200s\n", resp);
     fails++;
   }
+  if (http_get("127.0.0.1", port, "/v1/instinct", resp, sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if (!strstr(b, "\"schema\":\"grokium.instinct.v1\"") ||
+        !strstr(b, "HIVE_MIND") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"share\":\"state_matrix_only\"")) {
+      fprintf(stderr, "selftest: instinct dual-wire fail: %.400s\n", b);
+      fails++;
+    }
+  }
   if (http_get("127.0.0.1", port, "/v1/license", resp, sizeof resp) < 0)
     fails++;
-  else if (!strstr(body_of(resp), "Apache-2.0") ||
-           !strstr(body_of(resp), "not_affiliated_with_xAI"))
-    fails++;
+  else {
+    b = body_of(resp);
+    if (!strstr(b, "\"schema\":\"grokium.license.v1\"") ||
+        !strstr(b, "Apache-2.0") ||
+        !strstr(b, "not_affiliated_with_xAI") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"share\":\"state_matrix_only\"")) {
+      fprintf(stderr, "selftest: license dual-wire fail: %.400s\n", b);
+      fails++;
+    }
+  }
   if (http_get("127.0.0.1", port, "/v1/commander", resp, sizeof resp) < 0)
     fails++;
   else if (!strstr(body_of(resp), "\"fingerprint\"") ||

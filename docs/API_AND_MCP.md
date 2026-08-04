@@ -41,8 +41,8 @@ make -C c_core all
 | POST | `/v1/contract/form` | form external contract JSON body |
 | POST | `/v1/contract/validate` | `{path, bits?}` accept check |
 | GET/POST | `/v1/manager/tick` | motivate incomplete contracts |
-| GET | `/v1/instinct` | hive mind creed line |
-| GET | `/v1/license` | Apache-2.0 + not affiliated with xAI |
+| GET | `/v1/instinct` | hive creed + dual-wire honesty (`product_wire=smx2`) |
+| GET | `/v1/license` | Apache-2.0, not xAI, Commander≠model, dual-wire plate |
 | GET | `/v1/commander` | fingerprint (pk); never emits sk |
 | POST | `/v1/commander/verify` | `{device,action,nonce,ts,sig}` |
 | POST | `/v1/commander/sign` | loopback + local `commander.sk` only |
