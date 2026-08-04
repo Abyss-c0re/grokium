@@ -12,7 +12,8 @@ FILTER_SRC := src/smx_filter_cli.c src/smx_filter.c src/smx.c src/algocube.c \
 FLEET_SRC := src/fleet_cli.c src/fleet.c
 CONS_SRC := src/consolidator_cli.c src/consolidator.c src/smx.c src/sha256.c
 HTTP_SRC := src/http_cli.c src/http.c src/consolidator.c src/fleet.c \
-	src/smx_filter.c src/smx.c src/algocube.c src/law.c src/sha256.c
+	src/smx_filter.c src/smx.c src/algocube.c src/law.c src/sha256.c \
+	src/commander.c
 
 .PHONY: all clean test-commander test-filter hive test-consolidate test-serve
 
@@ -35,7 +36,7 @@ $(BUILD)/grokium-consolidate: $(CONS_SRC) | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $(CONS_SRC) -lm
 
 $(BUILD)/grokium-serve: $(HTTP_SRC) | $(BUILD)
-	$(CC) $(CFLAGS) -o $@ $(HTTP_SRC) -lm
+	$(CC) $(CFLAGS) -o $@ $(HTTP_SRC) -lm $(LDFLAGS)
 
 clean:
 	rm -f $(BIN_CMD) $(BIN_FILTER) $(BUILD)/grokium-fleet \
@@ -77,8 +78,12 @@ test-consolidate: $(BUILD)/grokium-consolidate
 test-serve: $(BUILD)/grokium-serve
 	@$(BUILD)/grokium-serve selftest
 
-hive: test-filter test-consolidate test-serve $(BUILD)/grokium-fleet
+hive: test-filter test-consolidate test-serve test-commander $(BUILD)/grokium-fleet
 	@$(BUILD)/grokium-fleet defaults | grep -q nb-manager
+	@set -e; \
+	$(BIN_FILTER) allow-check "$$(cat ../compat/nexus_coord.v1.plate)" | grep -q '"allow":true'; \
+	$(BIN_FILTER) allow-check "$$(cat ../compat/nexus_coord.smuggle.plate)" | grep -q '"allow":false'; \
+	echo COMPAT_WIRE_OK
 	@set -e; \
 	sleep 120 & P1=$$!; sleep 120 & P2=$$!; \
 	$(BUILD)/grokium-fleet note-pid nb-manager $$P1 /tmp/gk_fleet_honesty.json >/dev/null; \

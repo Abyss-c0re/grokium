@@ -5,6 +5,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "grokium_http.h"
 #include "grokium_algocube.h"
+#include "grokium_commander.h"
 #include "grokium_smx_filter.h"
 #include "sha256.h"
 #include <arpa/inet.h>
@@ -216,6 +217,26 @@ static int json_get_int(const char *body, size_t n, const char *key, int def) {
   }
   (void)pat;
   return def;
+}
+
+static int law_dir_for(const char *data_root, char *out, size_t cap) {
+  const char *e = getenv("GROKIUM_LAW_DIR");
+  if (e && e[0]) {
+    snprintf(out, cap, "%s", e);
+    return 0;
+  }
+  snprintf(out, cap, "%s/law", data_root && data_root[0] ? data_root : "data");
+  return 0;
+}
+
+static int load_commander(const char *data_root, gk_commander *C) {
+  char law[400], pk[420];
+  if (!C) return -1;
+  memset(C, 0, sizeof *C);
+  law_dir_for(data_root, law, sizeof law);
+  if (gk_commander_load(C, law) == 0) return 0;
+  snprintf(pk, sizeof pk, "%s/commander.pk", law);
+  return gk_commander_load_pk_only(C, pk);
 }
 
 static void json_law(const grokium_law *L, char *out, size_t cap) {
@@ -671,9 +692,164 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     return;
   }
 
+  if (!strcmp(path, "/v1/license")) {
+    if (strcmp(method, "GET") != 0) {
+      http_reply(cfd, 405, "application/json",
+                 "{\"ok\":false,\"error\":\"method\"}");
+      return;
+    }
+    http_reply(cfd, 200, "application/json",
+               "{\"ok\":true,\"product\":\"grokium\",\"license\":\"Apache-2.0\","
+               "\"affiliation\":\"not_affiliated_with_xAI\","
+               "\"commander_is_not_model\":true,\"share\":\"state_matrix_only\"}");
+    return;
+  }
+
+  /* Commander = Ed25519 law identity only — never a model claim */
+  if (!strcmp(path, "/v1/commander") || !strcmp(path, "/v1/commander/show")) {
+    gk_commander cmd;
+    char law[400];
+    if (strcmp(method, "GET") != 0) {
+      http_reply(cfd, 405, "application/json",
+                 "{\"ok\":false,\"error\":\"method\"}");
+      return;
+    }
+    law_dir_for(root, law, sizeof law);
+    if (load_commander(root, &cmd) != 0) {
+      snprintf(resp, sizeof resp,
+               "{\"ok\":false,\"error\":\"no_commander_pk\","
+               "\"law_dir\":\"%s\",\"hint\":\"grokium-commander keygen "
+               "--law-dir DIR\",\"not\":\"grok_model\"}",
+               law);
+      http_reply(cfd, 404, "application/json", resp);
+      return;
+    }
+    /* never emit sk; has_sk only for ops honesty on loopback */
+    snprintf(resp, sizeof resp,
+             "{\"ok\":true,\"product\":\"grokium\",\"not\":\"grok_model\","
+             "\"domain\":\"%s\",\"fingerprint\":\"%s\",\"has_sk\":%s,"
+             "\"unforgeable\":true,\"law_dir\":\"%s\","
+             "\"commander_is_model\":false}",
+             GK_CMD_DOMAIN, cmd.fingerprint_hex,
+             cmd.has_sk ? "true" : "false", law);
+    http_reply(cfd, 200, "application/json", resp);
+    return;
+  }
+
+  if (!strcmp(path, "/v1/commander/reject_model")) {
+    int deny;
+    if (strcmp(method, "POST") != 0) {
+      http_reply(cfd, 405, "application/json",
+                 "{\"ok\":false,\"error\":\"method\"}");
+      return;
+    }
+    deny = 1;
+    if (body && body_n > 0) {
+      /* any model-as-authority claim is denied */
+      if (gk_commander_is_grokium_not_model(body))
+        deny = 0; /* explicit grokium law plate — not a model claim */
+      else
+        deny = 1;
+    }
+    if (deny) {
+      http_reply(cfd, 403, "application/json",
+                 "{\"ok\":false,\"allowed\":false,"
+                 "\"error\":\"model_is_not_commander\","
+                 "\"product\":\"grokium\",\"not\":\"grok_model\","
+                 "\"unforgeable\":true}");
+      return;
+    }
+    http_reply(cfd, 200, "application/json",
+               "{\"ok\":true,\"allowed\":true,\"product\":\"grokium\","
+               "\"not\":\"grok_model\"}");
+    return;
+  }
+
+  if (!strcmp(path, "/v1/commander/verify")) {
+    gk_commander cmd;
+    char device[64], action[64], nonce[80], sig[160];
+    int64_t ts = 0;
+    int ok;
+    if (strcmp(method, "POST") != 0) {
+      http_reply(cfd, 405, "application/json",
+                 "{\"ok\":false,\"error\":\"method\"}");
+      return;
+    }
+    if (!body || body_n == 0) {
+      http_reply(cfd, 400, "application/json",
+                 "{\"ok\":false,\"error\":\"need_json_body\"}");
+      return;
+    }
+    if (load_commander(root, &cmd) != 0 || !cmd.has_pk) {
+      http_reply(cfd, 404, "application/json",
+                 "{\"ok\":false,\"error\":\"no_commander_pk\"}");
+      return;
+    }
+    device[0] = action[0] = nonce[0] = sig[0] = 0;
+    json_get_str(body, body_n, "device", device, sizeof device);
+    json_get_str(body, body_n, "action", action, sizeof action);
+    json_get_str(body, body_n, "nonce", nonce, sizeof nonce);
+    json_get_str(body, body_n, "sig", sig, sizeof sig);
+    ts = (int64_t)json_get_int(body, body_n, "ts", 0);
+    if (!device[0] || !action[0] || !nonce[0] || !sig[0] || ts == 0) {
+      http_reply(cfd, 400, "application/json",
+                 "{\"ok\":false,\"error\":\"need_device_action_nonce_ts_sig\"}");
+      return;
+    }
+    ok = gk_commander_verify_override(&cmd, device, action, nonce, ts, NULL, 0,
+                                      sig);
+    snprintf(resp, sizeof resp,
+             "{\"ok\":%s,\"commander\":%s,\"not\":\"grok_model\","
+             "\"unforgeable\":true,\"product\":\"grokium\"}",
+             ok ? "true" : "false", ok ? "\"grokium\"" : "null");
+    http_reply(cfd, ok ? 200 : 403, "application/json", resp);
+    return;
+  }
+
+  if (!strcmp(path, "/v1/commander/sign")) {
+    gk_commander cmd;
+    char device[64], action[64], nonce_hex[65], sig_hex[129], env[2048];
+    int64_t ts = 0;
+    if (strcmp(method, "POST") != 0) {
+      http_reply(cfd, 405, "application/json",
+                 "{\"ok\":false,\"error\":\"method\"}");
+      return;
+    }
+    /* loopback-only already enforced by bind; still require sk on disk */
+    if (load_commander(root, &cmd) != 0 || !cmd.has_sk) {
+      http_reply(cfd, 403, "application/json",
+                 "{\"ok\":false,\"error\":\"no_commander_sk\","
+                 "\"hint\":\"sign only with local commander.sk (never commit)\"}");
+      return;
+    }
+    if (!body || body_n == 0) {
+      http_reply(cfd, 400, "application/json",
+                 "{\"ok\":false,\"error\":\"need_json_body\"}");
+      return;
+    }
+    device[0] = action[0] = 0;
+    json_get_str(body, body_n, "device", device, sizeof device);
+    json_get_str(body, body_n, "action", action, sizeof action);
+    if (!device[0] || !action[0]) {
+      http_reply(cfd, 400, "application/json",
+                 "{\"ok\":false,\"error\":\"need_device_and_action\"}");
+      return;
+    }
+    if (gk_commander_sign_override(&cmd, device, action, NULL, 0, nonce_hex, &ts,
+                                   sig_hex) != 0) {
+      http_reply(cfd, 500, "application/json",
+                 "{\"ok\":false,\"error\":\"sign_failed\"}");
+      return;
+    }
+    gk_commander_envelope_json(&cmd, device, action, nonce_hex, ts, sig_hex,
+                               NULL, env, sizeof env);
+    http_reply(cfd, 200, "application/json", env);
+    return;
+  }
+
   http_reply(cfd, 404, "application/json",
              "{\"ok\":false,\"error\":\"not_found\","
-             "\"hint\":\"/healthz /v1/status /v1/law /v1/coord "
+             "\"hint\":\"/healthz /v1/status /v1/commander /v1/coord "
              "/v1/contract/form /v1/manager/tick /v1/nanobot/status\"}");
 }
 

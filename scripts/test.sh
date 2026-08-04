@@ -58,6 +58,9 @@ if make -C "$ROOT/c_core" all >/dev/null 2>&1 && [[ -x "$ROOT/build/grokium-smx-
   check host_serve_selftest 0 bash -c "$BIN serve selftest | grep -q LOOPBACK_HTTP_OK"
   check host_contract_form 0 bash -c "D=\$(mktemp -d); GROKIUM_CONTRACT_DIR=\$D $BIN contract form --assignee nb-worker-1 --task 'map tool loop' --min-set 1 | grep -q '\"ok\":true'; rm -rf \$D"
   check host_manager_tick 0 bash -c "D=\$(mktemp -d); GROKIUM_CONTRACT_DIR=\$D $BIN manager-tick | grep -q motivated; rm -rf \$D"
+  check host_commander_show 0 bash -c "D=\$(mktemp -d); $ROOT/build/grokium-commander keygen --law-dir \$D >/dev/null; $BIN commander show --law-dir \$D | grep -q '\"not\":\"grok_model\"'; rm -rf \$D"
+  check compat_coord_allow 0 bash -c "$ROOT/build/grokium-smx-filter allow-check \"\$(cat $ROOT/compat/nexus_coord.v1.plate)\" | grep -q '\"allow\":true'"
+  check compat_coord_deny 0 bash -c "$ROOT/build/grokium-smx-filter allow-check \"\$(cat $ROOT/compat/nexus_coord.smuggle.plate)\" | grep -q '\"allow\":false'"
 else
   echo "SKIP hive filter (not built)"
 fi

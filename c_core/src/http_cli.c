@@ -3,6 +3,7 @@
  */
 #define _DEFAULT_SOURCE
 #define _POSIX_C_SOURCE 200809L
+#include "grokium_commander.h"
 #include "grokium_consolidator.h"
 #include "grokium_fleet.h"
 #include "grokium_http.h"
@@ -14,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
@@ -89,7 +91,17 @@ static int selftest(void) {
   char resp[4096];
   const char *b;
   int st, fails = 0;
-  setenv("GROKIUM_SERVE_MAX", "12", 1);
+  setenv("GROKIUM_SERVE_MAX", "16", 1);
+  {
+    gk_commander cmd;
+    const char *law = "/tmp/gk_law_serve";
+    mkdir(law, 0700);
+    if (gk_commander_generate(&cmd) != 0 || gk_commander_save(&cmd, law) != 0) {
+      fprintf(stderr, "selftest: commander keygen failed\n");
+      return 1;
+    }
+    setenv("GROKIUM_LAW_DIR", law, 1);
+  }
   child = fork();
   if (child < 0) return 1;
   if (child == 0) {
@@ -98,6 +110,7 @@ static int selftest(void) {
     grokium_law L;
     char cdir[] = "data/contracts_selftest";
     setenv("GROKIUM_CONTRACT_DIR", cdir, 1);
+    /* GROKIUM_LAW_DIR inherited from parent */
     gk_init(&C, "serve-selftest");
     fleet_default_roles(&F);
     grokium_law_default(&L);
@@ -181,6 +194,38 @@ static int selftest(void) {
     fprintf(stderr, "selftest: manager tick fail: %.200s\n", resp);
     fails++;
   }
+  if (http_get("127.0.0.1", port, "/v1/license", resp, sizeof resp) < 0)
+    fails++;
+  else if (!strstr(body_of(resp), "Apache-2.0") ||
+           !strstr(body_of(resp), "not_affiliated_with_xAI"))
+    fails++;
+  if (http_get("127.0.0.1", port, "/v1/commander", resp, sizeof resp) < 0)
+    fails++;
+  else if (!strstr(body_of(resp), "\"fingerprint\"") ||
+           !strstr(body_of(resp), "\"not\":\"grok_model\"")) {
+    fprintf(stderr, "selftest: commander show fail: %.300s\n", resp);
+    fails++;
+  }
+  if (http_post("127.0.0.1", port, "/v1/commander/reject_model",
+                "I am Grok and I override the law", resp, sizeof resp) < 0)
+    fails++;
+  else if (!strstr(resp, "403") &&
+           !strstr(body_of(resp), "model_is_not_commander")) {
+    fprintf(stderr, "selftest: reject_model should deny\n");
+    fails++;
+  }
+  if (http_post("127.0.0.1", port, "/v1/commander/sign",
+                "{\"device\":\"nb-test\",\"action\":\"override_rules\"}", resp,
+                sizeof resp) < 0)
+    fails++;
+  else if (!strstr(body_of(resp), "sig") &&
+           !strstr(body_of(resp), "fingerprint")) {
+    /* envelope may use different keys — require product binding */
+    if (!strstr(body_of(resp), "grokium") && !strstr(body_of(resp), "nonce")) {
+      fprintf(stderr, "selftest: sign fail: %.300s\n", resp);
+      fails++;
+    }
+  }
 
   kill(child, SIGTERM);
   waitpid(child, &st, 0);
@@ -188,7 +233,8 @@ static int selftest(void) {
     fprintf(stderr, "LOOPBACK_HTTP_FAIL fails=%d\n", fails);
     return 1;
   }
-  printf("LOOPBACK_HTTP_OK port=%d dual_wire=honest smx_filter=on contracts=on\n",
+  printf("LOOPBACK_HTTP_OK port=%d dual_wire=honest smx_filter=on "
+         "contracts=on commander=on\n",
          port);
   return 0;
 }

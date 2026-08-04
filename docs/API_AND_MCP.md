@@ -35,20 +35,24 @@ make -C c_core all
 | POST | `/v1/contract/validate` | `{path, bits?}` accept check |
 | GET/POST | `/v1/manager/tick` | motivate incomplete contracts |
 | GET | `/v1/instinct` | hive mind creed line |
+| GET | `/v1/license` | Apache-2.0 + not affiliated with xAI |
+| GET | `/v1/commander` | fingerprint (pk); never emits sk |
+| POST | `/v1/commander/verify` | `{device,action,nonce,ts,sig}` |
+| POST | `/v1/commander/sign` | loopback + local `commander.sk` only |
+| POST | `/v1/commander/reject_model` | deny “I am Grok” authority claims |
 
 Headers: `X-Grokium-Telemetry: off`, `X-Grokium-Product-Wire: smx2`,
 `X-Grokium-Peer-HTTP: lab_ops_only`. Share: **state matrix only**.
 
 Fleet plate load preserves pids across `note-pid` / `status` / `separate`.
 
-Host CLI: `grokium contract form|validate|…`, `grokium manager-tick`.
+Law dir: `GROKIUM_LAW_DIR` or `{data_root}/law`.  
+Host CLI: `grokium contract …`, `manager-tick`, `commander show|sign|verify|…`.
 
 ### Planned / not yet in pure-C serve
 
 | Method | Path | Role |
 |--------|------|------|
-| GET | `/v1/license` | Apache + affiliation |
-| GET/POST | `/v1/commander*` | Ed25519 commander CLI exists separately |
 | GET | `/v1/llama/probe` | local llama |
 | POST | `/v1/chat` | local-first chat (host TUI path today) |
 | POST | `/v1/agent` | tool agent |
