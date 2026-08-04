@@ -39,18 +39,32 @@ int main(int argc, char **argv) {
   if (!strcmp(argv[1], "allow-check")) {
     grokium_law L;
     const char *s = argc > 2 ? argv[2] : "";
+    int allow, prose;
     grokium_law_default(&L);
-    printf("{\"allow\":%s,\"prose\":%s}\n",
-           grokium_smx_filter_allow_frame(&L, (const uint8_t *)s, strlen(s), 1)
-               ? "true"
-               : "false",
-           grokium_smx_filter_is_prose(s, strlen(s)) ? "true" : "false");
+    allow =
+        grokium_smx_filter_allow_frame(&L, (const uint8_t *)s, strlen(s), 1);
+    prose = grokium_smx_filter_is_prose(s, strlen(s));
+    /* Host filter path surfaces this plate; dual-wire honesty required. */
+    printf("{\"schema\":\"grokium.smx_allow.v1\",\"allow\":%s,\"prose\":%s,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+           "\"origin\":\"external\"}\n",
+           allow ? "true" : "false", prose ? "true" : "false");
     return 0;
   }
 
   if (!strcmp(argv[1], "manager-tick")) {
     int n = grokium_manager_motivate_dir(argc > 2 ? argv[2] : NULL);
-    printf("{\"motivated\":%d,\"observer\":\"NexusCore\"}\n", n);
+    printf("{\"schema\":\"grokium.manager_tick.v1\",\"ok\":true,"
+           "\"motivated\":%d,\"observer\":\"NexusCore\","
+           "\"wire\":\"smx_motivate\",\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false}\n",
+           n);
     return 0;
   }
 
@@ -80,8 +94,15 @@ int main(int argc, char **argv) {
       fprintf(stderr, "form failed\n");
       return 1;
     }
-    printf("{\"ok\":true,\"id\":\"%s\",\"path\":\"%s\",\"status\":\"open\"}\n",
-           c.id, c.path);
+    printf("{\"schema\":\"grokium.contract_form.v1\",\"ok\":true,"
+           "\"id\":\"%s\",\"path\":\"%s\",\"status\":\"open\","
+           "\"assignee\":\"%s\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"llm_is_commander\":false,"
+           "\"observer\":\"NexusCore\"}\n",
+           c.id, c.path, c.assignee);
     return 0;
   }
 
@@ -123,8 +144,13 @@ int main(int argc, char **argv) {
     }
     dig = algocube_digit(&m, c.id);
     rc = grokium_contract_validate(&c, &m, dig);
-    printf("{\"ok\":%s,\"complete\":%s,\"status\":%d,\"digit\":%d,"
-           "\"bits_set\":%u,\"id\":\"%s\"}\n",
+    printf("{\"schema\":\"grokium.contract_validate.v1\",\"ok\":%s,"
+           "\"complete\":%s,\"status\":%d,\"digit\":%d,"
+           "\"bits_set\":%u,\"id\":\"%s\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"llm_is_commander\":false}\n",
            rc >= 0 ? "true" : "false", rc == 1 ? "true" : "false",
            (int)c.status, dig, m.bits_set, c.id);
     return rc == 1 ? 0 : 1;
