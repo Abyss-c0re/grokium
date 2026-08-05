@@ -219,6 +219,106 @@ void fleet_deploy_json(gk_fleet *F, const char *path, char *out, size_t cap) {
            F->n, path_esc, alive);
 }
 
+/* Shared dual-wire tails — CLI + HTTP use identical product honesty. */
+#define FLEET_DUAL_WIRE_TAIL                                               \
+  "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","              \
+  "\"peer_http_is_product_bus\":false,"                                    \
+  "\"share\":\"state_matrix_only\",\"hold_flash\":1,"                      \
+  "\"llm_is_commander\":false"
+
+void fleet_spawn_err_json(const char *error, char *out, size_t cap) {
+  const char *err = error && error[0] ? error : "spawn_failed";
+  if (!out || cap < 64) return;
+  if (!strcmp(err, "need_bot_id")) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.nanobot_spawn.v1\",\"ok\":false,"
+             "\"error\":\"need_bot_id\"," FLEET_DUAL_WIRE_TAIL ","
+             "\"hint\":\"pass bot id e.g. nb-manager\"}");
+    return;
+  }
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.nanobot_spawn.v1\",\"ok\":false,"
+           "\"error\":\"%s\"," FLEET_DUAL_WIRE_TAIL "}",
+           err);
+}
+
+void fleet_spawn_json(gk_fleet *F, const char *id, int spawned,
+                      const char *path, char *out, size_t cap) {
+  char path_esc[640];
+  const char *bid = id && id[0] ? id : "*";
+  int alive, i;
+  if (!out || cap < 64) return;
+  if (!F) {
+    fleet_spawn_err_json("no_fleet", out, cap);
+    return;
+  }
+  alive = fleet_status(F);
+  path_escape(path ? path : "", path_esc, sizeof path_esc);
+  /* Single-bot: honest pid/running/status/wire (manager = smx_motivate). */
+  if (strcmp(bid, "*") != 0) {
+    for (i = 0; i < F->n; i++) {
+      const gk_bot *b = &F->bots[i];
+      char pid_buf[24];
+      if (strcmp(b->id, bid) != 0) continue;
+      if (b->pid > 0)
+        snprintf(pid_buf, sizeof pid_buf, "%d", b->pid);
+      else
+        snprintf(pid_buf, sizeof pid_buf, "null");
+      snprintf(out, cap,
+               "{\"schema\":\"grokium.nanobot_spawn.v1\",\"ok\":true,"
+               "\"spawned\":%d,\"id\":\"%s\",\"pid\":%s,\"running\":%s,"
+               "\"status\":\"%s\",\"alive\":%d,\"path\":\"%s\","
+               "\"wire\":\"%s\"," FLEET_DUAL_WIRE_TAIL "}",
+               spawned > 0 ? spawned : 1, b->id, pid_buf,
+               b->running ? "true" : "false",
+               b->running ? "running" : "separated", alive, path_esc,
+               strcmp(b->id, "nb-manager") == 0 ? "smx_motivate" : "smx2");
+      return;
+    }
+  }
+  /* spawn-all or unknown id after success path: aggregate plate. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.nanobot_spawn.v1\",\"ok\":true,"
+           "\"spawned\":%d,\"id\":\"%s\",\"alive\":%d,\"path\":\"%s\","
+           FLEET_DUAL_WIRE_TAIL "}",
+           spawned, bid, alive, path_esc);
+}
+
+void fleet_separate_err_json(const char *error, char *out, size_t cap) {
+  const char *err = error && error[0] ? error : "unknown_bot";
+  if (!out || cap < 64) return;
+  if (!strcmp(err, "need_bot_id")) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.nanobot_separate.v1\",\"ok\":false,"
+             "\"error\":\"need_bot_id\"," FLEET_DUAL_WIRE_TAIL ","
+             "\"hint\":\"pass bot id e.g. nb-manager\"}");
+    return;
+  }
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.nanobot_separate.v1\",\"ok\":false,"
+           "\"error\":\"%s\"," FLEET_DUAL_WIRE_TAIL "}",
+           err);
+}
+
+void fleet_separate_json(const char *id, const char *path, char *out,
+                         size_t cap) {
+  char path_esc[640];
+  const char *bid = id && id[0] ? id : "";
+  const char *wire =
+      strcmp(bid, "nb-manager") == 0 ? "smx_motivate" : "smx2";
+  if (!out || cap < 64) return;
+  if (!bid[0]) {
+    fleet_separate_err_json("need_bot_id", out, cap);
+    return;
+  }
+  path_escape(path ? path : "", path_esc, sizeof path_esc);
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.nanobot_separate.v1\",\"ok\":true,"
+           "\"id\":\"%s\",\"status\":\"separated\",\"pid\":null,"
+           "\"path\":\"%s\",\"wire\":\"%s\"," FLEET_DUAL_WIRE_TAIL "}",
+           bid, path_esc, wire);
+}
+
 int fleet_note_pid(gk_fleet *F, const char *bot_id, int pid) {
   int i;
   if (!F || !bot_id) return -1;

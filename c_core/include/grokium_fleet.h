@@ -41,6 +41,24 @@ void fleet_status_json(gk_fleet *F, char *out, size_t cap);
  * Spawn remains host responsibility until fleet_spawn.
  */
 void fleet_deploy_json(gk_fleet *F, const char *path, char *out, size_t cap);
+/*
+ * Dual-wire spawn ack (schema grokium.nanobot_spawn.v1).
+ * Call after fleet_spawn / fleet_spawn_all + fleet_save.
+ * id is bot token or "*" for spawn-all; spawned is count started.
+ * Single-bot plates include pid/running/status/wire honesty.
+ */
+void fleet_spawn_json(gk_fleet *F, const char *id, int spawned,
+                      const char *path, char *out, size_t cap);
+/* Dual-wire spawn deny (spawn_failed | spawn_all_failed | no_fleet | need_bot_id). */
+void fleet_spawn_err_json(const char *error, char *out, size_t cap);
+/*
+ * Dual-wire separate ack (schema grokium.nanobot_separate.v1).
+ * Call after fleet_separate + fleet_save; path is JSON-escaped.
+ */
+void fleet_separate_json(const char *id, const char *path, char *out,
+                         size_t cap);
+/* Dual-wire separate deny (need_bot_id | unknown_bot | no_fleet). */
+void fleet_separate_err_json(const char *error, char *out, size_t cap);
 /* Host/hub records a spawned bot pid (or -1 to clear). */
 int  fleet_note_pid(gk_fleet *F, const char *bot_id, int pid);
 /* Fork/exec F->binary (--home/--port/--offline). Peer HTTP = lab_ops only. */

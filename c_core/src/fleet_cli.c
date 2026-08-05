@@ -16,21 +16,6 @@ static const char k_need_subcmd[] =
     "\"hint\":\"defaults|deploy|save|status|spawn|spawn-all|note-pid|"
     "separate|stop-all|selftest\"}";
 
-static const char k_need_bot_id[] =
-    "{\"schema\":\"grokium.fleet_spawn.v1\",\"ok\":false,"
-    "\"error\":\"need_bot_id\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false,"
-    "\"hint\":\"pass bot id e.g. nb-manager\"}";
-
-static const char k_spawn_failed[] =
-    "{\"schema\":\"grokium.fleet_spawn.v1\",\"ok\":false,"
-    "\"error\":\"spawn_failed\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false}";
-
 static const char k_need_note_args[] =
     "{\"schema\":\"grokium.fleet_note_pid.v1\",\"ok\":false,"
     "\"error\":\"need_bot_id_pid\",\"product_wire\":\"smx2\","
@@ -39,13 +24,7 @@ static const char k_need_note_args[] =
     "\"llm_is_commander\":false,"
     "\"hint\":\"note-pid BOT_ID PID [path]\"}";
 
-static const char k_need_separate_id[] =
-    "{\"schema\":\"grokium.fleet_separate.v1\",\"ok\":false,"
-    "\"error\":\"need_bot_id\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false}";
-
+/* unknown_bot for note-pid (spawn/separate use schema-scoped shared helpers). */
 static const char k_unknown_bot[] =
     "{\"schema\":\"grokium.fleet_error.v1\",\"ok\":false,"
     "\"error\":\"unknown_bot\",\"product_wire\":\"smx2\","
@@ -123,15 +102,43 @@ static int fleet_selftest(void) {
     }
   }
   /* Deny plates dual-wire (usage/spawn/note/separate missing args). */
-  if (!strstr(k_need_subcmd, "\"error\":\"need_subcmd\"") ||
-      !plate_dual_wire_ok(k_need_subcmd) ||
-      !strstr(k_need_bot_id, "\"error\":\"need_bot_id\"") ||
-      !plate_dual_wire_ok(k_need_bot_id) || !plate_dual_wire_ok(k_spawn_failed) ||
-      !plate_dual_wire_ok(k_need_note_args) ||
-      !plate_dual_wire_ok(k_need_separate_id) ||
-      !plate_dual_wire_ok(k_unknown_bot)) {
-    fprintf(stderr, "selftest: fleet deny plate dual-wire fail\n");
-    return 1;
+  {
+    char den[512];
+    if (!strstr(k_need_subcmd, "\"error\":\"need_subcmd\"") ||
+        !plate_dual_wire_ok(k_need_subcmd) ||
+        !plate_dual_wire_ok(k_need_note_args) ||
+        !plate_dual_wire_ok(k_unknown_bot)) {
+      fprintf(stderr, "selftest: fleet deny plate dual-wire fail\n");
+      return 1;
+    }
+    fleet_spawn_err_json("need_bot_id", den, sizeof den);
+    if (!strstr(den, "\"schema\":\"grokium.nanobot_spawn.v1\"") ||
+        !strstr(den, "\"error\":\"need_bot_id\"") || !plate_dual_wire_ok(den)) {
+      fprintf(stderr, "selftest: spawn need_bot_id dual-wire fail: %.200s\n",
+              den);
+      return 1;
+    }
+    fleet_spawn_err_json("spawn_failed", den, sizeof den);
+    if (!strstr(den, "\"schema\":\"grokium.nanobot_spawn.v1\"") ||
+        !strstr(den, "\"error\":\"spawn_failed\"") ||
+        !plate_dual_wire_ok(den)) {
+      fprintf(stderr, "selftest: spawn_failed dual-wire fail: %.200s\n", den);
+      return 1;
+    }
+    fleet_separate_err_json("need_bot_id", den, sizeof den);
+    if (!strstr(den, "\"schema\":\"grokium.nanobot_separate.v1\"") ||
+        !strstr(den, "\"error\":\"need_bot_id\"") || !plate_dual_wire_ok(den)) {
+      fprintf(stderr, "selftest: separate need_bot_id dual-wire fail: %.200s\n",
+              den);
+      return 1;
+    }
+    fleet_separate_err_json("unknown_bot", den, sizeof den);
+    if (!strstr(den, "\"schema\":\"grokium.nanobot_separate.v1\"") ||
+        !strstr(den, "\"error\":\"unknown_bot\"") || !plate_dual_wire_ok(den)) {
+      fprintf(stderr, "selftest: separate unknown_bot dual-wire fail: %.200s\n",
+              den);
+      return 1;
+    }
   }
   self_pid = (int)getpid();
   if (fleet_note_pid(&F, "nb-manager", self_pid) != 0) {
@@ -246,9 +253,42 @@ static int fleet_selftest(void) {
       return 1;
     }
   }
+  /* CLI spawn/separate + HTTP share nanobot_spawn / nanobot_separate plates. */
+  {
+    char st[1024];
+    fleet_spawn_json(&F, "nb-manager", 1, path, st, sizeof st);
+    if (!plate_dual_wire_ok(st) ||
+        !strstr(st, "\"schema\":\"grokium.nanobot_spawn.v1\"") ||
+        !strstr(st, "\"ok\":true") || !strstr(st, "\"id\":\"nb-manager\"") ||
+        !strstr(st, "\"wire\":\"smx_motivate\"") ||
+        !strstr(st, "\"spawned\":1") || !strstr(st, "\"pid\":")) {
+      fprintf(stderr, "selftest: fleet_spawn_json dual-wire fail: %.250s\n",
+              st);
+      return 1;
+    }
+    fleet_spawn_json(&F, "*", 0, path, st, sizeof st);
+    if (!plate_dual_wire_ok(st) ||
+        !strstr(st, "\"schema\":\"grokium.nanobot_spawn.v1\"") ||
+        !strstr(st, "\"id\":\"*\"") || !strstr(st, "\"alive\":")) {
+      fprintf(stderr, "selftest: fleet_spawn_json * dual-wire fail: %.250s\n",
+              st);
+      return 1;
+    }
+    fleet_separate_json("nb-host", path, st, sizeof st);
+    if (!plate_dual_wire_ok(st) ||
+        !strstr(st, "\"schema\":\"grokium.nanobot_separate.v1\"") ||
+        !strstr(st, "\"ok\":true") || !strstr(st, "\"id\":\"nb-host\"") ||
+        !strstr(st, "\"status\":\"separated\"") ||
+        !strstr(st, "\"pid\":null") || !strstr(st, "\"wire\":\"smx2\"")) {
+      fprintf(stderr, "selftest: fleet_separate_json dual-wire fail: %.250s\n",
+              st);
+      return 1;
+    }
+  }
   printf("FLEET_SELFTEST_OK n=%d alive=1 nb_manager=1 product_wire=smx2 "
          "peer_http=lab_ops_only bot_dual_wire=1 purpose=honest "
-         "status_plate=nanobot_status_v1 deploy_plate=nanobot_deploy_v1\n",
+         "status_plate=nanobot_status_v1 deploy_plate=nanobot_deploy_v1 "
+         "spawn_plate=nanobot_spawn_v1 separate_plate=nanobot_separate_v1\n",
          F.n);
   return 0;
 }
@@ -308,51 +348,40 @@ int main(int argc, char **argv) {
   if (!strcmp(argv[1], "selftest"))
     return fleet_selftest();
   if (!strcmp(argv[1], "spawn")) {
-    int i;
+    char plate[1024];
     if (argc < 3) {
-      printf("%s\n", k_need_bot_id);
+      fleet_spawn_err_json("need_bot_id", plate, sizeof plate);
+      printf("%s\n", plate);
       return 2;
     }
     if (argc > 3) path = argv[3];
     fleet_load(&F, path);
     if (fleet_spawn(&F, argv[2]) != 0) {
-      printf("%s\n", k_spawn_failed);
+      fleet_spawn_err_json("spawn_failed", plate, sizeof plate);
+      printf("%s\n", plate);
       return 1;
     }
     fleet_save(&F, path);
-    for (i = 0; i < F.n; i++) {
-      if (strcmp(F.bots[i].id, argv[2]) != 0) continue;
-      /* Peer HTTP on bot ports is lab/ops; product talk stays SMX2. */
-      printf("{\"schema\":\"grokium.fleet_spawn.v1\",\"ok\":true,"
-             "\"id\":\"%s\",\"pid\":%d,\"running\":%s,"
-             "\"status\":\"%s\",\"path\":\"%s\",\"wire\":\"%s\","
-             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"llm_is_commander\":false}\n",
-             F.bots[i].id, F.bots[i].pid > 0 ? F.bots[i].pid : 0,
-             F.bots[i].running ? "true" : "false",
-             F.bots[i].running ? "running" : "separated", path,
-             strcmp(F.bots[i].id, "nb-manager") == 0 ? "smx_motivate" : "smx2");
-      return 0;
-    }
-    printf("%s\n", k_unknown_bot);
-    return 1;
+    /* Same dual-wire plate as POST /v1/nanobot/spawn. */
+    fleet_spawn_json(&F, argv[2], 1, path, plate, sizeof plate);
+    printf("%s\n", plate);
+    return 0;
   }
   if (!strcmp(argv[1], "spawn-all")) {
+    char plate[1024];
     int n;
     if (argc > 2) path = argv[2];
     fleet_load(&F, path);
     n = fleet_spawn_all(&F);
+    if (n < 0) {
+      fleet_spawn_err_json("spawn_all_failed", plate, sizeof plate);
+      printf("%s\n", plate);
+      return 1;
+    }
     fleet_save(&F, path);
-    if (n < 0) return 1;
-    printf("{\"schema\":\"grokium.fleet_spawn_all.v1\",\"ok\":true,"
-           "\"spawned\":%d,\"n\":%d,\"alive\":%d,\"path\":\"%s\","
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false}\n",
-           n, F.n, fleet_status(&F), path);
+    /* Shared nanobot_spawn plate (id="*") — same as HTTP empty-body spawn. */
+    fleet_spawn_json(&F, "*", n, path, plate, sizeof plate);
+    printf("%s\n", plate);
     return n > 0 ? 0 : 1;
   }
   if (!strcmp(argv[1], "note-pid")) {
@@ -387,32 +416,24 @@ int main(int argc, char **argv) {
     return 1;
   }
   if (!strcmp(argv[1], "separate")) {
-    int i;
+    char plate[1024];
     if (argc < 3) {
-      printf("%s\n", k_need_separate_id);
+      fleet_separate_err_json("need_bot_id", plate, sizeof plate);
+      printf("%s\n", plate);
       return 2;
     }
     if (argc > 3) path = argv[3];
     fleet_load(&F, path);
     if (fleet_separate(&F, argv[2]) != 0) {
-      printf("%s\n", k_unknown_bot);
+      fleet_separate_err_json("unknown_bot", plate, sizeof plate);
+      printf("%s\n", plate);
       return 1;
     }
     fleet_save(&F, path);
-    for (i = 0; i < F.n; i++) {
-      if (strcmp(F.bots[i].id, argv[2]) != 0) continue;
-      printf("{\"schema\":\"grokium.fleet_separate.v1\",\"ok\":true,"
-             "\"id\":\"%s\",\"status\":\"separated\","
-             "\"pid\":null,\"path\":\"%s\","
-             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"llm_is_commander\":false}\n",
-             F.bots[i].id, path);
-      return 0;
-    }
-    printf("%s\n", k_unknown_bot);
-    return 1;
+    /* Same dual-wire plate as POST /v1/nanobot/separate. */
+    fleet_separate_json(argv[2], path, plate, sizeof plate);
+    printf("%s\n", plate);
+    return 0;
   }
   if (!strcmp(argv[1], "stop-all")) {
     if (argc > 2) path = argv[2];

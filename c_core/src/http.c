@@ -762,7 +762,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
 
   if (!strcmp(path, "/v1/nanobot/separate") ||
       !strcmp(path, "/v1/nanobot/spawn")) {
-    char plate[512], plate_esc[640], id[64], id_raw[64], id_tok[64];
+    char plate[512], id[64], id_raw[64], id_tok[64];
     const char *src;
     size_t i, j;
     int do_spawn = !strcmp(path, "/v1/nanobot/spawn");
@@ -771,16 +771,11 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       return;
     }
     if (!F) {
-      /* Schema-scoped fleet deny (match fleet_cli dual-wire). */
-      snprintf(resp, sizeof resp,
-               "{\"schema\":\"%s\",\"ok\":false,"
-               "\"error\":\"no_fleet\",\"product_wire\":\"smx2\","
-               "\"peer_http\":\"lab_ops_only\","
-               "\"peer_http_is_product_bus\":false,"
-               "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-               "\"llm_is_commander\":false}",
-               do_spawn ? "grokium.nanobot_spawn.v1"
-                        : "grokium.nanobot_separate.v1");
+      /* Schema-scoped fleet deny (shared with fleet_cli dual-wire). */
+      if (do_spawn)
+        fleet_spawn_err_json("no_fleet", resp, sizeof resp);
+      else
+        fleet_separate_err_json("no_fleet", resp, sizeof resp);
       http_reply(cfd, 500, "application/json", resp);
       return;
     }
@@ -821,79 +816,39 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       int n;
       if (id[0]) {
         if (fleet_spawn(F, id) != 0) {
-          /* Match fleet_cli spawn_failed plate (schema-scoped dual-wire). */
-          http_reply(cfd, 500, "application/json",
-                     "{\"schema\":\"grokium.nanobot_spawn.v1\",\"ok\":false,"
-                     "\"error\":\"spawn_failed\",\"product_wire\":\"smx2\","
-                     "\"peer_http\":\"lab_ops_only\","
-                     "\"peer_http_is_product_bus\":false,"
-                     "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                     "\"llm_is_commander\":false}");
+          fleet_spawn_err_json("spawn_failed", resp, sizeof resp);
+          http_reply(cfd, 500, "application/json", resp);
           return;
         }
         n = 1;
       } else {
         n = fleet_spawn_all(F);
         if (n < 0) {
-          http_reply(cfd, 500, "application/json",
-                     "{\"schema\":\"grokium.nanobot_spawn.v1\",\"ok\":false,"
-                     "\"error\":\"spawn_all_failed\",\"product_wire\":\"smx2\","
-                     "\"peer_http\":\"lab_ops_only\","
-                     "\"peer_http_is_product_bus\":false,"
-                     "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                     "\"llm_is_commander\":false}");
+          fleet_spawn_err_json("spawn_all_failed", resp, sizeof resp);
+          http_reply(cfd, 500, "application/json", resp);
           return;
         }
       }
       snprintf(plate, sizeof plate, "%s/home/FLEET.json", root);
       fleet_save(F, plate);
-      json_escape(plate, plate_esc, sizeof plate_esc);
-      /* Peer HTTP on bot ports is lab/ops; product talk stays SMX2. */
-      snprintf(resp, sizeof resp,
-               "{\"schema\":\"grokium.nanobot_spawn.v1\",\"ok\":true,"
-               "\"spawned\":%d,\"id\":\"%s\",\"alive\":%d,"
-               "\"path\":\"%s\",\"product_wire\":\"smx2\","
-               "\"peer_http\":\"lab_ops_only\","
-               "\"peer_http_is_product_bus\":false,"
-               "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-               "\"llm_is_commander\":false}",
-               n, id[0] ? id : "*", fleet_status(F), plate_esc);
+      /* Shared spawn plate with fleet CLI (pid honesty when single bot). */
+      fleet_spawn_json(F, id[0] ? id : "*", n, plate, resp, sizeof resp);
       http_reply(cfd, 200, "application/json", resp);
       return;
     }
     if (!id[0]) {
-      http_reply(cfd, 400, "application/json",
-                 "{\"schema\":\"grokium.nanobot_separate.v1\",\"ok\":false,"
-                 "\"error\":\"need_bot_id\",\"product_wire\":\"smx2\","
-                 "\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                 "\"llm_is_commander\":false,"
-                 "\"hint\":\"pass bot id e.g. nb-manager\"}");
+      fleet_separate_err_json("need_bot_id", resp, sizeof resp);
+      http_reply(cfd, 400, "application/json", resp);
       return;
     }
     if (fleet_separate(F, id) != 0) {
-      http_reply(cfd, 404, "application/json",
-                 "{\"schema\":\"grokium.nanobot_separate.v1\",\"ok\":false,"
-                 "\"error\":\"unknown_bot\",\"product_wire\":\"smx2\","
-                 "\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                 "\"llm_is_commander\":false}");
+      fleet_separate_err_json("unknown_bot", resp, sizeof resp);
+      http_reply(cfd, 404, "application/json", resp);
       return;
     }
     snprintf(plate, sizeof plate, "%s/home/FLEET.json", root);
     fleet_save(F, plate);
-    json_escape(plate, plate_esc, sizeof plate_esc);
-    snprintf(resp, sizeof resp,
-             "{\"schema\":\"grokium.nanobot_separate.v1\",\"ok\":true,"
-             "\"id\":\"%s\",\"status\":\"separated\","
-             "\"path\":\"%s\",\"product_wire\":\"smx2\",\"wire\":\"smx2\","
-             "\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"llm_is_commander\":false}",
-             id, plate_esc);
+    fleet_separate_json(id, plate, resp, sizeof resp);
     http_reply(cfd, 200, "application/json", resp);
     return;
   }

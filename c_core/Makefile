@@ -231,7 +231,8 @@ test-fleet: $(BUILD)/grokium-fleet
 	echo "$$OUT" | grep -q '"peer_http":"lab_ops_only"'; \
 	echo "$$OUT" | grep -q '"pid":null'; \
 	OUT=$$($(BUILD)/grokium-fleet separate nb-host $$P); \
-	echo "$$OUT" | grep -q '"schema":"grokium.fleet_separate.v1"'; \
+	echo "$$OUT" | grep -q '"schema":"grokium.nanobot_separate.v1"'; \
+	echo "$$OUT" | grep -q '"status":"separated"'; \
 	echo "$$OUT" | grep -q '"llm_is_commander":false'; \
 	OUT=$$($(BUILD)/grokium-fleet stop-all $$P); \
 	echo "$$OUT" | grep -q '"schema":"grokium.fleet_stop.v1"'; \
