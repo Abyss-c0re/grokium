@@ -1471,7 +1471,17 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       return;
     }
     if (!F) {
-      http_reply_err(cfd, 500, "no_fleet");
+      /* Schema-scoped fleet deny (match fleet_cli dual-wire). */
+      snprintf(resp, sizeof resp,
+               "{\"schema\":\"%s\",\"ok\":false,"
+               "\"error\":\"no_fleet\",\"product_wire\":\"smx2\","
+               "\"peer_http\":\"lab_ops_only\","
+               "\"peer_http_is_product_bus\":false,"
+               "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+               "\"llm_is_commander\":false}",
+               do_spawn ? "grokium.nanobot_spawn.v1"
+                        : "grokium.nanobot_separate.v1");
+      http_reply(cfd, 500, "application/json", resp);
       return;
     }
     /* body: raw bot id, empty=spawn-all, or {"id":"nb-…"} */
@@ -1499,14 +1509,27 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       int n;
       if (id[0]) {
         if (fleet_spawn(F, id) != 0) {
-          http_reply_err(cfd, 500, "spawn_failed");
+          /* Match fleet_cli spawn_failed plate (schema-scoped dual-wire). */
+          http_reply(cfd, 500, "application/json",
+                     "{\"schema\":\"grokium.nanobot_spawn.v1\",\"ok\":false,"
+                     "\"error\":\"spawn_failed\",\"product_wire\":\"smx2\","
+                     "\"peer_http\":\"lab_ops_only\","
+                     "\"peer_http_is_product_bus\":false,"
+                     "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                     "\"llm_is_commander\":false}");
           return;
         }
         n = 1;
       } else {
         n = fleet_spawn_all(F);
         if (n < 0) {
-          http_reply_err(cfd, 500, "spawn_all_failed");
+          http_reply(cfd, 500, "application/json",
+                     "{\"schema\":\"grokium.nanobot_spawn.v1\",\"ok\":false,"
+                     "\"error\":\"spawn_all_failed\",\"product_wire\":\"smx2\","
+                     "\"peer_http\":\"lab_ops_only\","
+                     "\"peer_http_is_product_bus\":false,"
+                     "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                     "\"llm_is_commander\":false}");
           return;
         }
       }
@@ -1526,11 +1549,24 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       return;
     }
     if (!id[0]) {
-      http_reply_err(cfd, 400, "need_bot_id");
+      http_reply(cfd, 400, "application/json",
+                 "{\"schema\":\"grokium.nanobot_separate.v1\",\"ok\":false,"
+                 "\"error\":\"need_bot_id\",\"product_wire\":\"smx2\","
+                 "\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false,"
+                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                 "\"llm_is_commander\":false,"
+                 "\"hint\":\"pass bot id e.g. nb-manager\"}");
       return;
     }
     if (fleet_separate(F, id) != 0) {
-      http_reply_err(cfd, 404, "unknown_bot");
+      http_reply(cfd, 404, "application/json",
+                 "{\"schema\":\"grokium.nanobot_separate.v1\",\"ok\":false,"
+                 "\"error\":\"unknown_bot\",\"product_wire\":\"smx2\","
+                 "\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false,"
+                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                 "\"llm_is_commander\":false}");
       return;
     }
     snprintf(plate, sizeof plate, "%s/home/FLEET.json", root);

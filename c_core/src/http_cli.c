@@ -403,6 +403,62 @@ static int selftest(void) {
       fails++;
     }
   }
+  /* separate missing id → schema-scoped need_bot_id dual-wire */
+  if (http_post("127.0.0.1", port, "/v1/nanobot/separate", "", resp,
+                sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "400") && !strstr(b, "need_bot_id")) ||
+        !strstr(b, "\"schema\":\"grokium.nanobot_separate.v1\"") ||
+        !strstr(b, "\"error\":\"need_bot_id\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"hold_flash\":1")) {
+      fprintf(stderr, "selftest: nanobot separate need_bot_id fail: %.400s\n",
+              b);
+      fails++;
+    }
+  }
+  /* unknown bot separate → unknown_bot dual-wire */
+  if (http_post("127.0.0.1", port, "/v1/nanobot/separate", "not-a-real-bot",
+                resp, sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "404") && !strstr(b, "unknown_bot")) ||
+        !strstr(b, "\"schema\":\"grokium.nanobot_separate.v1\"") ||
+        !strstr(b, "\"error\":\"unknown_bot\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"hold_flash\":1")) {
+      fprintf(stderr, "selftest: nanobot separate unknown dual-wire fail: %.400s\n",
+              b);
+      fails++;
+    }
+  }
+  /* spawn unknown id → spawn_failed schema dual-wire (no generic error.v1) */
+  if (http_post("127.0.0.1", port, "/v1/nanobot/spawn", "not-a-real-bot", resp,
+                sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "500") && !strstr(b, "spawn_failed")) ||
+        !strstr(b, "\"schema\":\"grokium.nanobot_spawn.v1\"") ||
+        !strstr(b, "\"error\":\"spawn_failed\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"hold_flash\":1") ||
+        strstr(b, "\"schema\":\"grokium.error.v1\"")) {
+      fprintf(stderr, "selftest: nanobot spawn_failed dual-wire fail: %.400s\n",
+              b);
+      fails++;
+    }
+  }
   if (http_get("127.0.0.1", port, "/v1/matrix/latest", resp, sizeof resp) < 0)
     fails++;
   else {
