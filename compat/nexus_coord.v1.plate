@@ -1,1 +1,1 @@
-NEXUS_COORD v1 | from=compat | type=heartbeat | role=SIDE_organ | status=ONLINE | HOLD_FLASH=ack_held | hive_mind=1 | observer=NexusCore |
+NEXUS_COORD v1 | from=compat | type=heartbeat | role=SIDE_organ | status=ONLINE | HOLD_FLASH=ack_held | hive_mind=1 | observer=NexusCore | share=state_matrix_only | product_wire=smx2 | peer_http=lab_ops_only | peer_http_is_product_bus=0 | llm_is_commander=0 |

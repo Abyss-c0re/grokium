@@ -30,9 +30,13 @@ int main(int argc, char **argv) {
   }
 
   if (!strcmp(argv[1], "heartbeat-ack")) {
+    /* Machine NEXUS_COORD with dual-wire honesty (SMX product bus ≠ peer HTTP). */
     printf("NEXUS_COORD v1 | from=grokium-core | type=heartbeat_ack | "
            "role=kernel_sot | status=ONLINE | HOLD_FLASH=ack_held | "
-           "observer=NexusCore | hive_mind=1 | filter=1 |\n");
+           "observer=NexusCore | hive_mind=1 | filter=1 | "
+           "share=state_matrix_only | product_wire=smx2 | "
+           "peer_http=lab_ops_only | peer_http_is_product_bus=0 | "
+           "llm_is_commander=0 |\n");
     return 0;
   }
 

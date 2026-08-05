@@ -91,6 +91,15 @@ test-commander: $(BIN_CMD)
 test-filter: $(BIN_FILTER)
 	@set -e; \
 	$(BIN_FILTER) instinct | grep -q NexusCore; \
+	HB=$$($(BIN_FILTER) heartbeat-ack); \
+	echo "$$HB" | grep -q 'NEXUS_COORD v1'; \
+	echo "$$HB" | grep -q 'type=heartbeat_ack'; \
+	echo "$$HB" | grep -q 'product_wire=smx2'; \
+	echo "$$HB" | grep -q 'peer_http=lab_ops_only'; \
+	echo "$$HB" | grep -q 'peer_http_is_product_bus=0'; \
+	echo "$$HB" | grep -q 'share=state_matrix_only'; \
+	echo "$$HB" | grep -q 'llm_is_commander=0'; \
+	$(BIN_FILTER) allow-check "$$HB" | grep -q '"allow":true'; \
 	A=$$($(BIN_FILTER) allow-check 'NEXUS_COORD v1 | from=x | type=heartbeat |'); \
 	echo "$$A" | grep -q '"allow":true'; \
 	echo "$$A" | grep -q '"product_wire":"smx2"'; \
@@ -206,6 +215,9 @@ hive: test-filter test-consolidate test-serve test-commander test-integrity \
 	test-fleet $(BUILD)/grokium-fleet
 	@$(BUILD)/grokium-fleet defaults | grep -q nb-manager
 	@set -e; \
+	grep -q 'product_wire=smx2' ../compat/nexus_coord.v1.plate; \
+	grep -q 'peer_http_is_product_bus=0' ../compat/nexus_coord.v1.plate; \
+	grep -q 'llm_is_commander=0' ../compat/nexus_coord.v1.plate; \
 	$(BIN_FILTER) allow-check "$$(cat ../compat/nexus_coord.v1.plate)" | grep -q '"allow":true'; \
 	$(BIN_FILTER) allow-check "$$(cat ../compat/smx.bits.v1.plate)" | grep -q '"allow":true'; \
 	$(BIN_FILTER) allow-check "$$(cat ../compat/nexus_coord.smuggle.plate)" | grep -q '"allow":false'; \
