@@ -624,6 +624,35 @@ void grokium_manager_tick_json(int motivated, const char *dir, char *out,
            motivated < 0 ? 0 : motivated, dir_esc);
 }
 
+void grokium_instinct_json(char *out, size_t cap) {
+  const char *creed;
+  if (!out || cap < 64) return;
+  creed = grokium_hive_instinct_creed();
+  /* Static creed has no JSON metacharacters; dual-wire plate for CLI + HTTP. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.instinct.v1\",\"ok\":true,"
+           "\"creed\":\"%s\",\"share\":\"state_matrix_only\","
+           "\"hold_flash\":1,\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+           "\"observer\":\"NexusCore\"}",
+           creed ? creed : "");
+}
+
+void grokium_smx_allow_json(int allow, int prose, char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Host filter path + CLI allow-check: dual-wire honesty required. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.smx_allow.v1\",\"allow\":%s,\"prose\":%s,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+           "\"origin\":\"external\"}",
+           allow ? "true" : "false", prose ? "true" : "false");
+}
+
 /* Shared dual-wire tails for contract lifecycle plates. */
 #define CONTRACT_DUAL_WIRE_TAIL                                            \
   "\"product_wire\":\"smx2\",\"wire\":\"smx2\","                           \

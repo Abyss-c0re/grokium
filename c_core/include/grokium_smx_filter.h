@@ -100,4 +100,16 @@ void grokium_contract_validate_err_json(const char *error, char *out,
 /* Instinct attitude line for core nanobot system memory (static string). */
 const char *grokium_hive_instinct_creed(void);
 
+/*
+ * Dual-wire instinct plate (schema grokium.instinct.v1).
+ * CLI instinct and GET /v1/instinct share this plate (creed + honesty keys).
+ */
+void grokium_instinct_json(char *out, size_t cap);
+
+/*
+ * Dual-wire SMX allow-check plate (schema grokium.smx_allow.v1).
+ * CLI allow-check and host filter selftests share this plate.
+ */
+void grokium_smx_allow_json(int allow, int prose, char *out, size_t cap);
+
 #endif

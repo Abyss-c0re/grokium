@@ -51,6 +51,29 @@ int main(void) {
   if (grokium_smx_filter_is_prose(good, strlen(good)) != 0)
     return fail("is_prose should pass machine plate");
 
-  printf("HOST_SMX_FILTER_OK external=strict hold_flash=1 dual_wire=gate\n");
+  /* Shared allow plate dual-wire honesty (CLI allow-check same builder). */
+  {
+    char plate[512];
+    int allow = grokium_smx_filter_allow_frame(&L, (const uint8_t *)good,
+                                               strlen(good), 1);
+    int prose_f = grokium_smx_filter_is_prose(good, strlen(good));
+    grokium_smx_allow_json(allow, prose_f, plate, sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.smx_allow.v1\"") ||
+        !strstr(plate, "\"allow\":true") || !strstr(plate, "\"prose\":false") ||
+        !strstr(plate, "\"product_wire\":\"smx2\"") ||
+        !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+        !strstr(plate, "\"llm_is_commander\":false") ||
+        !strstr(plate, "\"hold_flash\":1"))
+      return fail("smx_allow dual-wire plate fail");
+    grokium_instinct_json(plate, sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.instinct.v1\"") ||
+        !strstr(plate, "HIVE_MIND") ||
+        !strstr(plate, "\"product_wire\":\"smx2\"") ||
+        !strstr(plate, "\"llm_on_hot_path\":false"))
+      return fail("instinct dual-wire plate fail");
+  }
+
+  printf("HOST_SMX_FILTER_OK external=strict hold_flash=1 dual_wire=gate "
+         "allow_plate=1 instinct_plate=1\n");
   return 0;
 }

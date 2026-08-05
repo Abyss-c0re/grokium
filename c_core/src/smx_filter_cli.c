@@ -73,7 +73,10 @@ int main(int argc, char **argv) {
   }
 
   if (!strcmp(argv[1], "instinct")) {
-    printf("%s\n", grokium_hive_instinct_creed());
+    char plate[1024];
+    /* Same dual-wire plate as GET /v1/instinct (creed embedded). */
+    grokium_instinct_json(plate, sizeof plate);
+    printf("%s\n", plate);
     return 0;
   }
 
@@ -89,6 +92,7 @@ int main(int argc, char **argv) {
   }
 
   if (!strcmp(argv[1], "allow-check")) {
+    char plate[512];
     grokium_law L;
     const char *s = argc > 2 ? argv[2] : "";
     int allow, prose;
@@ -96,14 +100,8 @@ int main(int argc, char **argv) {
     allow =
         grokium_smx_filter_allow_frame(&L, (const uint8_t *)s, strlen(s), 1);
     prose = grokium_smx_filter_is_prose(s, strlen(s));
-    /* Host filter path surfaces this plate; dual-wire honesty required. */
-    printf("{\"schema\":\"grokium.smx_allow.v1\",\"allow\":%s,\"prose\":%s,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-           "\"origin\":\"external\"}\n",
-           allow ? "true" : "false", prose ? "true" : "false");
+    grokium_smx_allow_json(allow, prose, plate, sizeof plate);
+    printf("%s\n", plate);
     return 0;
   }
 

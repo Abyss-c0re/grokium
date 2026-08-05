@@ -1179,16 +1179,8 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       http_reply_err(cfd, 405, "method");
       return;
     }
-    /* Lab/ops creed plate; dual-wire honesty (product bus remains SMX2). */
-    snprintf(resp, sizeof resp,
-             "{\"schema\":\"grokium.instinct.v1\",\"ok\":true,"
-             "\"creed\":\"%s\",\"share\":\"state_matrix_only\","
-             "\"hold_flash\":1,\"product_wire\":\"smx2\","
-             "\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-             "\"observer\":\"NexusCore\"}",
-             grokium_hive_instinct_creed());
+    /* Shared instinct plate with smx-filter CLI (product bus remains SMX2). */
+    grokium_instinct_json(resp, sizeof resp);
     http_reply(cfd, 200, "application/json", resp);
     return;
   }
