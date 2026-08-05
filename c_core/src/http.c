@@ -26,8 +26,6 @@
 #define GK_HTTP_REQ_MAX  16384
 #define GK_HTTP_BODY_MAX 8192
 #define GK_HTTP_RESP_MAX (GROKIUM_CELLS + 8192)
-#define GK_SESSIONS_MAX  8
-#define GK_SESSIONS_SCAN 600
 
 /* Short machine token for JSON plates (drop free-text / path inject). */
 static void machine_token(const char *in, char *out, size_t cap) {
@@ -704,191 +702,6 @@ static void json_cube_status(const gk_consolidator *C, const grokium_law *L,
            cpath_esc, ncont, mpath_esc, nmat);
 }
 
-static int contains_ci(const char *hay, const char *needle) {
-  size_t nlen, hlen, i, j;
-  if (!needle || !needle[0]) return 1;
-  if (!hay) return 0;
-  nlen = strlen(needle);
-  hlen = strlen(hay);
-  if (nlen > hlen) return 0;
-  for (i = 0; i + nlen <= hlen; i++) {
-    for (j = 0; j < nlen; j++) {
-      char a = hay[i + j], b = needle[j];
-      if (a >= 'A' && a <= 'Z') a = (char)(a + 32);
-      if (b >= 'A' && b <= 'Z') b = (char)(b + 32);
-      if (a != b) break;
-    }
-    if (j == nlen) return 1;
-  }
-  return 0;
-}
-
-/* Compact meta plate — no transcript (meta_only). */
-static int session_compact_from_meta(const char *meta, size_t n, char *out,
-                                     size_t cap) {
-  char id[96], title[96], updated[48], model[48];
-  int msgs = 0;
-  char title_esc[128], model_esc[64], updated_esc[96];
-  if (!meta || !out || cap < 32) return -1;
-  id[0] = title[0] = updated[0] = model[0] = 0;
-  json_get_str(meta, n, "id", id, sizeof id);
-  json_get_str(meta, n, "title", title, sizeof title);
-  json_get_str(meta, n, "updated_at", updated, sizeof updated);
-  json_get_str(meta, n, "model", model, sizeof model);
-  msgs = json_get_int(meta, n, "num_chat_messages", 0);
-  /* Fail closed: only hex/dash ids reach the plate (no JSON injection). */
-  if (!gk_session_id_safe(id)) return -1;
-  if (!title[0]) snprintf(title, sizeof title, "%s", id);
-  /* cap long titles for lab plate size */
-  if (strlen(title) > 48) title[48] = 0;
-  json_escape(title, title_esc, sizeof title_esc);
-  json_escape(model, model_esc, sizeof model_esc);
-  json_escape(updated, updated_esc, sizeof updated_esc);
-  snprintf(out, cap,
-           "{\"id\":\"%s\",\"title\":\"%s\",\"updated_at\":\"%s\","
-           "\"num_chat_messages\":%d,\"model\":\"%s\"}",
-           id, title_esc, updated_esc, msgs, model_esc);
-  return 0;
-}
-
-/*
- * List/search imported session metas under {root}/import/*.meta.json.
- * Meta only — never dumps chat transcripts (share discipline).
- */
-static void sessions_search(const char *root, const char *q, char *out,
-                            size_t cap) {
-  char dir[400], path[480], meta[2048], entry[320], q_esc[128], dir_esc[512];
-  DIR *d;
-  struct dirent *e;
-  int matched = 0, scanned = 0, total_meta = 0;
-  size_t used, nread;
-  FILE *f;
-
-  if (!out || cap < 64) return;
-  json_escape(q ? q : "", q_esc, sizeof q_esc);
-  snprintf(dir, sizeof dir, "%s/import", root && root[0] ? root : "data");
-  d = opendir(dir);
-  if (!d) {
-    (void)gk_session_list_empty_json(q, dir, "no_import_dir", out, cap);
-    return;
-  }
-  /* Match empty-list helper: escape import_dir (root may carry inject chars). */
-  json_escape(dir, dir_esc, sizeof dir_esc);
-  used = (size_t)snprintf(
-      out, cap,
-      "{\"schema\":\"grokium.sessions.v1\",\"ok\":true,"
-      "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
-      "\"peer_http\":\"lab_ops_only\","
-      "\"peer_http_is_product_bus\":false,"
-      "\"llm_is_commander\":false,"
-      "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-      "\"telemetry\":\"off\",\"q\":\"%s\",\"import_dir\":\"%s\","
-      "\"sessions\":[",
-      q_esc, dir_esc);
-
-  while ((e = readdir(d)) != NULL && matched < GK_SESSIONS_MAX &&
-         scanned < GK_SESSIONS_SCAN) {
-    size_t len = strlen(e->d_name);
-    if (len < 11 || strcmp(e->d_name + len - 10, ".meta.json") != 0)
-      continue;
-    total_meta++;
-    scanned++;
-    snprintf(path, sizeof path, "%s/%s", dir, e->d_name);
-    f = fopen(path, "r");
-    if (!f) continue;
-    nread = fread(meta, 1, sizeof meta - 1, f);
-    meta[nread] = 0;
-    fclose(f);
-    if (q && q[0] && !contains_ci(meta, q) && !contains_ci(e->d_name, q))
-      continue;
-    if (session_compact_from_meta(meta, nread, entry, sizeof entry) != 0)
-      continue;
-    if (used + strlen(entry) + 4 >= cap) break;
-    used += (size_t)snprintf(out + used, cap - used, "%s%s",
-                             matched ? "," : "", entry);
-    matched++;
-  }
-  closedir(d);
-  if (used + 80 < cap)
-    snprintf(out + used, cap - used,
-             "],\"n\":%d,\"scanned\":%d,\"meta_seen\":%d,"
-             "\"limit\":%d,\"resume\":\"host_tui_pickup\"}",
-             matched, scanned, total_meta, GK_SESSIONS_MAX);
-}
-
-/* Presence of chat_history only — never load transcript onto lab/ops wire. */
-static int session_resume_available(const char *root, const char *id,
-                                    const char *meta, size_t nmeta) {
-  char import_path[400], hist[480];
-  const char *h;
-  size_t hl;
-  if (!id || !id[0]) return 0;
-  import_path[0] = 0;
-  if (meta && nmeta)
-    json_get_str(meta, nmeta, "import_path", import_path, sizeof import_path);
-  if (!import_path[0] && meta && nmeta)
-    json_get_str(meta, nmeta, "source", import_path, sizeof import_path);
-  h = getenv("HOME");
-  hl = (h && h[0]) ? strlen(h) : 0;
-  if (import_path[0] == '/') {
-    int allow = 0;
-    if (hl && strncmp(import_path, h, hl) == 0 &&
-        (import_path[hl] == '/' || import_path[hl] == 0))
-      allow = 1;
-    /* also allow under data root parent when absolute path is repo-local */
-    if (!allow && root && root[0] && strstr(import_path, "/data/import/"))
-      allow = 1;
-    if (allow) {
-      snprintf(hist, sizeof hist, "%s/chat_history.jsonl", import_path);
-      if (access(hist, R_OK) == 0) return 1;
-    }
-  }
-  snprintf(hist, sizeof hist, "%s/import/%s/chat_history.jsonl",
-           root && root[0] ? root : "data", id);
-  return access(hist, R_OK) == 0 ? 1 : 0;
-}
-
-static int session_pickup(const char *root, const char *id, char *out,
-                          size_t cap) {
-  char path[480], meta[2048], entry[320];
-  FILE *f;
-  size_t nread;
-  int resume_ok;
-  if (!out || cap < 64 || !gk_session_id_safe(id)) {
-    if (out && cap)
-      (void)gk_session_pickup_deny_json(NULL, "bad_session_id", out, cap);
-    return -1;
-  }
-  snprintf(path, sizeof path, "%s/import/%s.meta.json",
-           root && root[0] ? root : "data", id);
-  f = fopen(path, "r");
-  if (!f) {
-    (void)gk_session_pickup_deny_json(id, "not_found", out, cap);
-    return -1;
-  }
-  nread = fread(meta, 1, sizeof meta - 1, f);
-  meta[nread] = 0;
-  fclose(f);
-  if (session_compact_from_meta(meta, nread, entry, sizeof entry) != 0) {
-    (void)gk_session_pickup_deny_json(id, "bad_meta", out, cap);
-    return -1;
-  }
-  resume_ok = session_resume_available(root, id, meta, nread);
-  snprintf(out, cap,
-           "{\"schema\":\"grokium.session_pickup.v1\",\"ok\":true,"
-           "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"llm_is_commander\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"telemetry\":\"off\",\"resume\":\"host_tui_pickup\","
-           "\"resume_available\":%s,"
-           "\"hint\":\"TUI /pickup loads host-local history only\","
-           "\"session\":%s}",
-           resume_ok ? "true" : "false", entry);
-  return 0;
-}
-
 static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
                    const char *data_root) {
   char req[GK_HTTP_REQ_MAX];
@@ -1037,7 +850,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       http_reply_err(cfd, 405, "method");
       return;
     }
-    sessions_search(root, q, resp, sizeof resp);
+    gk_session_list_json(root, q, resp, sizeof resp);
     http_reply(cfd, 200, "application/json", resp);
     return;
   }
@@ -1073,7 +886,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       http_reply(cfd, 400, "application/json", resp);
       return;
     }
-    rc = session_pickup(root, id, resp, sizeof resp);
+    rc = gk_session_pickup_json(root, id, resp, sizeof resp);
     http_reply(cfd, rc == 0 ? 200 : 404, "application/json", resp);
     return;
   }

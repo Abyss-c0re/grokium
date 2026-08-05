@@ -6,6 +6,13 @@
 
 #include <stddef.h>
 
+#ifndef GK_SESSIONS_MAX
+#define GK_SESSIONS_MAX  8
+#endif
+#ifndef GK_SESSIONS_SCAN
+#define GK_SESSIONS_SCAN 600
+#endif
+
 /* Hex digits + dashes only; length 1..80. */
 int gk_session_id_safe(const char *id);
 
@@ -23,5 +30,19 @@ int gk_session_pickup_deny_json(const char *id, const char *error, char *out,
  */
 int gk_session_list_empty_json(const char *q, const char *import_dir,
                                const char *error, char *out, size_t cap);
+
+/*
+ * List/search import metas under {data_root}/import (suffix .meta.json).
+ * Meta only — never dumps chat transcripts. Fills dual-wire plate in out.
+ */
+void gk_session_list_json(const char *data_root, const char *q, char *out,
+                          size_t cap);
+
+/*
+ * Pickup one session meta by hex id. Returns 0 ok, -1 with deny plate in out.
+ * Never loads chat transcripts onto the plate.
+ */
+int gk_session_pickup_json(const char *data_root, const char *id, char *out,
+                           size_t cap);
 
 #endif
