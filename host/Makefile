@@ -34,7 +34,7 @@ SRCS := src/grokium_main.c src/grokium_tui.c src/grokium_chat.c \
 	src/grokium_media.c src/grokium_status.c
 
 .PHONY: all clean nanobot install test-status test-version-compat \
-	test-hub-status test-memory-seed test
+	test-hub-status test-memory-seed test-media-plate test
 
 all: nanobot out/grokium
 
@@ -73,6 +73,13 @@ out/memory_seed_selftest: tests/memory_seed_selftest.c src/grokium_chat.c \
 	@mkdir -p out
 	$(CC) $(CFLAGS) -o $@ tests/memory_seed_selftest.c src/grokium_chat.c $(LIBS)
 
+# Media mime + dual-wire honesty plate — no nanobot/ncurses link.
+out/media_plate_selftest: tests/media_plate_selftest.c src/grokium_media.c \
+	include/grokium_media.h include/grokium_config.h include/grokium.h
+	@mkdir -p out
+	$(CC) $(CFLAGS) -DGKX_MEDIA_NO_NANOBOT -o $@ \
+		tests/media_plate_selftest.c src/grokium_media.c
+
 test-status: out/status_probe_selftest
 	@./out/status_probe_selftest
 
@@ -85,11 +92,15 @@ test-hub-status: out/hub_status_selftest
 test-memory-seed: out/memory_seed_selftest
 	@./out/memory_seed_selftest
 
-test: test-status test-version-compat test-hub-status test-memory-seed
+test-media-plate: out/media_plate_selftest
+	@./out/media_plate_selftest
+
+test: test-status test-version-compat test-hub-status test-memory-seed \
+	test-media-plate
 
 clean:
 	rm -f out/grokium out/status_probe_selftest out/version_compat_selftest \
-		out/hub_status_selftest out/memory_seed_selftest
+		out/hub_status_selftest out/memory_seed_selftest out/media_plate_selftest
 
 install: all
 	install -m755 out/grokium $(HOME)/.local/bin/grokium

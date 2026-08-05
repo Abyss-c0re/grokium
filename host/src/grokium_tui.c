@@ -1767,15 +1767,20 @@ static void do_command(const char *raw) {
     snprintf(line, sizeof line, "file %s (%zu bytes, %s)", path, raw_n, mime);
     log_add(line);
     if (gkx_path_is_image(path)) {
-      char reply[16384], err[400];
-      reply[0] = err[0] = 0;
-      log_add("vision…");
+      char reply[16384], err[400], plate[512];
+      reply[0] = err[0] = plate[0] = 0;
+      log_add("vision… · product_wire=smx2 · peer_http=lab_ops_only");
       draw();
       int rc = gkx_chat_vision(&cfg, prompt[0] ? prompt : "Describe this image in detail.",
                                path, reply, sizeof reply, err, sizeof err);
       int a = blk_push(BK_ASST, NULL);
       if (rc == 0 && reply[0]) blk_append_str(a, reply);
-      else blk_append_str(a, err[0] ? err : "vision failed");
+      else blk_append_str(a, err[0] ? err : "vision_failed");
+      /* Meta-only dual-wire plate (no image bytes on the log wire). */
+      if (gkx_media_plate_json(path, rc == 0 && reply[0],
+                               rc == 0 ? NULL : (err[0] ? err : "vision_failed"),
+                               plate, sizeof plate) == 0)
+        log_add(plate);
     } else if (!strncmp(mime, "text/", 5) || strstr(mime, "json") || strstr(mime, "xml")) {
       /* raw text — inject into chat as user attachment context */
       size_t cap = raw_n > 12000 ? 12000 : raw_n;

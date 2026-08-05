@@ -1,19 +1,22 @@
 #define _POSIX_C_SOURCE 200809L
 #include "grokium_media.h"
 #include "grokium.h"
-#include "agent.h"
-#include "auth.h"
-#include "util.h"
+#include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/wait.h>
 #include <sys/stat.h>
-#include <limits.h>
-#include <errno.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+#ifndef GKX_MEDIA_NO_NANOBOT
+#include "agent.h"
+#include "auth.h"
+#include "util.h"
+#endif
 
 extern char state_dir[];
 
@@ -59,8 +62,9 @@ const char *gkx_mime_guess(const char *path) {
   if (!strcmp(e, "webp")) return "image/webp";
   if (!strcmp(e, "bmp")) return "image/bmp";
   if (!strcmp(e, "svg")) return "image/svg+xml";
+  /* Product path is pure C (py=0); do not special-case .py as text product. */
   if (!strcmp(e, "txt") || !strcmp(e, "md") || !strcmp(e, "c") || !strcmp(e, "h") ||
-      !strcmp(e, "py") || !strcmp(e, "rs") || !strcmp(e, "go") || !strcmp(e, "json") ||
+      !strcmp(e, "rs") || !strcmp(e, "go") || !strcmp(e, "json") ||
       !strcmp(e, "toml") || !strcmp(e, "yml") || !strcmp(e, "yaml") || !strcmp(e, "sh") ||
       !strcmp(e, "css") || !strcmp(e, "html") || !strcmp(e, "xml") || !strcmp(e, "csv") ||
       !strcmp(e, "log") || !strcmp(e, "cmake") || !strcmp(e, "mk"))
@@ -98,30 +102,73 @@ char *gkx_b64_encode(const unsigned char *data, size_t n) {
   return o;
 }
 
-int gkx_chat_vision(const gkx_config *cfg, const char *prompt, const char *image_path,
-                    char *out_reply, size_t reply_n, char *out_err, size_t err_n) {
+/* Short machine error token for plates (drop free-text / path injection). */
+static void err_token(const char *in, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in || !in[0]) return;
+  for (i = 0; in[i] && o + 1 < cap && o < 48; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if (isalnum(c) || c == '_' || c == '-')
+      out[o++] = (char)c;
+    else if (c == ' ' || c == ':' || c == '/')
+      out[o++] = '_';
+  }
+  out[o] = 0;
+}
+
+int gkx_media_plate_json(const char *path, int ok, const char *error, char *out,
+                         size_t cap) {
+  const char *mime;
+  char err[64];
+  int is_img;
+  if (!out || cap < 64) return -1;
+  mime = (path && path[0]) ? gkx_mime_guess(path) : "application/octet-stream";
+  is_img = (path && path[0]) ? gkx_path_is_image(path) : 0;
+  err_token(error, err, sizeof err);
+  /* Lab/ops media plate: never carries image bytes; product bus remains SMX2. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.media.v1\",\"ok\":%s,"
+           "\"content\":\"meta_only\","
+           "\"path_is_image\":%s,\"mime\":\"%s\","
+           "\"error\":\"%s\","
+           "\"vision\":\"lab_ops_only\","
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false,\"tools\":false,\"python\":0}",
+           ok ? "true" : "false", is_img ? "true" : "false", mime,
+           err[0] ? err : "");
+  return 0;
+}
+
+#ifndef GKX_MEDIA_NO_NANOBOT
+int gkx_chat_vision(const gkx_config *cfg, const char *prompt,
+                    const char *image_path, char *out_reply, size_t reply_n,
+                    char *out_err, size_t err_n) {
   if (out_reply && reply_n) out_reply[0] = 0;
   if (out_err && err_n) out_err[0] = 0;
   if (!cfg || !image_path) {
-    if (out_err) snprintf(out_err, err_n, "need image path");
+    if (out_err) snprintf(out_err, err_n, "need_image_path");
     return 2;
   }
   size_t raw_n = 0;
   unsigned char *raw = gkx_file_read_raw(image_path, &raw_n);
   if (!raw || !raw_n) {
-    if (out_err) snprintf(out_err, err_n, "cannot read image: %s", image_path);
+    if (out_err) snprintf(out_err, err_n, "cannot_read_image");
     free(raw);
     return 2;
   }
   if (raw_n > 4 * 1024 * 1024) {
     free(raw);
-    if (out_err) snprintf(out_err, err_n, "image too large (max 4MB)");
+    if (out_err) snprintf(out_err, err_n, "image_too_large");
     return 2;
   }
   char *b64 = gkx_b64_encode(raw, raw_n);
   free(raw);
   if (!b64) {
-    if (out_err) snprintf(out_err, err_n, "oom base64");
+    if (out_err) snprintf(out_err, err_n, "oom_base64");
     return 2;
   }
 
@@ -160,12 +207,24 @@ int gkx_chat_vision(const gkx_config *cfg, const char *prompt, const char *image
     if (out_reply && reply_n) snprintf(out_reply, reply_n, "%s", reply);
     rc = 0;
   } else if (out_err)
-    snprintf(out_err, err_n, "vision empty or failed");
+    snprintf(out_err, err_n, "vision_empty_or_failed");
   free(reply);
   ng_agent_cfg_free(&c);
   ng_session_free(&s);
   return rc;
 }
+#else
+int gkx_chat_vision(const gkx_config *cfg, const char *prompt,
+                    const char *image_path, char *out_reply, size_t reply_n,
+                    char *out_err, size_t err_n) {
+  (void)cfg;
+  (void)prompt;
+  (void)image_path;
+  if (out_reply && reply_n) out_reply[0] = 0;
+  if (out_err && err_n) snprintf(out_err, err_n, "vision_not_linked");
+  return 2;
+}
+#endif
 
 char *gkx_viz_term2d_bars(const double *ys, int n, int width, int height) {
   if (!ys || n < 1) return strdup("(no data)");
@@ -184,7 +243,8 @@ char *gkx_viz_term2d_bars(const double *ys, int n, int width, int height) {
   char *out = malloc(cap);
   size_t o = 0;
   if (!out) return NULL;
-  o += (size_t)snprintf(out + o, cap - o, "term2d  n=%d  [%.3g .. %.3g]\n", n, lo, hi);
+  o += (size_t)snprintf(out + o, cap - o, "term2d  n=%d  [%.3g .. %.3g]\n", n, lo,
+                        hi);
   for (r = height - 1; r >= 0; r--) {
     double thr = lo + (hi - lo) * ((double)r / (double)(height - 1));
     if (o + (size_t)width + 4 >= cap) break;
@@ -209,7 +269,9 @@ int gkx_viz_open(const gkx_config *cfg, const char *path, int vr) {
   const char *tmpl = NULL;
   if (vr) {
     tmpl = cfg && cfg->viz_vr_cmd[0] ? cfg->viz_vr_cmd : NULL;
-    if (!tmpl || !tmpl[0]) tmpl = cfg && cfg->viz_desktop_cmd[0] ? cfg->viz_desktop_cmd : "xdg-open %s";
+    if (!tmpl || !tmpl[0])
+      tmpl = cfg && cfg->viz_desktop_cmd[0] ? cfg->viz_desktop_cmd
+                                            : "xdg-open %s";
   } else {
     tmpl = cfg && cfg->viz_desktop_cmd[0] ? cfg->viz_desktop_cmd : "xdg-open %s";
   }
