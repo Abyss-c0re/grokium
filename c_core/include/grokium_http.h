@@ -4,6 +4,7 @@
 #include "grokium_consolidator.h"
 #include "grokium_fleet.h"
 #include "grokium_law.h"
+#include "grokium_llama.h"
 /*
  * Loopback control plane (default :17444).
  * Product talk remains SMX2; this HTTP surface is lab/ops only.
@@ -15,14 +16,9 @@
  * GET /ui — minimal lab/ops HTML plate (dual-wire honesty; not product chat).
  * POST /v1/agent — lab/ops chat-only agent (tools:false; tools → host nanobot).
  * GROKIUM_SERVE_MAX=N exits after N requests (selftest).
+ * Local llama probe/chat: see grokium_llama.h (src/llama.c).
  */
 int grokium_serve(const char *host, int port,
                   gk_consolidator *C, gk_fleet *F, grokium_law *L,
                   const char *data_root);
-
-/* Probe local llama.cpp (default http://127.0.0.1:1212/v1). LLM ≠ commander. */
-int grokium_llama_probe(char *json_out, size_t cap);
-
-/* Local-first chat completion via loopback llama only. Never commander. */
-int grokium_llama_chat(const char *message, char *json_out, size_t cap);
 #endif
