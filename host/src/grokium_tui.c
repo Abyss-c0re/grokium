@@ -1136,18 +1136,16 @@ static void cmd_mode(const char *arg) {
   const char *a = arg ? arg : "";
   while (*a == ' ') a++;
   if (!a[0] || !strcmp(a, "show") || !strcmp(a, "?") || !strcmp(a, "help")) {
-    snprintf(line, sizeof line, "mode> %s · tools=%d · resume=meta_only (/pickup)",
+    char plate[512];
+    snprintf(line, sizeof line,
+             "mode> %s · tools=%d · resume=host_local_not_smx (/pickup)",
              cfg.agent_tools ? "agent" : "chat", cfg.agent_tools);
     log_add(line);
-    /* Machine help plate — dual-wire honesty (resume is host-local, not SMX). */
-    log_add("{\"schema\":\"grokium.mode.v1\",\"ok\":false,"
-            "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-            "\"peer_http\":\"lab_ops_only\","
-            "\"peer_http_is_product_bus\":false,"
-            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-            "\"llm_is_commander\":false,"
-            "\"resume\":\"host_local_not_smx\","
-            "\"hint\":\"/mode chat|agent|resume|show\"}");
+    /* Shared dual-wire need_subcmd (resume honesty stays on host-local line). */
+    grokium_need_subcmd_json(
+        "mode", "/mode chat|agent|resume|show resume=host_local_not_smx",
+        plate, sizeof plate);
+    log_add(plate);
     return;
   }
   if (!strcmp(a, "chat")) {
@@ -1168,14 +1166,14 @@ static void cmd_mode(const char *arg) {
     log_add("  /sessions [q] then /pickup <id> · share=state_matrix_only");
     return;
   }
-  /* Unknown mode — dual-wire need_subcmd (no free-text-only usage). */
-  log_add("{\"schema\":\"grokium.mode.v1\",\"ok\":false,"
-          "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-          "\"peer_http\":\"lab_ops_only\","
-          "\"peer_http_is_product_bus\":false,"
-          "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-          "\"llm_is_commander\":false,"
-          "\"hint\":\"/mode chat|agent|resume|show\"}");
+  {
+    char plate[512];
+    /* Unknown mode — shared dual-wire need_subcmd. */
+    grokium_need_subcmd_json(
+        "mode", "/mode chat|agent|resume|show resume=host_local_not_smx",
+        plate, sizeof plate);
+    log_add(plate);
+  }
 }
 
 /* Hive Mind manager — motivate incomplete external contracts (SMX2). */

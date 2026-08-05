@@ -159,10 +159,22 @@ int main(void) {
         strstr(plate, "\"evil\"") || !strstr(plate, "\"error\":\"adrop\"") ||
         !strstr(plate, "\"not\":\"grok_model\""))
       return fail("commander deny sanitize fail");
+    /* TUI /mode help/unknown share need_subcmd (resume honesty in hint). */
+    grokium_need_subcmd_json(
+        "mode", "/mode chat|agent|resume|show resume=host_local_not_smx",
+        plate, sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.mode.v1\"") ||
+        !strstr(plate, "\"error\":\"need_subcmd\"") ||
+        !strstr(plate, "resume=host_local_not_smx") ||
+        !strstr(plate, "\"product_wire\":\"smx2\"") ||
+        !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+        !strstr(plate, "\"llm_is_commander\":false") ||
+        !strstr(plate, "\"hold_flash\":1"))
+      return fail("mode need_subcmd dual-wire plate fail");
   }
 
   printf("HOST_SMX_FILTER_OK external=strict hold_flash=1 dual_wire=gate "
          "allow_plate=1 instinct_plate=1 manager_help_plate=1 license_plate=1 "
-         "need_subcmd=1 commander_deny=1\n");
+         "need_subcmd=1 commander_deny=1 mode_need_subcmd=1\n");
   return 0;
 }
