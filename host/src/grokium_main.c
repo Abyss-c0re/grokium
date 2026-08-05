@@ -31,6 +31,22 @@ static void die(const char *m) {
   exit(2);
 }
 
+/* Short machine error token for dual-wire plates (no free-text / path inject). */
+static void err_token(const char *in, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in || !in[0]) return;
+  for (i = 0; in[i] && o + 1 < cap && o < 48; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if (isalnum(c) || c == '_' || c == '-')
+      out[o++] = (char)c;
+    else if (c == ' ' || c == ':' || c == '/' || c == '.')
+      out[o++] = '_';
+  }
+  out[o] = 0;
+}
+
 int file_ok(const char *p) {
   struct stat st;
   return p && p[0] && stat(p, &st) == 0 && S_ISREG(st.st_mode) && access(p, X_OK) == 0;
@@ -289,7 +305,13 @@ static int cmd_status(int argc, char **argv) {
     return 0;
   }
   if (gkx_status_plate_json(root, "host_cli", plate, sizeof plate) != 0) {
-    fprintf(stderr, "grokium status: plate failed\n");
+    /* Machine plate_failed — dual-wire honesty (no free-text-only). */
+    printf("{\"schema\":\"grokium.status.v1\",\"ok\":false,"
+           "\"error\":\"plate_failed\",\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false,\"python\":0,\"host\":\"C\"}\n");
     return 1;
   }
   printf("%s\n", plate);
@@ -553,10 +575,20 @@ static int cmd_sessions(int argc, char **argv) {
 }
 
 static int cmd_models(gkx_config *cfg) {
-  char err[400];
+  char err[400], tok[64];
   char *body = grokium_models_json(cfg, err, sizeof err);
   if (!body) {
-    fprintf(stderr, "grokium models: %s\n", err[0] ? err : "fail");
+    /* Dual-wire fail plate — sanitize free-text backend err to machine token. */
+    err_token(err, tok, sizeof tok);
+    if (!tok[0]) snprintf(tok, sizeof tok, "models_fail");
+    printf("{\"schema\":\"grokium.models.v1\",\"ok\":false,"
+           "\"error\":\"%s\",\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false,"
+           "\"hint\":\"models · local llama /v1/models\"}\n",
+           tok);
     return 2;
   }
   printf("%s\n", body);
@@ -591,7 +623,20 @@ static int cmd_prompt(gkx_config *cfg, const char *msg) {
     printf("%s\n", reply);
     return 0;
   }
-  fprintf(stderr, "grokium: %s\n", err[0] ? err : "fail");
+  {
+    char tok[64];
+    /* Dual-wire fail plate — sanitize free-text chat err (LLM ≠ commander). */
+    err_token(err, tok, sizeof tok);
+    if (!tok[0]) snprintf(tok, sizeof tok, "chat_fail");
+    printf("{\"schema\":\"grokium.chat.v1\",\"ok\":false,"
+           "\"error\":\"%s\",\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false,"
+           "\"hint\":\"chat · check local llama / hub\"}\n",
+           tok);
+  }
   return 2;
 }
 
