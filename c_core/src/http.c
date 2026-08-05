@@ -109,19 +109,24 @@ static void http_reply(int fd, int code, const char *ctype, const char *body) {
   if (body && blen) (void)write(fd, body, blen);
 }
 
-/* Lab/ops error plate: dual-wire honesty; error is machine token only. */
+/* Lab/ops error plate: shared dual-wire builder (error is machine token). */
 static void http_reply_err(int fd, int code, const char *err) {
-  char body[384], tok[64];
-  machine_token(err, tok, sizeof tok);
-  if (!tok[0]) snprintf(tok, sizeof tok, "error");
-  snprintf(body, sizeof body,
-           "{\"schema\":\"grokium.error.v1\",\"ok\":false,\"error\":\"%s\","
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"llm_on_hot_path\":false,\"llm_is_commander\":false}",
-           tok);
+  char body[384];
+  /* schema leaf "error" → grokium.error.v1; leaf_token sanitizes err. */
+  grokium_err_json("error", err, NULL, body, sizeof body);
   http_reply(fd, code, "application/json", body);
+}
+
+/* Unknown-route 404 with route hint (lab/ops ≠ product bus). */
+static void http_reply_not_found(int fd) {
+  char body[512];
+  /* Compact hint fits hint_token cap; full catalogue is on /ui. */
+  grokium_err_json(
+      "error", "not_found",
+      "/ui /healthz /v1/status /v1/commander /v1/coord /v1/sessions "
+      "/v1/contract/form /v1/manager/tick",
+      body, sizeof body);
+  http_reply(fd, 404, "application/json", body);
 }
 
 /* SSE helpers — lab/ops only; product bus remains SMX2. Bits only. */
@@ -1461,17 +1466,8 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     return;
   }
 
-  /* Unknown route — dual-wire honesty (lab/ops ≠ product bus; LLM ≠ commander). */
-  http_reply(cfd, 404, "application/json",
-             "{\"schema\":\"grokium.error.v1\",\"ok\":false,"
-             "\"error\":\"not_found\","
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-             "\"hint\":\"/ui /healthz /v1/status /v1/cube/status /v1/sessions "
-             "/v1/commander /v1/chat /v1/agent /v1/coord /v1/stream/smx "
-             "/v1/contract/form /v1/manager/tick /v1/nanobot/status\"}");
+  /* Unknown route — shared dual-wire not_found (lab/ops ≠ product bus). */
+  http_reply_not_found(cfd);
 }
 
 int grokium_serve(const char *host, int port, gk_consolidator *C, gk_fleet *F,

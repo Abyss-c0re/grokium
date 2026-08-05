@@ -221,7 +221,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
         !strstr(b, "\"hold_flash\":1") ||
-        !strstr(b, "\"share\":\"state_matrix_only\"")) {
+        !strstr(b, "\"share\":\"state_matrix_only\"") ||
+        !strstr(b, "\"hint\"") || !strstr(b, "/v1/status")) {
       fprintf(stderr, "selftest: not_found dual-wire fail: %.400s\n", b);
       fails++;
     }
