@@ -1595,7 +1595,14 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       return;
     }
     if (!C || !body || body_n == 0) {
-      http_reply_err(cfd, 400, "empty_body");
+      /* Coord-scoped need_plate (dual-wire; not free-text empty_body only). */
+      http_reply(cfd, 400, "application/json",
+                 "{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
+                 "\"error\":\"need_plate\","
+                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                 "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false,"
+                 "\"llm_on_hot_path\":false,\"llm_is_commander\":false}");
       return;
     }
     /* sanitize: prose / hold_flash=0 / non-SMX denied (external origin) */

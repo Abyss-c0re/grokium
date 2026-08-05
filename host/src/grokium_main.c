@@ -706,9 +706,14 @@ int main(int argc, char **argv) {
     char plate[4096];
     size_t o = 0;
     if (i >= argc) {
-      fprintf(stderr,
-              "usage: grokium coord|ingest <NEXUS_COORD|SMX bits plate>\n"
-              "  SMX filter fail-closed; prose denied; product_wire=smx2\n");
+      /* Machine need_plate (match consolidator / loopback coord honesty). */
+      printf("{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
+             "\"error\":\"need_plate\",\"content\":\"meta_only\","
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+             "\"hint\":\"pass NEXUS_COORD or SMX 01-bits plate\"}\n");
       return 2;
     }
     plate[0] = 0;

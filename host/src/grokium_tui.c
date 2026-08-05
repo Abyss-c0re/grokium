@@ -678,8 +678,14 @@ static void cmd_coord_ingest(const char *plate) {
   char *av[3];
   int rc;
   if (!plate || !plate[0]) {
-    log_add("usage: /coord <NEXUS_COORD|01-bits plate>");
-    log_add("  SMX filter fail-closed · prose denied · product_wire=smx2");
+    /* Machine need_plate — dual-wire honesty (no free-text usage only). */
+    log_add("{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
+            "\"error\":\"need_plate\",\"content\":\"meta_only\","
+            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+            "\"peer_http_is_product_bus\":false,"
+            "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+            "\"hint\":\"pass NEXUS_COORD or SMX 01-bits plate\"}");
     return;
   }
   log_add("coord> sanitize+ingest (SMX filter)…");
@@ -688,11 +694,12 @@ static void cmd_coord_ingest(const char *plate) {
   av[2] = NULL;
   rc = run_c_core_capture("grokium-consolidate", av);
   if (rc == 0)
-    log_add("coord> ok · share=state_matrix_only · hold_flash=1");
+    log_add("coord> ok · share=state_matrix_only · hold_flash=1 · "
+            "product_wire=smx2 · peer_http=lab_ops_only");
   else if (rc == 99)
     ; /* already logged missing tool */
   else
-    log_add("coord> denied or failed (fail-closed)");
+    log_add("coord> denied or failed (fail-closed) · hold_flash=1");
 }
 
 static void cmd_smx_latest(void) {

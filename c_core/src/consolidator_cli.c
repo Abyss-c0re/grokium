@@ -21,6 +21,15 @@ static const char k_filter_deny[] =
     "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
     "\"llm_on_hot_path\":false,\"llm_is_commander\":false}";
 
+/* Missing plate — machine deny (no free-text usage on the wire). */
+static const char k_need_plate[] =
+    "{\"schema\":\"grokium.consolidator_ingest.v1\",\"ok\":false,"
+    "\"error\":\"need_plate\",\"share\":\"state_matrix_only\","
+    "\"hold_flash\":1,\"product_wire\":\"smx2\","
+    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
+    "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+    "\"hint\":\"pass NEXUS_COORD or SMX 01-bits plate\"}";
+
 /* External ingest path: prose / hold_flash=0 / non-SMX denied (law). */
 static int ingest_external(gk_consolidator *C, grokium_law *L, const char *id,
                            const char *data, double now) {
@@ -91,6 +100,17 @@ int main(int argc, char **argv) {
         !strstr(k_filter_deny, "\"hold_flash\":1") ||
         !strstr(k_filter_deny, "\"share\":\"state_matrix_only\"")) {
       fprintf(stderr, "selftest: filter deny dual-wire plate fail\n");
+      return 1;
+    }
+    /* need_plate dual-wire (empty ingest arg — no free-text usage) */
+    if (!strstr(k_need_plate, "\"error\":\"need_plate\"") ||
+        !strstr(k_need_plate, "\"product_wire\":\"smx2\"") ||
+        !strstr(k_need_plate, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(k_need_plate, "\"peer_http_is_product_bus\":false") ||
+        !strstr(k_need_plate, "\"llm_is_commander\":false") ||
+        !strstr(k_need_plate, "\"hold_flash\":1") ||
+        !strstr(k_need_plate, "\"share\":\"state_matrix_only\"")) {
+      fprintf(stderr, "selftest: need_plate dual-wire fail\n");
       return 1;
     }
     /* prose must not enter lattice */
@@ -170,8 +190,13 @@ int main(int argc, char **argv) {
            C.grade, C.n_concepts, C.matrix.bits_set);
     return 0;
   }
-  if (!strcmp(argv[1], "ingest") && argc > 2) {
+  if (!strcmp(argv[1], "ingest")) {
     int i, got = 0;
+    if (argc <= 2) {
+      /* Machine need_plate — fail-closed, no free-text usage on wire. */
+      fprintf(stderr, "%s\n", k_need_plate);
+      return 2;
+    }
     for (i = 2; i < argc; i++) {
       if (ingest_external(&C, &L, NULL, argv[i], now) >= 0)
         got++;
