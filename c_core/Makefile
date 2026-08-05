@@ -147,6 +147,13 @@ test-filter: $(BIN_FILTER)
 	grep -q '"llm_is_commander": false' "$$P"; \
 	J2=$$($(BIN_FILTER) form --assignee nb-worker-2 --task 'incomplete for motivate' --min-set 99); \
 	echo "$$J2" | grep -q '"ok":true'; \
+	MH=$$($(BIN_FILTER) manager-tick help || true); \
+	echo "$$MH" | grep -q '"schema":"grokium.manager_tick.v1"'; \
+	echo "$$MH" | grep -q '"ok":false'; \
+	echo "$$MH" | grep -q '"error":"need_dir_or_run"'; \
+	echo "$$MH" | grep -q '"wire":"smx_motivate"'; \
+	echo "$$MH" | grep -q '"product_wire":"smx2"'; \
+	echo "$$MH" | grep -q '"llm_on_hot_path":false'; \
 	M=$$($(BIN_FILTER) manager-tick "$$D" 2>"$$D/motivate.err"); \
 	echo "$$M" | grep -q '"schema":"grokium.manager_tick.v1"'; \
 	echo "$$M" | grep -q '"motivated":1'; \

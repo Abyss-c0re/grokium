@@ -71,9 +71,22 @@ int main(void) {
         !strstr(plate, "\"product_wire\":\"smx2\"") ||
         !strstr(plate, "\"llm_on_hot_path\":false"))
       return fail("instinct dual-wire plate fail");
+    /* Shared manager help plate (TUI /manager help|? + CLI manager-tick help). */
+    grokium_manager_tick_err_json("need_dir_or_run", plate, sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.manager_tick.v1\"") ||
+        !strstr(plate, "\"ok\":false") ||
+        !strstr(plate, "\"error\":\"need_dir_or_run\"") ||
+        !strstr(plate, "\"wire\":\"smx_motivate\"") ||
+        !strstr(plate, "\"product_wire\":\"smx2\"") ||
+        !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+        !strstr(plate, "\"llm_is_commander\":false") ||
+        !strstr(plate, "\"llm_on_hot_path\":false") ||
+        !strstr(plate, "\"hold_flash\":1") ||
+        !strstr(plate, "\"share\":\"state_matrix_only\""))
+      return fail("manager_tick help dual-wire plate fail");
   }
 
   printf("HOST_SMX_FILTER_OK external=strict hold_flash=1 dual_wire=gate "
-         "allow_plate=1 instinct_plate=1\n");
+         "allow_plate=1 instinct_plate=1 manager_help_plate=1\n");
   return 0;
 }

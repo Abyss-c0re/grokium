@@ -74,6 +74,9 @@ int grokium_manager_motivate_dir(const char *dir);
  */
 void grokium_manager_tick_json(int motivated, const char *dir, char *out,
                                size_t cap);
+/* Dual-wire manager-tick deny/help (need_dir_or_run | generic error).
+ * Host TUI /manager help and CLI manager-tick help|? share this plate. */
+void grokium_manager_tick_err_json(const char *error, char *out, size_t cap);
 
 /*
  * Dual-wire contract form ack (schema grokium.contract_form.v1).

@@ -1183,15 +1183,10 @@ static void cmd_manager_tick(const char *arg) {
   int n = 0;
   while (*p == ' ') p++;
   if (p[0] && (!strcmp(p, "help") || !strcmp(p, "?"))) {
-    /* Machine help plate — dual-wire honesty (no free-text-only usage). */
-    log_add("{\"schema\":\"grokium.manager_tick.v1\",\"ok\":false,"
-            "\"error\":\"need_dir_or_run\",\"product_wire\":\"smx2\","
-            "\"peer_http\":\"lab_ops_only\","
-            "\"peer_http_is_product_bus\":false,"
-            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-            "\"llm_is_commander\":false,"
-            "\"wire\":\"smx_motivate\","
-            "\"hint\":\"/manager [DIR] · pure-C smx-filter manager-tick\"}");
+    /* Shared c_core dual-wire help plate (CLI manager-tick help|? same). */
+    char plate[512];
+    grokium_manager_tick_err_json("need_dir_or_run", plate, sizeof plate);
+    log_add(plate);
     return;
   }
   log_add("--- manager-tick (nb-manager · incomplete contracts → NexusCore) ---");

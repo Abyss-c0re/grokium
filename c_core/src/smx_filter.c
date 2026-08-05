@@ -624,6 +624,33 @@ void grokium_manager_tick_json(int motivated, const char *dir, char *out,
            motivated < 0 ? 0 : motivated, dir_esc);
 }
 
+void grokium_manager_tick_err_json(const char *error, char *out, size_t cap) {
+  const char *err = error && error[0] ? error : "manager_tick_failed";
+  if (!out || cap < 64) return;
+  /* Shared dual-wire help/deny: host TUI /manager help + CLI manager-tick help. */
+  if (!strcmp(err, "need_dir_or_run")) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.manager_tick.v1\",\"ok\":false,"
+             "\"error\":\"need_dir_or_run\",\"wire\":\"smx_motivate\","
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+             "\"hint\":\"manager-tick [DIR] · TUI /manager · pure-C "
+             "smx-filter\"}");
+    return;
+  }
+  /* Known error tokens only — not free-form caller prose. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.manager_tick.v1\",\"ok\":false,"
+           "\"error\":\"%s\",\"wire\":\"smx_motivate\","
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_on_hot_path\":false,\"llm_is_commander\":false}",
+           err);
+}
+
 void grokium_instinct_json(char *out, size_t cap) {
   const char *creed;
   if (!out || cap < 64) return;

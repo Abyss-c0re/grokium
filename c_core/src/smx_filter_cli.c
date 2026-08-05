@@ -65,6 +65,16 @@ int main(int argc, char **argv) {
       fprintf(stderr, "grokium-smx-filter: validate not_found dual-wire fail\n");
       return 1;
     }
+    grokium_manager_tick_err_json("need_dir_or_run", den, sizeof den);
+    if (!plate_dual_wire_ok(den) ||
+        !strstr(den, "\"schema\":\"grokium.manager_tick.v1\"") ||
+        !strstr(den, "\"error\":\"need_dir_or_run\"") ||
+        !strstr(den, "\"wire\":\"smx_motivate\"") ||
+        !strstr(den, "\"llm_on_hot_path\":false")) {
+      fprintf(stderr,
+              "grokium-smx-filter: manager help dual-wire fail: %.200s\n", den);
+      return 1;
+    }
   }
   if (argc < 2 || !strcmp(argv[1], "help") || !strcmp(argv[1], "-h") ||
       !strcmp(argv[1], "--help")) {
@@ -108,6 +118,12 @@ int main(int argc, char **argv) {
   if (!strcmp(argv[1], "manager-tick")) {
     char plate[1024];
     const char *dir = argc > 2 ? argv[2] : NULL;
+    /* Same dual-wire help plate as host TUI /manager help|?. */
+    if (dir && (!strcmp(dir, "help") || !strcmp(dir, "?"))) {
+      grokium_manager_tick_err_json("need_dir_or_run", plate, sizeof plate);
+      printf("%s\n", plate);
+      return 2;
+    }
     int n = grokium_manager_motivate_dir(dir);
     /* Same dual-wire plate as GET/POST /v1/manager/tick. */
     grokium_manager_tick_json(n, dir, plate, sizeof plate);
