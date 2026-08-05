@@ -305,7 +305,9 @@ static int selftest(void) {
   }
   if (http_post("127.0.0.1", port, "/v1/coord",
                 "NEXUS_COORD v1 | from=selftest | type=heartbeat | "
-                "HOLD_FLASH=ack_held |",
+                "HOLD_FLASH=ack_held | share=state_matrix_only | "
+                "product_wire=smx2 | peer_http=lab_ops_only | "
+                "peer_http_is_product_bus=0 | llm_is_commander=0 |",
                 resp, sizeof resp) < 0)
     fails++;
   else {
