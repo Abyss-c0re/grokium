@@ -31,13 +31,18 @@ ifneq ($(wildcard $(NANOBOT_LIBDIR)/libbraincube.a),)
 	-Wl,--end-group -lpthread -lm -ldl -lncurses
 endif
 
+# Host-local SMX filter (coord/ingest sanitize before consolidate exec).
+SMX_FILTER_SRC := $(C_CORE)/src/smx_filter.c $(C_CORE)/src/law.c \
+	$(C_CORE)/src/smx.c $(C_CORE)/src/algocube.c $(C_CORE)/src/sha256.c
+
 SRCS := src/grokium_main.c src/grokium_tui.c src/grokium_chat.c \
 	src/grokium_config.c src/grokium_version.c src/grokium_hub.c \
 	src/grokium_media.c src/grokium_status.c \
-	$(C_CORE)/src/session.c
+	$(C_CORE)/src/session.c $(SMX_FILTER_SRC)
 
 .PHONY: all clean nanobot install test-status test-version-compat \
-	test-hub-status test-memory-seed test-media-plate test-session-plate test
+	test-hub-status test-memory-seed test-media-plate test-session-plate \
+	test-smx-host-filter test
 
 all: nanobot out/grokium
 
@@ -48,7 +53,7 @@ nanobot:
 	  $(MAKE) -C "$(NANOBOT_ROOT)" host; \
 	fi
 
-out/grokium: $(SRCS) include/grokium.h include/grokium_chat.h include/grokium_config.h include/grokium_version.h include/grokium_hub.h include/grokium_media.h include/grokium_status.h $(C_CORE)/include/grokium_session.h
+out/grokium: $(SRCS) include/grokium.h include/grokium_chat.h include/grokium_config.h include/grokium_version.h include/grokium_hub.h include/grokium_media.h include/grokium_status.h $(C_CORE)/include/grokium_session.h $(C_CORE)/include/grokium_smx_filter.h $(C_CORE)/include/grokium_law.h
 	@mkdir -p out
 	$(CC) $(CFLAGS) -o $@ $(SRCS) $(LIBS)
 
@@ -107,13 +112,22 @@ test-media-plate: out/media_plate_selftest
 test-session-plate: out/session_plate_selftest
 	@./out/session_plate_selftest
 
+# Host-local SMX filter gate — pure C, no nanobot/ncurses.
+out/smx_host_filter_selftest: tests/smx_host_filter_selftest.c $(SMX_FILTER_SRC) \
+	$(C_CORE)/include/grokium_smx_filter.h $(C_CORE)/include/grokium_law.h
+	@mkdir -p out
+	$(CC) $(CFLAGS) -o $@ tests/smx_host_filter_selftest.c $(SMX_FILTER_SRC)
+
+test-smx-host-filter: out/smx_host_filter_selftest
+	@./out/smx_host_filter_selftest
+
 test: test-status test-version-compat test-hub-status test-memory-seed \
-	test-media-plate test-session-plate
+	test-media-plate test-session-plate test-smx-host-filter
 
 clean:
 	rm -f out/grokium out/status_probe_selftest out/version_compat_selftest \
 		out/hub_status_selftest out/memory_seed_selftest out/media_plate_selftest \
-		out/session_plate_selftest
+		out/session_plate_selftest out/smx_host_filter_selftest
 
 install: all
 	install -m755 out/grokium $(HOME)/.local/bin/grokium

@@ -7,6 +7,8 @@
 #include "grokium_hub.h"
 #include "grokium_session.h"
 #include "grokium_status.h"
+#include "grokium_law.h"
+#include "grokium_smx_filter.h"
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -771,13 +773,14 @@ int main(int argc, char **argv) {
   if (strcmp(cmd, "filter") == 0 || strcmp(cmd, "smx-filter") == 0) {
     return run_c_core("grokium-smx-filter", argc - ai - 1, argv + ai + 1);
   }
-  /* External coord/ingest → pure-C consolidator with SMX filter sanitize */
+  /* External coord/ingest → host-local SMX filter then consolidator. */
   if (strcmp(cmd, "coord") == 0 || strcmp(cmd, "ingest") == 0 ||
       strcmp(cmd, "smx-ingest") == 0) {
     int i = ai + 1;
     char *av[3];
     char plate[4096];
     size_t o = 0;
+    grokium_law L;
     if (i >= argc) {
       /* Machine need_plate (match consolidator / loopback coord honesty). */
       printf("{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
@@ -797,6 +800,17 @@ int main(int argc, char **argv) {
       memcpy(plate + o, argv[i], n);
       o += n;
       plate[o] = 0;
+    }
+    /* Host-local sanitize gate — deny prose before consolidate exec. */
+    grokium_law_default(&L);
+    if (!grokium_smx_filter_allow_frame(&L, (const uint8_t *)plate, o, 1)) {
+      printf("{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
+             "\"error\":\"smx_filter_deny\",\"content\":\"meta_only\","
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_on_hot_path\":false,\"llm_is_commander\":false}\n");
+      return 1;
     }
     av[0] = "ingest";
     av[1] = plate;
