@@ -35,7 +35,8 @@ Spawn writes `PURPOSE.txt` + `nanobot.log` under each home.
 | Manager | `nb-manager` wire `smx_motivate`; other bots `smx2` |
 
 On-disk plate schema: `grokium.nanobot_fleet.v1` under `data/home/FLEET.json`.
-CLI status schema: `grokium.fleet_status.v1`.
+CLI `status` and `GET /v1/nanobot/status` share `grokium.nanobot_status.v1`
+(`fleet_status_json`: honest `bots[]` pid/status/offline + dual-wire keys).
 
 `make -C c_core test-fleet` / `grokium-fleet selftest` checks defaults, note-pid
 live vs dead, reload, alive count, and dual-wire plate fields.

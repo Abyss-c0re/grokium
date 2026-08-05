@@ -216,27 +216,7 @@ static int fleet_selftest(void) {
     fprintf(stderr, "selftest: dead pid leaked onto plate\n");
     return 1;
   }
-  /* Status CLI plate shape (not only on-disk FLEET.json) carries dual-wire. */
-  {
-    char st[512];
-    int alive2 = fleet_status(&F);
-    snprintf(st, sizeof st,
-             "{\"schema\":\"grokium.fleet_status.v1\",\"ok\":true,"
-             "\"alive\":%d,\"n\":%d,\"nb_manager\":true,\"probed\":true,"
-             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"llm_is_commander\":false,\"path\":\"%s\"}",
-             alive2, F.n, path);
-    if (!plate_dual_wire_ok(st) ||
-        !strstr(st, "\"schema\":\"grokium.fleet_status.v1\"") ||
-        !strstr(st, "\"probed\":true")) {
-      fprintf(stderr, "selftest: fleet status plate dual-wire fail: %.200s\n",
-              st);
-      return 1;
-    }
-  }
-  /* Shared nanobot_status plate (HTTP /v1/nanobot/status) — honest pid/bots. */
+  /* CLI status + HTTP /v1/nanobot/status share fleet_status_json. */
   {
     char st[4096];
     fleet_status_json(&F, st, sizeof st);
@@ -254,7 +234,7 @@ static int fleet_selftest(void) {
   }
   printf("FLEET_SELFTEST_OK n=%d alive=1 nb_manager=1 product_wire=smx2 "
          "peer_http=lab_ops_only bot_dual_wire=1 purpose=honest "
-         "status_plate=honest nanobot_status_json=1\n",
+         "status_plate=nanobot_status_v1\n",
          F.n);
   return 0;
 }
@@ -305,20 +285,15 @@ int main(int argc, char **argv) {
     return 0;
   }
   if (!strcmp(argv[1], "status")) {
-    int alive;
+    char plate[4096];
     if (argc > 2) path = argv[2];
     fleet_load(&F, path);
-    alive = fleet_status(&F);
-    /* Persist kill(0) result so on-disk plate stays honest. */
+    /* Persist kill(0) result so on-disk FLEET.json stays honest. */
+    (void)fleet_status(&F);
     (void)fleet_save(&F, path);
-    /* CLI status plate must stamp dual-wire honesty (Commander ≠ model). */
-    printf("{\"schema\":\"grokium.fleet_status.v1\",\"ok\":true,"
-           "\"alive\":%d,\"n\":%d,\"nb_manager\":true,\"probed\":true,"
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false,\"path\":\"%s\"}\n",
-           alive, F.n, path);
+    /* Same dual-wire plate as GET /v1/nanobot/status (bots pid/status). */
+    fleet_status_json(&F, plate, sizeof plate);
+    printf("%s\n", plate);
     return 0;
   }
   if (!strcmp(argv[1], "selftest"))
