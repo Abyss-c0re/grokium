@@ -12,13 +12,13 @@ FILTER_SRC := src/smx_filter_cli.c src/smx_filter.c src/smx.c src/algocube.c \
 FLEET_SRC := src/fleet_cli.c src/fleet.c
 CONS_SRC := src/consolidator_cli.c src/consolidator.c src/smx_filter.c \
 	src/smx.c src/algocube.c src/law.c src/sha256.c
-HTTP_SRC := src/http_cli.c src/http.c src/consolidator.c src/fleet.c \
-	src/smx_filter.c src/smx.c src/algocube.c src/law.c src/sha256.c \
-	src/commander.c src/integrity.c
+HTTP_SRC := src/http_cli.c src/http.c src/session.c src/consolidator.c \
+	src/fleet.c src/smx_filter.c src/smx.c src/algocube.c src/law.c \
+	src/sha256.c src/commander.c src/integrity.c
 INT_SRC := src/integrity_cli.c src/integrity.c src/sha256.c
 
 .PHONY: all clean test-commander test-filter hive test-consolidate test-serve \
-	test-integrity test-fleet
+	test-integrity test-fleet test-session-plate
 
 all: $(BIN_CMD) $(BIN_FILTER) $(BUILD)/grokium-fleet $(BUILD)/grokium-consolidate \
 	$(BUILD)/grokium-serve $(BUILD)/grokium-integrity
@@ -44,10 +44,18 @@ $(BUILD)/grokium-serve: $(HTTP_SRC) | $(BUILD)
 $(BUILD)/grokium-integrity: $(INT_SRC) | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $(INT_SRC)
 
+# Session meta dual-wire plates — no HTTP/nanobot link.
+$(BUILD)/session_plate_selftest: tests/session_plate_selftest.c src/session.c \
+	include/grokium_session.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ tests/session_plate_selftest.c src/session.c
+
+test-session-plate: $(BUILD)/session_plate_selftest
+	@$(BUILD)/session_plate_selftest
+
 clean:
 	rm -f $(BIN_CMD) $(BIN_FILTER) $(BUILD)/grokium-fleet \
 		$(BUILD)/grokium-consolidate $(BUILD)/grokium-serve \
-		$(BUILD)/grokium-integrity
+		$(BUILD)/grokium-integrity $(BUILD)/session_plate_selftest
 
 test-commander: $(BIN_CMD)
 	@set -e; \
@@ -217,7 +225,7 @@ test-fleet: $(BUILD)/grokium-fleet
 	echo FLEET_ACK_DUAL_WIRE_OK
 
 hive: test-filter test-consolidate test-serve test-commander test-integrity \
-	test-fleet $(BUILD)/grokium-fleet
+	test-fleet test-session-plate $(BUILD)/grokium-fleet
 	@$(BUILD)/grokium-fleet defaults | grep -q nb-manager
 	@set -e; \
 	grep -q 'product_wire=smx2' ../compat/nexus_coord.v1.plate; \

@@ -7,6 +7,7 @@
 #include "grokium_algocube.h"
 #include "grokium_commander.h"
 #include "grokium_integrity.h"
+#include "grokium_session.h"
 #include "grokium_smx_filter.h"
 #include "sha256.h"
 #include <arpa/inet.h>
@@ -1003,19 +1004,6 @@ static int contains_ci(const char *hay, const char *needle) {
   return 0;
 }
 
-static int session_id_safe(const char *id) {
-  size_t i;
-  if (!id || !id[0] || strlen(id) > 80) return 0;
-  for (i = 0; id[i]; i++) {
-    char c = id[i];
-    if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
-        (c >= 'A' && c <= 'F') || c == '-')
-      continue;
-    return 0;
-  }
-  return 1;
-}
-
 /* Compact meta plate — no transcript (meta_only). */
 static int session_compact_from_meta(const char *meta, size_t n, char *out,
                                      size_t cap) {
@@ -1029,7 +1017,8 @@ static int session_compact_from_meta(const char *meta, size_t n, char *out,
   json_get_str(meta, n, "updated_at", updated, sizeof updated);
   json_get_str(meta, n, "model", model, sizeof model);
   msgs = json_get_int(meta, n, "num_chat_messages", 0);
-  if (!id[0]) return -1;
+  /* Fail closed: only hex/dash ids reach the plate (no JSON injection). */
+  if (!gk_session_id_safe(id)) return -1;
   if (!title[0]) snprintf(title, sizeof title, "%s", id);
   /* cap long titles for lab plate size */
   if (strlen(title) > 48) title[48] = 0;
@@ -1060,16 +1049,7 @@ static void sessions_search(const char *root, const char *q, char *out,
   snprintf(dir, sizeof dir, "%s/import", root && root[0] ? root : "data");
   d = opendir(dir);
   if (!d) {
-    snprintf(out, cap,
-             "{\"schema\":\"grokium.sessions.v1\",\"ok\":true,\"n\":0,"
-             "\"sessions\":[],\"q\":\"%s\",\"import_dir\":\"%s\","
-             "\"error\":\"no_import_dir\",\"content\":\"meta_only\","
-             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"llm_is_commander\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"telemetry\":\"off\"}",
-             q_esc, dir);
+    (void)gk_session_list_empty_json(q, dir, "no_import_dir", out, cap);
     return;
   }
   used = (size_t)snprintf(
@@ -1152,50 +1132,23 @@ static int session_pickup(const char *root, const char *id, char *out,
   FILE *f;
   size_t nread;
   int resume_ok;
-  if (!out || cap < 64 || !session_id_safe(id)) {
+  if (!out || cap < 64 || !gk_session_id_safe(id)) {
     if (out && cap)
-      snprintf(out, cap,
-               "{\"schema\":\"grokium.session_pickup.v1\",\"ok\":false,"
-               "\"error\":\"bad_session_id\","
-               "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
-               "\"peer_http\":\"lab_ops_only\","
-               "\"peer_http_is_product_bus\":false,"
-               "\"llm_is_commander\":false,"
-               "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-               "\"resume_available\":false}");
+      (void)gk_session_pickup_deny_json(NULL, "bad_session_id", out, cap);
     return -1;
   }
   snprintf(path, sizeof path, "%s/import/%s.meta.json",
            root && root[0] ? root : "data", id);
   f = fopen(path, "r");
   if (!f) {
-    snprintf(out, cap,
-             "{\"schema\":\"grokium.session_pickup.v1\",\"ok\":false,"
-             "\"error\":\"not_found\",\"id\":\"%s\","
-             "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
-             "\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"llm_is_commander\":false,"
-             "\"resume_available\":false,"
-             "\"hint\":\"import meta only; resume messages via host TUI\","
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
-             id);
+    (void)gk_session_pickup_deny_json(id, "not_found", out, cap);
     return -1;
   }
   nread = fread(meta, 1, sizeof meta - 1, f);
   meta[nread] = 0;
   fclose(f);
   if (session_compact_from_meta(meta, nread, entry, sizeof entry) != 0) {
-    snprintf(out, cap,
-             "{\"schema\":\"grokium.session_pickup.v1\",\"ok\":false,"
-             "\"error\":\"bad_meta\",\"id\":\"%s\","
-             "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
-             "\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"llm_is_commander\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"resume_available\":false}",
-             id);
+    (void)gk_session_pickup_deny_json(id, "bad_meta", out, cap);
     return -1;
   }
   resume_ok = session_resume_available(root, id, meta, nread);
@@ -1391,15 +1344,9 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     }
     if (!id[0]) {
       /* Meta-only deny plate: dual-wire honesty (lab/ops ≠ product bus). */
-      http_reply(cfd, 400, "application/json",
-                 "{\"schema\":\"grokium.session_pickup.v1\",\"ok\":false,"
-                 "\"error\":\"need_session_id\","
-                 "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
-                 "\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"llm_is_commander\":false,"
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                 "\"resume_available\":false}");
+      (void)gk_session_pickup_deny_json(NULL, "need_session_id", resp,
+                                        sizeof resp);
+      http_reply(cfd, 400, "application/json", resp);
       return;
     }
     rc = session_pickup(root, id, resp, sizeof resp);
