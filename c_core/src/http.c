@@ -555,16 +555,9 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       http_reply_err(cfd, 405, "method");
       return;
     }
-    /* Liveness plate: dual-wire honesty (lab/ops ≠ product bus). */
-    http_reply(cfd, 200, "application/json",
-               "{\"schema\":\"grokium.healthz.v1\",\"ok\":true,"
-               "\"service\":\"grokium-loopback\","
-               "\"control_plane\":\"loopback_http\","
-               "\"telemetry\":\"off\",\"share\":\"state_matrix_only\","
-               "\"hold_flash\":1,\"product_wire\":\"smx2\","
-               "\"peer_http\":\"lab_ops_only\","
-               "\"peer_http_is_product_bus\":false,"
-               "\"llm_is_commander\":false,\"python\":0}");
+    /* Shared dual-wire liveness plate (serve CLI healthz same builder). */
+    gk_healthz_json(resp, sizeof resp);
+    http_reply(cfd, 200, "application/json", resp);
     return;
   }
 

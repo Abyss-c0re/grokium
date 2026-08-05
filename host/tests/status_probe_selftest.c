@@ -3,6 +3,7 @@
  */
 #define _POSIX_C_SOURCE 200809L
 #include "grokium_status.h"
+#include "grokium_status_plate.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -94,7 +95,26 @@ int main(void) {
   if (gkx_status_plate_json(NULL, NULL, plate, 8) == 0)
     return fail("tiny plate buffer should fail");
 
+  /* Shared healthz plate (GET /healthz · serve CLI healthz same builder). */
+  gk_healthz_json(plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.healthz.v1\"") ||
+      !strstr(plate, "\"ok\":true") ||
+      !strstr(plate, "\"service\":\"grokium-loopback\"") ||
+      !strstr(plate, "\"control_plane\":\"loopback_http\"") ||
+      !strstr(plate, "\"product_wire\":\"smx2\"") ||
+      !strstr(plate, "\"peer_http\":\"lab_ops_only\"") ||
+      !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+      !strstr(plate, "\"llm_is_commander\":false") ||
+      !strstr(plate, "\"hold_flash\":1") ||
+      !strstr(plate, "\"share\":\"state_matrix_only\"") ||
+      !strstr(plate, "\"python\":0") ||
+      !strstr(plate, "\"telemetry\":\"off\"")) {
+    fprintf(stderr, "status_probe_selftest: healthz dual-wire fail: %s\n",
+            plate);
+    return 1;
+  }
+
   printf("HOST_STATUS_PROBE_OK fleet_n=2 fleet_alive=1 matrix_bits=8 "
-         "grade=SPARSE dual_wire=honest\n");
+         "grade=SPARSE dual_wire=honest healthz=1\n");
   return 0;
 }

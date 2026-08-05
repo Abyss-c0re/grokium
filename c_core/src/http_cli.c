@@ -8,6 +8,7 @@
 #include "grokium_fleet.h"
 #include "grokium_http.h"
 #include "grokium_law.h"
+#include "grokium_status_plate.h"
 #include <arpa/inet.h>
 #include <dirent.h>
 #include <limits.h>
@@ -969,7 +970,7 @@ static const char k_need_subcmd[] =
     "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
     "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
     "\"llm_is_commander\":false,\"loopback_only\":true,"
-    "\"hint\":\"[port]|selftest|probe|chat MSG|license|help\"}";
+    "\"hint\":\"[port]|selftest|probe|chat MSG|license|healthz|help\"}";
 
 static int plate_dual_wire_ok(const char *p) {
   return p && strstr(p, "\"product_wire\":\"smx2\"") &&
@@ -1058,6 +1059,20 @@ int main(int argc, char **argv) {
       return 1;
     }
   }
+  {
+    char hz[512];
+    /* Shared healthz plate (GET /healthz · / same builder). */
+    gk_healthz_json(hz, sizeof hz);
+    if (!plate_dual_wire_ok(hz) ||
+        !strstr(hz, "\"schema\":\"grokium.healthz.v1\"") ||
+        !strstr(hz, "\"ok\":true") ||
+        !strstr(hz, "\"service\":\"grokium-loopback\"") ||
+        !strstr(hz, "\"control_plane\":\"loopback_http\"") ||
+        !strstr(hz, "\"python\":0")) {
+      fprintf(stderr, "grokium-serve: healthz dual-wire fail: %.200s\n", hz);
+      return 1;
+    }
+  }
 
   if (argc >= 2 && !strcmp(argv[1], "selftest"))
     return selftest();
@@ -1073,6 +1088,15 @@ int main(int argc, char **argv) {
     char buf[512];
     /* Same dual-wire plate as GET /v1/license (no server needed). */
     grokium_license_json(buf, sizeof buf);
+    puts(buf);
+    return 0;
+  }
+
+  if (argc >= 2 &&
+      (!strcmp(argv[1], "healthz") || !strcmp(argv[1], "health"))) {
+    char buf[512];
+    /* Same dual-wire plate as GET /healthz (no server needed). */
+    gk_healthz_json(buf, sizeof buf);
     puts(buf);
     return 0;
   }

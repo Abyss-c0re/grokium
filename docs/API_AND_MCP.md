@@ -19,7 +19,7 @@ make -C c_core all
 
 | Method | Path | Role |
 |--------|------|------|
-| GET | `/healthz` | liveness |
+| GET | `/healthz` | liveness dual-wire plate (`gk_healthz_json`; also serve CLI `healthz`) |
 | GET | `/ui` | minimal lab/ops HTML plate (dual-wire honesty) |
 | GET | `/v1/status` | law + dual-wire honesty (`product_wire=smx2`) |
 | GET | `/v1/cube/status` | AlgoCube bridge plate (digit/blueprint, dual-wire) |

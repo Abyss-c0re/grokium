@@ -16,4 +16,11 @@ int gk_status_plate_json(const char *control_plane, int hold_flash, int fleet_n,
                          int fleet_alive, unsigned matrix_bits,
                          const char *grade, char *out, size_t cap);
 
+/*
+ * Dual-wire liveness plate (schema grokium.healthz.v1).
+ * GET /healthz · / and serve CLI healthz share this plate.
+ * Lab/ops loopback only; product bus remains SMX2; LLM ≠ commander.
+ */
+void gk_healthz_json(char *out, size_t cap);
+
 #endif

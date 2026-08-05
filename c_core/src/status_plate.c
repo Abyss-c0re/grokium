@@ -49,3 +49,17 @@ int gk_status_plate_json(const char *control_plane, int hold_flash, int fleet_n,
            grade_tok);
   return 0;
 }
+
+void gk_healthz_json(char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Shared dual-wire liveness: GET /healthz · / · serve CLI healthz. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.healthz.v1\",\"ok\":true,"
+           "\"service\":\"grokium-loopback\","
+           "\"control_plane\":\"loopback_http\","
+           "\"telemetry\":\"off\",\"share\":\"state_matrix_only\","
+           "\"hold_flash\":1,\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"python\":0}");
+}
