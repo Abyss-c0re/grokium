@@ -419,6 +419,7 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
                "\"llm_is_commander\":false}");
     return -1;
   }
+  /* On-disk code seal plate: dual-wire honesty (integrity ≠ product bus). */
   fprintf(f,
           "{\n"
           "  \"schema\": \"grokium.code_seal.v1\",\n"
@@ -433,7 +434,18 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
     fprintf(f, "    \"%s\": \"%s\"%s\n", ents[i].path, ents[i].hex,
             i + 1 < n ? "," : "");
   }
-  fprintf(f, "  },\n  \"ts\": %ld\n}\n", (long)now);
+  fprintf(f,
+          "  },\n"
+          "  \"share\": \"state_matrix_only\",\n"
+          "  \"hold_flash\": 1,\n"
+          "  \"product_wire\": \"smx2\",\n"
+          "  \"peer_http\": \"lab_ops_only\",\n"
+          "  \"peer_http_is_product_bus\": false,\n"
+          "  \"llm_is_commander\": false,\n"
+          "  \"model_is_not_commander\": true,\n"
+          "  \"ts\": %ld\n"
+          "}\n",
+          (long)now);
   fclose(f);
 
   /* refresh policy aggregate field (best-effort text replace write) */
@@ -443,6 +455,7 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
     if (read_file_str(path, pol, sizeof pol) == 0) {
       f = fopen(path, "w");
       if (f) {
+        /* On-disk policy plate: dual-wire + Commander ≠ model honesty. */
         fprintf(f,
                 "{\n"
                 "  \"schema\": \"grokium.integrity_policy.v1\",\n"
@@ -453,6 +466,13 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
                 "  \"privacy_canonical_sha256\": \"%s\",\n"
                 "  \"code_seal_aggregate\": \"%s\",\n"
                 "  \"share_only\": \"state_matrix_only\",\n"
+                "  \"share\": \"state_matrix_only\",\n"
+                "  \"hold_flash\": 1,\n"
+                "  \"product_wire\": \"smx2\",\n"
+                "  \"peer_http\": \"lab_ops_only\",\n"
+                "  \"peer_http_is_product_bus\": false,\n"
+                "  \"llm_is_commander\": false,\n"
+                "  \"model_is_not_commander\": true,\n"
                 "  \"stream\": \"smx_realtime_bits\",\n"
                 "  \"fail_closed\": true,\n"
                 "  \"allowlist\": [\"127.0.0.1\", \"localhost\", \"::1\", "

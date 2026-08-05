@@ -132,13 +132,22 @@ test-integrity: $(BUILD)/grokium-integrity
 	R=$$($(BUILD)/grokium-integrity reseal ..); \
 	echo "$$R" | grep -q '"ok":true'; \
 	echo "$$R" | grep -q '"product_wire":"smx2"'; \
+	grep -q '"product_wire": "smx2"' ../data/integrity/CODE_SEAL.json; \
+	grep -q '"peer_http": "lab_ops_only"' ../data/integrity/CODE_SEAL.json; \
+	grep -q '"llm_is_commander": false' ../data/integrity/CODE_SEAL.json; \
+	grep -q '"peer_http_is_product_bus": false' ../data/integrity/CODE_SEAL.json; \
+	grep -q '"product_wire": "smx2"' ../data/integrity/POLICY.json; \
+	grep -q '"llm_is_commander": false' ../data/integrity/POLICY.json; \
+	grep -q '"model_is_not_commander": true' ../data/integrity/POLICY.json; \
 	T=$$($(BUILD)/grokium-integrity tick ..); \
 	echo "$$T" | grep -q '"ok":true'; \
 	echo "$$T" | grep -q '"product_wire":"smx2"'; \
 	echo "$$T" | grep -q '"peer_http_is_product_bus":false'; \
 	echo "$$T" | grep -q '"llm_is_commander":false'; \
 	echo "$$T" | grep -q '"hold_flash":1'; \
+	grep -q '"product_wire": "smx2"' ../data/integrity/LATEST.json; \
 	$(BUILD)/grokium-integrity policy .. | grep -q state_matrix_only; \
+	$(BUILD)/grokium-integrity policy .. | grep -q '"product_wire"'; \
 	echo INTEGRITY_OK
 
 test-fleet: $(BUILD)/grokium-fleet
