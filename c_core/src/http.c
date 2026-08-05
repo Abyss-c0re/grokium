@@ -566,7 +566,8 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     char html[4096], grade_tok[32];
     int n;
     if (strcmp(method, "GET") != 0) {
-      http_reply(cfd, 405, "text/plain", "method\n");
+      /* Dual-wire JSON body — not headers-only / free-text. */
+      http_reply_err(cfd, 405, "method");
       return;
     }
     machine_token(C ? C->grade : "EMPTY", grade_tok, sizeof grade_tok);
@@ -618,7 +619,8 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
         C ? C->matrix.bits_set : 0, grade_tok, F ? F->n : 0,
         L ? L->hold_flash : 1);
     if (n < 0 || (size_t)n >= sizeof html) {
-      http_reply(cfd, 500, "text/plain", "ui_overflow\n");
+      /* Dual-wire JSON body — not headers-only / free-text. */
+      http_reply_err(cfd, 500, "ui_overflow");
       return;
     }
     http_reply(cfd, 200, "text/html; charset=utf-8", html);
