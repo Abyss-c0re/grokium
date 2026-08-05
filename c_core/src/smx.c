@@ -5,11 +5,32 @@
 #include <stdio.h>
 #include <string.h>
 
+/* Machine token for host_id plate field (no JSON/path inject). */
+static void host_token(const char *in, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in || !in[0]) return;
+  for (i = 0; in[i] && o + 1 < cap; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.')
+      out[o++] = (char)c;
+    else if (c == ' ' || c == '/' || c == ':' || c == '"' || c == '\\' ||
+             c == '\'' || c == ',' || c == ';')
+      out[o++] = '_';
+  }
+  out[o] = 0;
+}
+
 void smx_clear(grokium_smx *m, const char *host_id) {
   if (!m) return;
   memset(m, 0, sizeof *m);
-  if (host_id)
-    snprintf(m->host_id, sizeof m->host_id, "%s", host_id);
+  if (host_id && host_id[0]) {
+    host_token(host_id, m->host_id, sizeof m->host_id);
+    if (!m->host_id[0])
+      snprintf(m->host_id, sizeof m->host_id, "host");
+  }
 }
 
 void smx_set(grokium_smx *m, int x, int y, int z, int bit) {
@@ -124,9 +145,12 @@ int smx_save_json(const grokium_smx *m, const char *path, int algodigit) {
   FILE *f;
   char bits[GROKIUM_CELLS + 1];
   char hex[65];
+  char host_tok[sizeof m->host_id];
   if (!m || !path) return -1;
   smx_bits_ascii(m, bits, sizeof bits);
   smx_sha256_hex(m, hex);
+  host_token(m->host_id, host_tok, sizeof host_tok);
+  if (!host_tok[0]) snprintf(host_tok, sizeof host_tok, "host");
   f = fopen(path, "w");
   if (!f) return -1;
   /* Compact on-disk plate: dual-wire honesty (lab/ops ≠ product bus). */
@@ -139,7 +163,7 @@ int smx_save_json(const grokium_smx *m, const char *path, int algodigit) {
           "\"peer_http_is_product_bus\":false,"
           "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
           "\"bits\":\"%.64s...\"}\n",
-          (unsigned long long)m->seq, m->bits_set, m->ticks, m->host_id,
+          (unsigned long long)m->seq, m->bits_set, m->ticks, host_tok,
           algodigit, hex, bits);
   fclose(f);
   return 0;

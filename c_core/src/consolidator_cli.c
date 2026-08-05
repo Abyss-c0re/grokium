@@ -204,6 +204,35 @@ int main(int argc, char **argv) {
         fprintf(stderr, "selftest: matrix.json dual-wire fail: %s\n", body);
         return 1;
       }
+      /* Hostile host_id must not break on-disk matrix plate. */
+      {
+        gk_consolidator H;
+        FILE *hf;
+        gk_init(&H, "x\",\"evil\":true");
+        /* "x\",\"evil\":true" → x + quotes/comma → underscores */
+        if (strcmp(H.matrix.host_id, "x___evil__true") != 0) {
+          fprintf(stderr, "selftest: host_id not sanitized: %s\n",
+                  H.matrix.host_id);
+          return 1;
+        }
+        if (gk_save_dir(&H, "/tmp/gk_consolidate_hostinj") != 0) {
+          fprintf(stderr, "selftest: host inject save failed\n");
+          return 1;
+        }
+        hf = fopen("/tmp/gk_consolidate_hostinj/matrix.json", "r");
+        if (!hf) {
+          fprintf(stderr, "selftest: host inject matrix.json missing\n");
+          return 1;
+        }
+        n = fread(body, 1, sizeof body - 1, hf);
+        body[n] = 0;
+        fclose(hf);
+        if (!strstr(body, "\"host\":\"x___evil__true\"") ||
+            strstr(body, "\"evil\"")) {
+          fprintf(stderr, "selftest: host inject leaked: %s\n", body);
+          return 1;
+        }
+      }
     }
     printf("CONSOLIDATOR_OK grade=%s concepts=%d bits=%u smx_filter=on "
            "dual_wire=honest\n",
