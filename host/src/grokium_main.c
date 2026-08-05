@@ -800,12 +800,22 @@ int main(int argc, char **argv) {
              "\"llm_is_commander\":false}\n");
       return 0;
     }
-    {
+    if (strcmp(sub, "status") == 0 || strcmp(sub, "show") == 0 ||
+        strcmp(sub, "help") == 0 || strcmp(sub, "?") == 0) {
       char buf[640];
       int rc = gkx_hub_status(buf, sizeof buf);
       printf("%s\n", buf);
       return rc;
     }
+    /* Machine need_subcmd — dual-wire honesty (match TUI /hub path). */
+    printf("{\"schema\":\"grokium.hub.v1\",\"ok\":false,"
+           "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false,"
+           "\"hint\":\"hub [start|stop|status]\"}\n");
+    return 2;
   }
   if (strcmp(cmd, "board") == 0)
     return run_cubalc_program("board.cubalc", NULL);
