@@ -1270,14 +1270,11 @@ static void cmd_contract(const char *arg) {
     (void)contract_flag_val(p, "--digit", digit, sizeof digit);
     (void)contract_flag_val(p, "--min-set", minset, sizeof minset);
     if (!assignee[0] || !task[0]) {
-      /* Match filter CLI need_assignee_and_task dual-wire plate. */
-      log_add("{\"schema\":\"grokium.contract_form.v1\",\"ok\":false,"
-              "\"error\":\"need_assignee_and_task\","
-              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-              "\"peer_http_is_product_bus\":false,"
-              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-              "\"llm_is_commander\":false,"
-              "\"hint\":\"form --assignee ID --task TEXT\"}");
+      /* Shared dual-wire plate with smx-filter CLI / HTTP contract form. */
+      char plate[512];
+      grokium_contract_form_err_json("need_assignee_and_task", plate,
+                                     sizeof plate);
+      log_add(plate);
       return;
     }
     av[n++] = "form";
@@ -1305,13 +1302,9 @@ static void cmd_contract(const char *arg) {
     const char *sp = p + 8;
     while (*sp == ' ') sp++;
     if (!*sp) {
-      log_add("{\"schema\":\"grokium.contract_validate.v1\",\"ok\":false,"
-              "\"error\":\"need_path\",\"product_wire\":\"smx2\","
-              "\"peer_http\":\"lab_ops_only\","
-              "\"peer_http_is_product_bus\":false,"
-              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-              "\"llm_is_commander\":false,"
-              "\"hint\":\"validate PATH [--bits 01…]\"}");
+      char plate[512];
+      grokium_contract_validate_err_json("need_path", plate, sizeof plate);
+      log_add(plate);
       return;
     }
   }
@@ -1342,13 +1335,14 @@ static void cmd_contract(const char *arg) {
 
 /* Fleet plate: pure-C grokium-fleet (honest pid/status). CubalC opt-in. */
 static void cmd_fleet(const char *arg) {
-  char *av[6];
-  char sub[64], a1[PATH_MAX], a2[64];
+  char *av[8];
+  char sub[64], a1[PATH_MAX], a2[64], a3[PATH_MAX];
   int n = 0;
   const char *p = arg ? arg : "";
   while (*p == ' ') p++;
-  sub[0] = a1[0] = a2[0] = 0;
-  sscanf(p, "%63s %511s %63s", sub, a1, a2);
+  sub[0] = a1[0] = a2[0] = a3[0] = 0;
+  /* note-pid ID PID [path] needs three args after subcmd. */
+  sscanf(p, "%63s %511s %63s %511s", sub, a1, a2, a3);
   if (!sub[0]) {
     /* default: live status probe */
     log_add("--- fleet status (pure-C · kill(0) honest) ---");
@@ -1356,7 +1350,8 @@ static void cmd_fleet(const char *arg) {
     av[1] = NULL;
     (void)run_c_core_capture("grokium-fleet", av);
     log_add("  product_wire=smx2 · peer_http=lab_ops_only · nb-manager on plate");
-    log_add("  subs: defaults|status|deploy|spawn <id>|spawn-all|stop-all|cubalc");
+    log_add("  subs: defaults|status|deploy|save|spawn <id>|spawn-all|"
+            "note-pid <id> <pid>|separate <id>|stop-all|cubalc");
     return;
   }
   if (!strcmp(sub, "help") || !strcmp(sub, "?")) {
@@ -1367,8 +1362,9 @@ static void cmd_fleet(const char *arg) {
             "\"peer_http_is_product_bus\":false,"
             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
             "\"llm_is_commander\":false,"
-            "\"hint\":\"/fleet [status|defaults|deploy|spawn ID|spawn-all|"
-            "stop-all|cubalc] · pid honest\"}");
+            "\"hint\":\"/fleet [status|defaults|deploy|save|spawn ID|"
+            "spawn-all|note-pid ID PID|separate ID|stop-all|cubalc] · "
+            "pid honest\"}");
     return;
   }
   if (!strcmp(sub, "cubalc")) {
@@ -1376,10 +1372,11 @@ static void cmd_fleet(const char *arg) {
     run_prog_capture("fleet.cubalc");
     return;
   }
-  /* pass-through to grokium-fleet; refuse wild paths beyond one path arg */
+  /* pass-through to grokium-fleet (up to three args after subcmd). */
   av[n++] = sub;
   if (a1[0]) av[n++] = a1;
   if (a2[0]) av[n++] = a2;
+  if (a3[0]) av[n++] = a3;
   av[n] = NULL;
   log_add("--- fleet (pure-C) ---");
   (void)run_c_core_capture("grokium-fleet", av);
@@ -1497,7 +1494,7 @@ static void do_command(const char *raw) {
     log_add("  /mode chat|agent|resume  tools toggle · resume=host-local");
     log_add("  /law            Cube Standards plate (share=state_matrix_only)");
     log_add("  /status         dual-wire honesty (fleet+matrix · SMX2≠peer HTTP)");
-    log_add("  /fleet [status…]  pure-C plate (honest pid · peer HTTP lab_ops)");
+    log_add("  /fleet [status|deploy|save|spawn|note-pid|separate|stop-all]");
     log_add("  /manager [DIR]  motivate incomplete contracts (nb-manager)");
     log_add("  /contract form|validate|…  external cell contracts (SMX filter)");
     log_add("  /hub [start|stop]  LLM request hub");
