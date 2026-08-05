@@ -152,8 +152,6 @@ static void http_sse_event(int fd, const char *event, const char *data) {
   if (n > 0) (void)write(fd, line, (size_t)n);
 }
 
-static void json_matrix(const gk_consolidator *C, char *out, size_t cap);
-
 /* Snapshot SSE of latest matrix. Sequential serve: short-lived by design
  * so lab/ops does not starve other loopback clients. Real multi-peer talk
  * stays on the product SMX2 bus. */
@@ -180,7 +178,7 @@ static void smx_sse_snapshot(int fd, const gk_consolidator *C) {
                    "\"llm_is_commander\":false}");
     return;
   }
-  json_matrix(C, payload, sizeof payload);
+  (void)gk_matrix_json(C, payload, sizeof payload);
   http_sse_event(fd, "smx", payload);
   snprintf(end, sizeof end,
            "{\"ok\":true,\"mode\":\"snapshot\",\"seq\":%llu,"
@@ -525,31 +523,6 @@ static void json_status(const grokium_law *L, const gk_consolidator *C,
   (void)gk_status_plate_json("loopback_http", L ? L->hold_flash : 1,
                              F ? F->n : 0, alive, C ? C->matrix.bits_set : 0,
                              C ? C->grade : "EMPTY", out, cap);
-}
-
-static void json_matrix(const gk_consolidator *C, char *out, size_t cap) {
-  char hex[65];
-  char bits[GROKIUM_CELLS + 1];
-  char host_tok[40], grade_tok[32];
-  if (!C || !out || cap < 128) return;
-  smx_sha256_hex(&C->matrix, hex);
-  smx_bits_ascii(&C->matrix, bits, sizeof bits);
-  machine_token(C->matrix.host_id, host_tok, sizeof host_tok);
-  if (!host_tok[0]) snprintf(host_tok, sizeof host_tok, "unknown");
-  machine_token(C->grade, grade_tok, sizeof grade_tok);
-  if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
-  /* Lab/ops SMX snapshot: bits only on wire; dual-wire honesty plate. */
-  snprintf(out, cap,
-           "{\"schema\":\"grokium.smx.v1\",\"ok\":true,"
-           "\"seq\":%llu,\"bits_set\":%u,"
-           "\"host\":\"%s\",\"sha256\":\"%s\",\"grade\":\"%s\","
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-           "\"bits\":\"%s\"}",
-           (unsigned long long)C->matrix.seq, C->matrix.bits_set, host_tok,
-           hex, grade_tok, bits);
 }
 
 /* Count non-dot entries under path; -1 if missing/unreadable. */
@@ -1019,7 +992,8 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       http_reply_err(cfd, 500, "no_matrix");
       return;
     }
-    json_matrix(C, resp, sizeof resp);
+    /* Shared consolidator dual-wire SMX plate (full bits, grade). */
+    (void)gk_matrix_json(C, resp, sizeof resp);
     http_reply(cfd, 200, "application/json", resp);
     return;
   }

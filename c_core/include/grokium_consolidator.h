@@ -53,6 +53,11 @@ int  gk_consolidate(gk_consolidator *C, double now_ts);
 /* Ability card: grade + seal (no LLM heartbeat eval) */
 int  gk_ability(const gk_consolidator *C, double now_ts,
                 char *json_out, size_t cap);
+/*
+ * Dual-wire SMX snapshot plate (schema grokium.smx.v1, full bits).
+ * Lab/ops only — product multi-peer bus remains SMX2. Returns 0 ok.
+ */
+int  gk_matrix_json(const gk_consolidator *C, char *out, size_t cap);
 int  gk_save_dir(const gk_consolidator *C, const char *dir);
 int  gk_load_dir(gk_consolidator *C, const char *dir);
 #endif

@@ -159,6 +159,23 @@ int main(int argc, char **argv) {
               ability);
       return 1;
     }
+    /* Live SMX plate (same builder as GET /v1/matrix/latest). */
+    {
+      char mx[GROKIUM_CELLS + 512];
+      if (gk_matrix_json(&C, mx, sizeof mx) != 0 ||
+          !strstr(mx, "\"schema\":\"grokium.smx.v1\"") ||
+          !strstr(mx, "\"ok\":true") ||
+          !strstr(mx, "\"product_wire\":\"smx2\"") ||
+          !strstr(mx, "\"peer_http\":\"lab_ops_only\"") ||
+          !strstr(mx, "\"peer_http_is_product_bus\":false") ||
+          !strstr(mx, "\"llm_is_commander\":false") ||
+          !strstr(mx, "\"share\":\"state_matrix_only\"") ||
+          !strstr(mx, "\"bits\":\"")) {
+        fprintf(stderr, "selftest: gk_matrix_json dual-wire fail: %.200s\n",
+                mx);
+        return 1;
+      }
+    }
     /* CONSOLIDATE.json on save must carry dual-wire honesty too */
     {
       char body[1024];

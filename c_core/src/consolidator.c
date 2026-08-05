@@ -164,6 +164,60 @@ int gk_ability(const gk_consolidator *C, double now_ts, char *json_out,
   return 0;
 }
 
+/* Machine token for plate fields (host/grade — no free-text inject). */
+static void plate_token(const char *in, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in || !in[0]) return;
+  for (i = 0; in[i] && o + 1 < cap && o < 48; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.')
+      out[o++] = (char)c;
+    else if (c == ' ' || c == '/' || c == ':' || c == '"' || c == '\\' ||
+             c == '\'' || c == ',' || c == ';')
+      out[o++] = '_';
+  }
+  out[o] = 0;
+}
+
+int gk_matrix_json(const gk_consolidator *C, char *out, size_t cap) {
+  char hex[65];
+  char bits[GROKIUM_CELLS + 1];
+  char host_tok[40], grade_tok[32];
+  if (!out || cap < 128) return -1;
+  if (!C) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.smx.v1\",\"ok\":false,"
+             "\"error\":\"no_matrix\",\"share\":\"state_matrix_only\","
+             "\"hold_flash\":1,\"product_wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_on_hot_path\":false,\"llm_is_commander\":false}");
+    return -1;
+  }
+  smx_sha256_hex(&C->matrix, hex);
+  smx_bits_ascii(&C->matrix, bits, sizeof bits);
+  plate_token(C->matrix.host_id, host_tok, sizeof host_tok);
+  if (!host_tok[0]) snprintf(host_tok, sizeof host_tok, "unknown");
+  plate_token(C->grade, grade_tok, sizeof grade_tok);
+  if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
+  /* Lab/ops SMX snapshot: bits only on wire; dual-wire honesty plate. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.smx.v1\",\"ok\":true,"
+           "\"seq\":%llu,\"bits_set\":%u,"
+           "\"host\":\"%s\",\"sha256\":\"%s\",\"grade\":\"%s\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+           "\"bits\":\"%s\"}",
+           (unsigned long long)C->matrix.seq, C->matrix.bits_set, host_tok,
+           hex, grade_tok, bits);
+  return 0;
+}
+
 int gk_save_dir(const gk_consolidator *C, const char *dir) {
   char path[512];
   FILE *f;
