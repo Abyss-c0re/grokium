@@ -1818,9 +1818,20 @@ static void do_command(const char *raw) {
         free(js);
       }
     }
-    if (rest[0] && strcmp(rest, "start") == 0)
-      log_add(gkx_hub_ensure(&cfg) == 0 ? "hub: ready" : "hub: failed");
-    else if (rest[0] && strcmp(rest, "stop") == 0) {
+    if (rest[0] && strcmp(rest, "start") == 0) {
+      if (gkx_hub_ensure(&cfg) == 0) {
+        log_add("hub: ready");
+      } else {
+        /* Machine hub_start_failed plate — dual-wire honesty. */
+        log_add("{\"schema\":\"grokium.hub.v1\",\"ok\":false,"
+                "\"error\":\"hub_start_failed\",\"product_wire\":\"smx2\","
+                "\"peer_http\":\"lab_ops_only\","
+                "\"peer_http_is_product_bus\":false,"
+                "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                "\"llm_is_commander\":false,"
+                "\"hint\":\"/hub status · check nanobot peer + local llama\"}");
+      }
+    } else if (rest[0] && strcmp(rest, "stop") == 0) {
       gkx_hub_stop();
       log_add("hub: stopped");
     } else if (rest[0] && strcmp(rest, "status") != 0 &&
@@ -1985,8 +1996,18 @@ static void do_command(const char *raw) {
                 "\"hint\":\"/viz open <path>\"}");
         return;
       }
-      if (gkx_viz_open(&cfg, arg, 0) == 0) log_add("opened (desktop cmd)");
-      else log_add("viz open failed");
+      if (gkx_viz_open(&cfg, arg, 0) == 0) {
+        log_add("opened (desktop cmd)");
+      } else {
+        /* Machine open_failed plate — dual-wire honesty (no free-text-only). */
+        log_add("{\"schema\":\"grokium.viz.v1\",\"ok\":false,"
+                "\"error\":\"open_failed\",\"product_wire\":\"smx2\","
+                "\"peer_http\":\"lab_ops_only\","
+                "\"peer_http_is_product_bus\":false,"
+                "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                "\"llm_is_commander\":false,"
+                "\"hint\":\"/viz open <path> · set viz.desktop_cmd\"}");
+      }
       return;
     }
     if (!strcmp(sub, "vr")) {
@@ -2000,8 +2021,17 @@ static void do_command(const char *raw) {
                 "\"hint\":\"/viz vr <path>\"}");
         return;
       }
-      if (gkx_viz_open(&cfg, arg, 1) == 0) log_add("opened (vr/desktop cmd)");
-      else log_add("viz vr failed");
+      if (gkx_viz_open(&cfg, arg, 1) == 0) {
+        log_add("opened (vr/desktop cmd)");
+      } else {
+        log_add("{\"schema\":\"grokium.viz.v1\",\"ok\":false,"
+                "\"error\":\"open_failed\",\"product_wire\":\"smx2\","
+                "\"peer_http\":\"lab_ops_only\","
+                "\"peer_http_is_product_bus\":false,"
+                "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                "\"llm_is_commander\":false,"
+                "\"hint\":\"/viz vr <path> · set viz.vr_cmd\"}");
+      }
       return;
     }
     if (!strcmp(sub, "term") || !strcmp(sub, "2d")) {

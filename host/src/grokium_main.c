@@ -610,7 +610,14 @@ int main(int argc, char **argv) {
   while (ai < argc) {
     if (strcmp(argv[ai], "-p") == 0 || strcmp(argv[ai], "--single") == 0) {
       if (ai + 1 >= argc) {
-        fprintf(stderr, "grokium: -p needs prompt\n");
+        /* Machine need_message — dual-wire honesty (no free-text-only). */
+        printf("{\"schema\":\"grokium.chat.v1\",\"ok\":false,"
+               "\"error\":\"need_message\",\"product_wire\":\"smx2\","
+               "\"peer_http\":\"lab_ops_only\","
+               "\"peer_http_is_product_bus\":false,"
+               "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+               "\"llm_is_commander\":false,"
+               "\"hint\":\"-p|--single <prompt>\"}\n");
         return 2;
       }
       single = argv[++ai];
