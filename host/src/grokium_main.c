@@ -416,10 +416,16 @@ static int cmd_session_pickup(const char *id) {
   size_t nread;
   int resume_ok;
   if (!session_id_safe(id)) {
-    fprintf(stderr,
-            "usage: grokium pickup|load <session-id>\n"
-            "  meta plate + resume_available (no transcripts on wire)\n");
-    return 2;
+    /* Machine deny plate (match c_core): no free-text usage on the wire. */
+    printf("{\"schema\":\"grokium.session_pickup.v1\",\"ok\":false,"
+           "\"error\":\"bad_session_id\",\"content\":\"meta_only\","
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"resume_available\":false,"
+           "\"hint\":\"session id is hex digits and dashes only\"}\n");
+    return 1;
   }
   snprintf(path, sizeof path, "%s/data/import/%s.meta.json", root, id);
   f = fopen(path, "r");
