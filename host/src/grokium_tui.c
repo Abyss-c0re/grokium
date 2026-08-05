@@ -1225,24 +1225,32 @@ static void cmd_manager_tick(const char *arg) {
   const char *p = arg ? arg : "";
   int n = 0;
   while (*p == ' ') p++;
+  if (p[0] && (!strcmp(p, "help") || !strcmp(p, "?"))) {
+    /* Machine help plate — dual-wire honesty (no free-text-only usage). */
+    log_add("{\"schema\":\"grokium.manager_tick.v1\",\"ok\":false,"
+            "\"error\":\"need_dir_or_run\",\"product_wire\":\"smx2\","
+            "\"peer_http\":\"lab_ops_only\","
+            "\"peer_http_is_product_bus\":false,"
+            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+            "\"llm_is_commander\":false,"
+            "\"wire\":\"smx_motivate\","
+            "\"hint\":\"/manager [DIR] · pure-C smx-filter manager-tick\"}");
+    return;
+  }
   log_add("--- manager-tick (nb-manager · incomplete contracts → NexusCore) ---");
   av[n++] = "manager-tick";
-  if (p[0] && strcmp(p, "tick") != 0 && strcmp(p, "help") != 0 &&
-      strcmp(p, "?") != 0) {
+  if (p[0] && strcmp(p, "tick") != 0) {
     /* optional contract dir (relative under repo) */
     if (strchr(p, '/') || (p[0] != '-' && !strchr(p, ' '))) {
       snprintf(dir, sizeof dir, "%s", p);
       av[n++] = dir;
     }
   }
-  if (p[0] && (!strcmp(p, "help") || !strcmp(p, "?"))) {
-    log_add("usage: /manager [DIR]  or  /manager-tick [DIR]");
-    log_add("  pure-C grokium-smx-filter · product_wire=smx2 · HOLD_FLASH");
-    return;
-  }
   av[n] = NULL;
   (void)run_c_core_capture("grokium-smx-filter", av);
-  log_add("  share=state_matrix_only · contracts under data/contracts");
+  log_add("  share=state_matrix_only · product_wire=smx2 · hold_flash=1");
+  log_add("  peer_http=lab_ops_only · wire=smx_motivate · Commander≠model");
+  log_add("  contracts under data/contracts · nb-manager motivates incomplete");
 }
 
 /* Parse --flag VALUE from plate (VALUE may include spaces until next --). */
