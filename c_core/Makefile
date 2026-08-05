@@ -15,7 +15,7 @@ CONS_SRC := src/consolidator_cli.c src/consolidator.c src/smx_filter.c \
 HTTP_SRC := src/http_cli.c src/http.c src/llama.c src/session.c \
 	src/consolidator.c src/fleet.c src/smx_filter.c src/smx.c src/algocube.c \
 	src/law.c src/status_plate.c src/sha256.c src/commander.c src/integrity.c
-INT_SRC := src/integrity_cli.c src/integrity.c src/sha256.c
+INT_SRC := src/integrity_cli.c src/integrity.c src/law.c src/sha256.c
 
 .PHONY: all clean test-commander test-filter hive test-consolidate test-serve \
 	test-integrity test-fleet test-session-plate
@@ -98,6 +98,12 @@ test-commander: $(BIN_CMD)
 
 test-filter: $(BIN_FILTER)
 	@set -e; \
+	H=$$($(BIN_FILTER) help || true); \
+	echo "$$H" | grep -q '"schema":"grokium.smx_filter.v1"'; \
+	echo "$$H" | grep -q '"error":"need_subcmd"'; \
+	echo "$$H" | grep -q '"product_wire":"smx2"'; \
+	echo "$$H" | grep -q '"peer_http_is_product_bus":false'; \
+	echo "$$H" | grep -q '"llm_is_commander":false'; \
 	I=$$($(BIN_FILTER) instinct); \
 	echo "$$I" | grep -q '"schema":"grokium.instinct.v1"'; \
 	echo "$$I" | grep -q NexusCore; \
@@ -197,6 +203,13 @@ test-serve: $(BUILD)/grokium-serve
 
 test-integrity: $(BUILD)/grokium-integrity
 	@set -e; \
+	H=$$($(BUILD)/grokium-integrity help || true); \
+	echo "$$H" | grep -q '"schema":"grokium.integrity_report.v1"'; \
+	echo "$$H" | grep -q '"error":"need_subcmd"'; \
+	echo "$$H" | grep -q '"product_wire":"smx2"'; \
+	echo "$$H" | grep -q '"peer_http_is_product_bus":false'; \
+	echo "$$H" | grep -q '"llm_is_commander":false'; \
+	echo "$$H" | grep -q '"hint":"tick|policy|reseal"'; \
 	R=$$($(BUILD)/grokium-integrity reseal ..); \
 	echo "$$R" | grep -q '"ok":true'; \
 	echo "$$R" | grep -q '"product_wire":"smx2"'; \

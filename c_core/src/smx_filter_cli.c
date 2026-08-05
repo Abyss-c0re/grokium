@@ -10,16 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Dual-wire deny plates — no free-text prose on the machine wire. */
-static const char k_need_subcmd[] =
-    "{\"schema\":\"grokium.smx_filter.v1\",\"ok\":false,"
-    "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false,"
-    "\"hint\":\"form|validate|manager-tick|allow-check|instinct|"
-    "heartbeat-ack\"}";
-
 static int plate_dual_wire_ok(const char *p) {
   return p && strstr(p, "\"product_wire\":\"smx2\"") &&
          strstr(p, "\"peer_http\":\"lab_ops_only\"") &&
@@ -29,13 +19,26 @@ static int plate_dual_wire_ok(const char *p) {
          strstr(p, "\"share\":\"state_matrix_only\"");
 }
 
-static void usage(void) { printf("%s\n", k_need_subcmd); }
+/* Shared dual-wire need_subcmd (host contract help uses same builder). */
+static void usage(void) {
+  char plate[512];
+  grokium_need_subcmd_json(
+      "smx_filter",
+      "form|validate|manager-tick|allow-check|instinct|heartbeat-ack", plate,
+      sizeof plate);
+  printf("%s\n", plate);
+}
 
 int main(int argc, char **argv) {
   {
     char den[512];
-    if (!plate_dual_wire_ok(k_need_subcmd) ||
-        !strstr(k_need_subcmd, "\"error\":\"need_subcmd\"")) {
+    grokium_need_subcmd_json(
+        "smx_filter",
+        "form|validate|manager-tick|allow-check|instinct|heartbeat-ack", den,
+        sizeof den);
+    if (!plate_dual_wire_ok(den) ||
+        !strstr(den, "\"error\":\"need_subcmd\"") ||
+        !strstr(den, "\"schema\":\"grokium.smx_filter.v1\"")) {
       fprintf(stderr, "grokium-smx-filter: deny plate dual-wire fail\n");
       return 1;
     }

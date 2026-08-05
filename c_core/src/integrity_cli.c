@@ -1,18 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #define _POSIX_C_SOURCE 200809L
 #include "grokium_integrity.h"
+#include "grokium_law.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-/* Dual-wire deny plate — no free-text usage on the machine wire. */
-static const char k_need_subcmd[] =
-    "{\"schema\":\"grokium.integrity_report.v1\",\"ok\":false,"
-    "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false,"
-    "\"hint\":\"tick|policy|reseal\"}";
 
 static int plate_dual_wire_ok(const char *p) {
   return p && strstr(p, "\"product_wire\":\"smx2\"") &&
@@ -23,21 +15,32 @@ static int plate_dual_wire_ok(const char *p) {
          strstr(p, "\"share\":\"state_matrix_only\"");
 }
 
+/* Shared dual-wire need_subcmd (host integrity help same builder). */
+static void emit_need_subcmd(void) {
+  char plate[512];
+  grokium_need_subcmd_json("integrity_report", "tick|policy|reseal", plate,
+                           sizeof plate);
+  printf("%s\n", plate);
+}
+
 int main(int argc, char **argv) {
   const char *root = getenv("GROKIUM_ROOT");
-  char out[4096];
+  char out[4096], plate[512];
   int rc;
   if (!root || !root[0]) root = ".";
 
-  if (!plate_dual_wire_ok(k_need_subcmd) ||
-      !strstr(k_need_subcmd, "\"error\":\"need_subcmd\"")) {
+  grokium_need_subcmd_json("integrity_report", "tick|policy|reseal", plate,
+                           sizeof plate);
+  if (!plate_dual_wire_ok(plate) ||
+      !strstr(plate, "\"error\":\"need_subcmd\"") ||
+      !strstr(plate, "\"schema\":\"grokium.integrity_report.v1\"")) {
     fprintf(stderr, "grokium-integrity: deny plate dual-wire fail\n");
     return 1;
   }
 
   if (argc < 2 || !strcmp(argv[1], "help") || !strcmp(argv[1], "-h") ||
       !strcmp(argv[1], "--help")) {
-    printf("%s\n", k_need_subcmd);
+    emit_need_subcmd();
     return 2;
   }
   if (argc > 2) root = argv[2];
@@ -57,6 +60,6 @@ int main(int argc, char **argv) {
     return rc == 0 ? 0 : 1;
   }
   /* Unknown subcmd — same dual-wire need_subcmd plate. */
-  printf("%s\n", k_need_subcmd);
+  emit_need_subcmd();
   return 2;
 }
