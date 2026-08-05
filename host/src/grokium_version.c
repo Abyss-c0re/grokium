@@ -8,7 +8,6 @@
 #include <unistd.h>
 #include <limits.h>
 #include <sys/stat.h>
-#include <time.h>
 
 static void read_file_trim(const char *path, char *out, size_t n) {
   out[0] = 0;
@@ -100,34 +99,67 @@ int gkx_version_refresh(gkx_version_state *st, const char *root) {
   else if (!st->last_seen[0])
     st->changed = 0; /* first capture */
 
-  /* write compat JSON */
-  char path[PATH_MAX], dir[PATH_MAX];
-  snprintf(dir, sizeof dir, "%s/data", root ? root : ".");
-  mkdir(dir, 0755);
-  snprintf(path, sizeof path, "%s/grok_build_compat.json", dir);
-  FILE *f = fopen(path, "w");
-  if (f) {
-    /* On-disk compat plate: dual-wire honesty (CLI version watch ≠ product bus). */
-    fprintf(f,
-            "{\n"
-            "  \"schema\": \"grokium.version_compat.v1\",\n"
-            "  \"reported_grok_build_version\": \"%s\",\n"
-            "  \"grokium_version\": \"%s\",\n"
-            "  \"last_source\": \"gkx_version_refresh\",\n"
-            "  \"updated_at\": %ld,\n"
-            "  \"model_is_not_commander\": true,\n"
-            "  \"llm_is_commander\": false,\n"
-            "  \"share\": \"state_matrix_only\",\n"
-            "  \"hold_flash\": 1,\n"
-            "  \"product_wire\": \"smx2\",\n"
-            "  \"peer_http\": \"lab_ops_only\",\n"
-            "  \"peer_http_is_product_bus\": false\n"
-            "}\n",
-            ver, GROKIUM_VERSION, (long)time(NULL));
-    fclose(f);
+  /* write shared dual-wire compat plate (CLI version watch ≠ product bus). */
+  {
+    char path[PATH_MAX], dir[PATH_MAX], plate[768];
+    FILE *f;
+    snprintf(dir, sizeof dir, "%s/data", root ? root : ".");
+    mkdir(dir, 0755);
+    snprintf(path, sizeof path, "%s/grok_build_compat.json", dir);
+    gkx_version_compat_json(st, 1, plate, sizeof plate);
+    f = fopen(path, "w");
+    if (f) {
+      fprintf(f, "%s\n", plate);
+      fclose(f);
+    }
   }
   snprintf(st->last_seen, sizeof st->last_seen, "%s", ver);
   return 0;
+}
+
+void gkx_version_json(char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Shared dual-wire product version plate (host CLI version). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.version.v1\",\"ok\":true,"
+           "\"product\":\"grokium\",\"version\":\"%s\",\"core\":\"nanobot\","
+           "\"host\":\"C\",\"python\":0,\"tok\":\"%s\","
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false}",
+           GROKIUM_VERSION, GROKIUM_TOK);
+}
+
+void gkx_version_compat_json(const gkx_version_state *st, int ok, char *out,
+                             size_t cap) {
+  char official[64];
+  size_t i, o = 0;
+  int changed = 0;
+  if (!out || cap < 64) return;
+  official[0] = 0;
+  if (st) {
+    changed = st->changed ? 1 : 0;
+    /* Sanitize version token for JSON (no free-text / inject). */
+    for (i = 0; st->official[i] && o + 1 < sizeof official; i++) {
+      unsigned char c = (unsigned char)st->official[i];
+      if (isalnum(c) || c == '.' || c == '-' || c == '_')
+        official[o++] = (char)c;
+    }
+    official[o] = 0;
+  }
+  if (!official[0]) snprintf(official, sizeof official, "none");
+  /* Shared dual-wire compat plate (CLI compat + on-disk refresh). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.version_compat.v1\",\"ok\":%s,"
+           "\"reported_grok_build_version\":\"%s\","
+           "\"grokium_version\":\"%s\",\"changed\":%s,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false,\"model_is_not_commander\":true}",
+           ok ? "true" : "false", official, GROKIUM_VERSION,
+           changed ? "true" : "false");
 }
 
 int gkx_version_maybe_restart(const gkx_version_state *st, int argc, char **argv) {

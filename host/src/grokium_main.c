@@ -496,15 +496,10 @@ int main(int argc, char **argv) {
     return 0;
   }
   if (strcmp(cmd, "version") == 0) {
-    /* Machine version plate — dual-wire honesty (lab/ops ≠ product bus). */
-    printf("{\"schema\":\"grokium.version.v1\",\"ok\":true,"
-           "\"product\":\"grokium\",\"version\":\"%s\",\"core\":\"nanobot\","
-           "\"host\":\"C\",\"python\":0,\"tok\":\"%s\","
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false}\n",
-           GROKIUM_VERSION, GROKIUM_TOK);
+    char plate[512];
+    /* Shared dual-wire product version plate (lab/ops ≠ product bus). */
+    gkx_version_json(plate, sizeof plate);
+    printf("%s\n", plate);
     return 0;
   }
   if (strcmp(cmd, "models") == 0) {
@@ -512,29 +507,13 @@ int main(int argc, char **argv) {
   }
   if (strcmp(cmd, "compat") == 0) {
     gkx_version_state st;
-    char official[64];
-    size_t i, o = 0;
+    char plate[768];
     int rc;
     gkx_version_init(&st, root);
     rc = gkx_version_refresh(&st, root);
-    /* Sanitize version token for JSON (no free-text / inject). */
-    for (i = 0; st.official[i] && o + 1 < sizeof official; i++) {
-      unsigned char c = (unsigned char)st.official[i];
-      if (isalnum(c) || c == '.' || c == '-' || c == '_')
-        official[o++] = (char)c;
-    }
-    official[o] = 0;
-    if (!official[0]) snprintf(official, sizeof official, "none");
-    /* Match on-disk grok_build_compat dual-wire plate (CLI version ≠ product). */
-    printf("{\"schema\":\"grokium.version_compat.v1\",\"ok\":%s,"
-           "\"reported_grok_build_version\":\"%s\","
-           "\"grokium_version\":\"%s\",\"changed\":%s,"
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false,\"model_is_not_commander\":true}\n",
-           rc == 0 ? "true" : "false", official, GROKIUM_VERSION,
-           st.changed ? "true" : "false");
+    /* Shared dual-wire compat plate (matches on-disk grok_build_compat). */
+    gkx_version_compat_json(&st, rc == 0 ? 1 : 0, plate, sizeof plate);
+    printf("%s\n", plate);
     return rc == 0 ? 0 : 1;
   }
   if (strcmp(cmd, "hub") == 0) {

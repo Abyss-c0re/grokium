@@ -62,18 +62,44 @@ int main(void) {
   if (read_all(path, plate, sizeof plate) != 0)
     return fail("read grok_build_compat.json");
 
-  if (!strstr(plate, "\"schema\": \"grokium.version_compat.v1\"") ||
-      !strstr(plate, "\"reported_grok_build_version\": \"9.9.9\"") ||
-      !strstr(plate, "\"grokium_version\": \"" GROKIUM_VERSION "\"") ||
-      !strstr(plate, "\"product_wire\": \"smx2\"") ||
-      !strstr(plate, "\"peer_http\": \"lab_ops_only\"") ||
-      !strstr(plate, "\"peer_http_is_product_bus\": false") ||
-      !strstr(plate, "\"llm_is_commander\": false") ||
-      !strstr(plate, "\"model_is_not_commander\": true") ||
-      !strstr(plate, "\"share\": \"state_matrix_only\"") ||
-      !strstr(plate, "\"hold_flash\": 1")) {
+  if (!strstr(plate, "\"schema\":\"grokium.version_compat.v1\"") ||
+      !strstr(plate, "\"reported_grok_build_version\":\"9.9.9\"") ||
+      !strstr(plate, "\"grokium_version\":\"" GROKIUM_VERSION "\"") ||
+      !strstr(plate, "\"product_wire\":\"smx2\"") ||
+      !strstr(plate, "\"peer_http\":\"lab_ops_only\"") ||
+      !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+      !strstr(plate, "\"llm_is_commander\":false") ||
+      !strstr(plate, "\"model_is_not_commander\":true") ||
+      !strstr(plate, "\"share\":\"state_matrix_only\"") ||
+      !strstr(plate, "\"hold_flash\":1") ||
+      !strstr(plate, "\"ok\":true")) {
     fprintf(stderr, "version_compat_selftest: plate honesty fail:\n%s\n", plate);
     return 1;
+  }
+
+  /* Shared builder must match on-disk plate (CLI compat path). */
+  {
+    char built[768];
+    gkx_version_compat_json(&st, 1, built, sizeof built);
+    if (!strstr(built, "\"reported_grok_build_version\":\"9.9.9\"") ||
+        !strstr(built, "\"product_wire\":\"smx2\"") ||
+        !strstr(built, "\"changed\":false"))
+      return fail("compat builder dual-wire fail");
+  }
+
+  /* Shared product version plate (CLI version path). */
+  {
+    char ver[512];
+    gkx_version_json(ver, sizeof ver);
+    if (!strstr(ver, "\"schema\":\"grokium.version.v1\"") ||
+        !strstr(ver, "\"product\":\"grokium\"") ||
+        !strstr(ver, "\"version\":\"" GROKIUM_VERSION "\"") ||
+        !strstr(ver, "\"python\":0") ||
+        !strstr(ver, "\"product_wire\":\"smx2\"") ||
+        !strstr(ver, "\"peer_http_is_product_bus\":false") ||
+        !strstr(ver, "\"llm_is_commander\":false") ||
+        !strstr(ver, "\"hold_flash\":1"))
+      return fail("version plate dual-wire fail");
   }
 
   /* Second refresh with same version: still honest, changed=0. */
@@ -83,11 +109,12 @@ int main(void) {
     return fail("same version should not set changed");
   if (read_all(path, plate, sizeof plate) != 0)
     return fail("re-read plate");
-  if (!strstr(plate, "\"product_wire\": \"smx2\"") ||
-      !strstr(plate, "\"llm_is_commander\": false"))
+  if (!strstr(plate, "\"product_wire\":\"smx2\"") ||
+      !strstr(plate, "\"llm_is_commander\":false"))
     return fail("plate dual-wire lost on rewrite");
 
-  printf("HOST_VERSION_COMPAT_OK reported=9.9.9 grokium=%s dual_wire=honest\n",
+  printf("HOST_VERSION_COMPAT_OK reported=9.9.9 grokium=%s dual_wire=honest "
+         "version_plate=1\n",
          GROKIUM_VERSION);
   return 0;
 }
