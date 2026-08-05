@@ -116,9 +116,23 @@ test-filter: $(BIN_FILTER)
 	$(BIN_FILTER) validate "$$P" --bits 1 || true; \
 	grep -q '"product_wire": "smx2"' "$$P"; \
 	grep -q '"llm_is_commander": false' "$$P"; \
-	M=$$($(BIN_FILTER) manager-tick "$$D"); \
-	echo "$$M" | grep -q motivated; \
+	J2=$$($(BIN_FILTER) form --assignee nb-worker-2 --task 'incomplete for motivate' --min-set 99); \
+	echo "$$J2" | grep -q '"ok":true'; \
+	M=$$($(BIN_FILTER) manager-tick "$$D" 2>"$$D/motivate.err"); \
+	echo "$$M" | grep -q '"motivated":1'; \
 	echo "$$M" | grep -q '"product_wire":"smx2"'; \
+	echo "$$M" | grep -q '"peer_http_is_product_bus":false'; \
+	grep -q 'NEXUS_COORD v1' "$$D/motivate.err"; \
+	grep -q 'from=nb-manager' "$$D/motivate.err"; \
+	grep -q 'type=motivate' "$$D/motivate.err"; \
+	grep -q 'product_wire=smx2' "$$D/motivate.err"; \
+	grep -q 'peer_http=lab_ops_only' "$$D/motivate.err"; \
+	grep -q 'peer_http_is_product_bus=0' "$$D/motivate.err"; \
+	grep -q 'share=state_matrix_only' "$$D/motivate.err"; \
+	grep -q 'llm_is_commander=0' "$$D/motivate.err"; \
+	grep -q 'motive=matrix_harmony' "$$D/motivate.err"; \
+	PULSE=$$(head -1 "$$D/motivate.err"); \
+	$(BIN_FILTER) allow-check "$$PULSE" | grep -q '"allow":true'; \
 	echo SMX_FILTER_OK
 
 test-consolidate: $(BUILD)/grokium-consolidate

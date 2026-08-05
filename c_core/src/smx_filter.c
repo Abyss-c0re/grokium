@@ -519,11 +519,15 @@ int grokium_manager_motivate_dir(const char *dir) {
     c.motivate_ticks++;
     c.status = GROKIUM_CONTRACT_PROGRESS;
     rewrite_status(&c);
-    /* motivate pulse log — bits only line for SMX bus consumers */
+    /* Motivate pulse: machine NEXUS_COORD with dual-wire honesty
+     * (product bus = SMX2; peer HTTP is not the product bus). */
     fprintf(stderr,
             "NEXUS_COORD v1 | from=nb-manager | type=motivate | "
             "contract=%s | assignee=%s | ticks=%d | observer=NexusCore | "
-            "HOLD_FLASH=ack_held | please=matrix_harmony |\n",
+            "HOLD_FLASH=ack_held | share=state_matrix_only | "
+            "product_wire=smx2 | peer_http=lab_ops_only | "
+            "peer_http_is_product_bus=0 | llm_is_commander=0 | "
+            "motive=matrix_harmony |\n",
             c.id, c.assignee, c.motivate_ticks);
     n++;
   }
