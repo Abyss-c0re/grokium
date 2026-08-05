@@ -600,3 +600,24 @@ void grokium_agent_err_json(const char *error, const char *hint, char *out,
              err_tok);
   }
 }
+
+void grokium_agent_ok_json(const char *content, char *out, size_t cap) {
+  char content_esc[2560];
+  if (!out || cap < 64) return;
+  /* JSON-escape body; empty content still emits a valid dual-wire plate. */
+  content_esc[0] = 0;
+  if (content && content[0])
+    (void)json_escape(content, content_esc, sizeof content_esc);
+  /* Shared dual-wire success: POST /v1/agent · serve selftest. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.agent.v1\",\"ok\":true,"
+           "\"tools\":false,\"tool_agent\":\"host_nanobot\","
+           "\"agent_mode\":\"lab_ops_chat_only\","
+           "\"content\":\"%s\",\"llm_is_commander\":false,"
+           "\"commander_is_model\":false,\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"local_first\":true,\"telemetry\":\"off\"}",
+           content_esc);
+}

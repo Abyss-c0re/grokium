@@ -1236,7 +1236,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
    * nanobot (embeddable core). Never elevates LLM to Commander.
    */
   if (!strcmp(path, "/v1/agent")) {
-    char msg[2048], chat[GK_HTTP_RESP_MAX], content[2048], content_esc[2560];
+    char msg[2048], chat[GK_HTTP_RESP_MAX], content[2048];
     char errf[96];
     int code, ok;
     if (strcmp(method, "POST") != 0) {
@@ -1286,19 +1286,9 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       if (extract_json_string_field(chat, "error", errf, sizeof errf) != 0)
         snprintf(errf, sizeof errf, "chat_failed");
     }
-    json_escape(content, content_esc, sizeof content_esc);
     if (ok) {
-      snprintf(resp, sizeof resp,
-               "{\"schema\":\"grokium.agent.v1\",\"ok\":true,"
-               "\"tools\":false,\"tool_agent\":\"host_nanobot\","
-               "\"agent_mode\":\"lab_ops_chat_only\","
-               "\"content\":\"%s\",\"llm_is_commander\":false,"
-               "\"commander_is_model\":false,\"product_wire\":\"smx2\","
-               "\"peer_http\":\"lab_ops_only\","
-               "\"peer_http_is_product_bus\":false,"
-               "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-               "\"local_first\":true,\"telemetry\":\"off\"}",
-               content_esc);
+      /* Shared dual-wire success (content escaped inside builder). */
+      grokium_agent_ok_json(content, resp, sizeof resp);
       code = 200;
     } else if (strstr(chat, "\"reachable\":false")) {
       /* Shared dual-wire deny; errf is free-text so builder sanitizes. */

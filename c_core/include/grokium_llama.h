@@ -31,4 +31,11 @@ void grokium_chat_err_json(const char *error, const char *hint, char *out,
 void grokium_agent_err_json(const char *error, const char *hint, char *out,
                             size_t cap);
 
+/*
+ * Dual-wire agent-lite success plate (schema grokium.agent.v1, ok=true).
+ * content is JSON-escaped; tools always false (shell tools stay on host nanobot).
+ * POST /v1/agent success path and serve selftest share this plate.
+ */
+void grokium_agent_ok_json(const char *content, char *out, size_t cap);
+
 #endif

@@ -1011,6 +1011,21 @@ int main(int argc, char **argv) {
               agent);
       return 1;
     }
+    /* Shared agent-lite success plate (content JSON-escaped). */
+    grokium_agent_ok_json("ping \"ok\"", agent, sizeof agent);
+    if (!plate_dual_wire_ok(agent) ||
+        !strstr(agent, "\"schema\":\"grokium.agent.v1\"") ||
+        !strstr(agent, "\"ok\":true") ||
+        !strstr(agent, "\"tools\":false") ||
+        !strstr(agent, "\"tool_agent\":\"host_nanobot\"") ||
+        !strstr(agent, "\"agent_mode\":\"lab_ops_chat_only\"") ||
+        !strstr(agent, "\"content\":\"ping \\\"ok\\\"\"") ||
+        !strstr(agent, "\"commander_is_model\":false") ||
+        !strstr(agent, "\"local_first\":true")) {
+      fprintf(stderr, "grokium-serve: agent ok dual-wire fail: %.200s\n",
+              agent);
+      return 1;
+    }
   }
   {
     char lic[512];
