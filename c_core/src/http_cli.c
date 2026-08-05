@@ -814,12 +814,47 @@ static int selftest(void) {
   return 0;
 }
 
+/* Dual-wire CLI plates — no free-text usage on the machine wire.
+ * LLM is never commander; product bus stays SMX2 (peer HTTP = lab/ops). */
+static const char k_need_subcmd[] =
+    "{\"schema\":\"grokium.serve.v1\",\"ok\":false,"
+    "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
+    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
+    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+    "\"llm_is_commander\":false,\"loopback_only\":true,"
+    "\"hint\":\"[port]|selftest|probe|chat MSG|help\"}";
+
+static const char k_need_message[] =
+    "{\"schema\":\"grokium.chat.v1\",\"ok\":false,"
+    "\"error\":\"need_message\",\"product_wire\":\"smx2\","
+    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
+    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+    "\"llm_is_commander\":false,"
+    "\"hint\":\"chat \\\"message\\\" · local llama · LLM≠commander\"}";
+
+static int plate_dual_wire_ok(const char *p) {
+  return p && strstr(p, "\"product_wire\":\"smx2\"") &&
+         strstr(p, "\"peer_http\":\"lab_ops_only\"") &&
+         strstr(p, "\"peer_http_is_product_bus\":false") &&
+         strstr(p, "\"llm_is_commander\":false") &&
+         strstr(p, "\"hold_flash\":1") &&
+         strstr(p, "\"share\":\"state_matrix_only\"");
+}
+
 int main(int argc, char **argv) {
   gk_consolidator C;
   gk_fleet F;
   grokium_law L;
   int port = 17444;
   const char *root = "data";
+
+  if (!plate_dual_wire_ok(k_need_subcmd) ||
+      !plate_dual_wire_ok(k_need_message) ||
+      !strstr(k_need_subcmd, "\"error\":\"need_subcmd\"") ||
+      !strstr(k_need_message, "\"error\":\"need_message\"")) {
+    fprintf(stderr, "grokium-serve: deny plate dual-wire fail\n");
+    return 1;
+  }
 
   if (argc >= 2 && !strcmp(argv[1], "selftest"))
     return selftest();
@@ -835,7 +870,8 @@ int main(int argc, char **argv) {
     char buf[4096];
     const char *msg = argc >= 3 ? argv[2] : "";
     if (!msg[0]) {
-      fprintf(stderr, "usage: grokium-serve chat \"message\"\n");
+      /* Match loopback /v1/chat need_message dual-wire plate. */
+      printf("%s\n", k_need_message);
       return 2;
     }
     if (grokium_llama_chat(msg, buf, sizeof buf) != 0) return 1;
@@ -843,15 +879,17 @@ int main(int argc, char **argv) {
     return strstr(buf, "\"ok\":true") ? 0 : 1;
   }
 
-  if (argc >= 2 && !strcmp(argv[1], "help")) {
-    fprintf(stderr,
-            "grokium-serve [port]|selftest|probe|chat MSG\n"
-            "  loopback-only control plane (default 127.0.0.1:17444)\n"
-            "  probe — GET local llama /v1/models (LLM ≠ commander)\n"
-            "  chat MSG — local-first completion (LLM ≠ commander)\n"
-            "  product_wire=smx2; peer_http=lab_ops_only\n"
-            "  GROKIUM_SERVE_MAX=N exits after N requests (tests)\n");
+  if (argc >= 2 &&
+      (!strcmp(argv[1], "help") || !strcmp(argv[1], "-h") ||
+       !strcmp(argv[1], "--help"))) {
+    printf("%s\n", k_need_subcmd);
     return 0;
+  }
+  /* Non-numeric first arg (not a known subcmd handled above) → need plate. */
+  if (argc >= 2 && argv[1][0] &&
+      !(argv[1][0] >= '0' && argv[1][0] <= '9')) {
+    printf("%s\n", k_need_subcmd);
+    return 2;
   }
   if (argc >= 2) port = atoi(argv[1]);
   if (argc >= 3) root = argv[2];
