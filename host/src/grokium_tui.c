@@ -1102,6 +1102,14 @@ static void cmd_law_show(void) {
   log_add(line);
 }
 
+/* License plate — shared c_core dual-wire (Apache-2.0 · not xAI · ≠ model). */
+static void cmd_license_show(void) {
+  char plate[512];
+  log_add("--- license (shared dual-wire plate) ---");
+  grokium_license_json(plate, sizeof plate);
+  log_add(plate);
+}
+
 /* Dual-wire honesty status plate (shared probes with host CLI). */
 static void cmd_status_show(void) {
   char line[280], grade[32], hub[640], plate[512];
@@ -1485,6 +1493,7 @@ static void do_command(const char *raw) {
     log_add("  /pickup|/load <id>  meta + host-local history resume");
     log_add("  /mode chat|agent|resume  tools toggle · resume=host-local");
     log_add("  /law            Cube Standards plate (share=state_matrix_only)");
+    log_add("  /license        Apache-2.0 · not xAI · Commander≠model plate");
     log_add("  /status         dual-wire honesty (fleet+matrix · SMX2≠peer HTTP)");
     log_add("  /fleet [status|deploy|save|spawn|note-pid|separate|stop-all]");
     log_add("  /manager [DIR]  motivate incomplete contracts (nb-manager)");
@@ -1804,6 +1813,10 @@ static void do_command(const char *raw) {
   }
   if (strcmp(cmd, "law") == 0 || strcmp(cmd, "laws") == 0) {
     cmd_law_show();
+    return;
+  }
+  if (strcmp(cmd, "license") == 0 || strcmp(cmd, "licence") == 0) {
+    cmd_license_show();
     return;
   }
   if (strcmp(cmd, "mode") == 0) {

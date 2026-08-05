@@ -27,4 +27,11 @@ int  grokium_law_blocks_flash(const grokium_law *L);
  * Commander = Ed25519 residual; LLM is never commander. NULL L → defaults.
  */
 void grokium_law_json(const grokium_law *L, char *out, size_t cap);
+
+/*
+ * Dual-wire license plate (schema grokium.license.v1).
+ * Apache-2.0 · not affiliated with xAI · Commander ≠ model · py=0.
+ * GET /v1/license, host CLI/TUI, and serve CLI share this plate.
+ */
+void grokium_license_json(char *out, size_t cap);
 #endif

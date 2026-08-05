@@ -157,6 +157,7 @@ Cores stay **unmixed** (no silent cloud fallback).
 | `/backend …` | local / grok |
 | `/theme crimson\|matrix\|void\|gold\|mono` | Look |
 | `/law` | Cube Standards plate (share=state_matrix_only) |
+| `/license` | Apache-2.0 · not xAI · Commander≠model dual-wire plate |
 | `/status` | Dual-wire honesty (fleet + matrix; SMX2 ≠ peer HTTP) |
 | `/fleet [status…]` | Pure-C fleet plate (honest pid; peer HTTP lab_ops) |
 | `/manager [DIR]` | Motivate incomplete contracts (nb-manager) |

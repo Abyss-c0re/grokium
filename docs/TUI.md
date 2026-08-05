@@ -24,6 +24,8 @@
 `/pickup` `/load` `<id>` — meta + host-local `chat_history.jsonl` into TUI (last turns)  
 `/mode chat|agent|resume` — tools toggle; resume is host-local only (not product bus)  
 `/law` — Cube Standards plate (share=state_matrix_only; dual-wire honesty)  
+`/license` — Apache-2.0 · not xAI · Commander≠model dual-wire plate  
+
 `/fleet [status|defaults|deploy|save|spawn|note-pid|separate|stop-all|cubalc]` — pure-C plate (honest pid/status)  
 `/manager [DIR]` — motivate incomplete contracts (nb-manager / SMX2; `help`/`?` = dual-wire plate)  
 `/contract form|validate|manager-tick …` — external cell contracts (SMX filter)  

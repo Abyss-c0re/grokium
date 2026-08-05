@@ -84,9 +84,24 @@ int main(void) {
         !strstr(plate, "\"hold_flash\":1") ||
         !strstr(plate, "\"share\":\"state_matrix_only\""))
       return fail("manager_tick help dual-wire plate fail");
+    /* Shared license plate (GET /v1/license · host CLI/TUI · serve CLI). */
+    grokium_license_json(plate, sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.license.v1\"") ||
+        !strstr(plate, "\"ok\":true") ||
+        !strstr(plate, "Apache-2.0") ||
+        !strstr(plate, "not_affiliated_with_xAI") ||
+        !strstr(plate, "\"commander_is_not_model\":true") ||
+        !strstr(plate, "\"product_wire\":\"smx2\"") ||
+        !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+        !strstr(plate, "\"llm_is_commander\":false") ||
+        !strstr(plate, "\"hold_flash\":1") ||
+        !strstr(plate, "\"share\":\"state_matrix_only\"") ||
+        !strstr(plate, "\"python\":0") ||
+        !strstr(plate, "\"telemetry\":\"off\""))
+      return fail("license dual-wire plate fail");
   }
 
   printf("HOST_SMX_FILTER_OK external=strict hold_flash=1 dual_wire=gate "
-         "allow_plate=1 instinct_plate=1 manager_help_plate=1\n");
+         "allow_plate=1 instinct_plate=1 manager_help_plate=1 license_plate=1\n");
   return 0;
 }

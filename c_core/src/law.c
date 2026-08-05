@@ -46,3 +46,18 @@ void grokium_law_json(const grokium_law *L, char *out, size_t cap) {
            p->face_blur ? 1 : 0, p->zero_telemetry ? 1 : 0,
            p->commander_only_residual ? 1 : 0);
 }
+
+void grokium_license_json(char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Shared dual-wire plate: GET /v1/license · host CLI/TUI · serve CLI. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.license.v1\",\"ok\":true,"
+           "\"product\":\"grokium\",\"license\":\"Apache-2.0\","
+           "\"affiliation\":\"not_affiliated_with_xAI\","
+           "\"commander_is_not_model\":true,"
+           "\"llm_is_commander\":false,\"share\":\"state_matrix_only\","
+           "\"hold_flash\":1,\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"telemetry\":\"off\",\"python\":0}");
+}

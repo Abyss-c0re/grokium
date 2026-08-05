@@ -1165,17 +1165,9 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       http_reply_err(cfd, 405, "method");
       return;
     }
-    /* License plate carries dual-wire + Commander ≠ model honesty. */
-    http_reply(cfd, 200, "application/json",
-               "{\"schema\":\"grokium.license.v1\",\"ok\":true,"
-               "\"product\":\"grokium\",\"license\":\"Apache-2.0\","
-               "\"affiliation\":\"not_affiliated_with_xAI\","
-               "\"commander_is_not_model\":true,"
-               "\"llm_is_commander\":false,\"share\":\"state_matrix_only\","
-               "\"hold_flash\":1,\"product_wire\":\"smx2\","
-               "\"peer_http\":\"lab_ops_only\","
-               "\"peer_http_is_product_bus\":false,"
-               "\"telemetry\":\"off\",\"python\":0}");
+    /* Shared dual-wire license plate (host CLI/TUI · serve CLI same builder). */
+    grokium_license_json(resp, sizeof resp);
+    http_reply(cfd, 200, "application/json", resp);
     return;
   }
 

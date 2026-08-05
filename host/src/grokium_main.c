@@ -274,6 +274,7 @@ static void usage(void) {
           "  sessions [q]           import session metas only (no transcripts)\n"
           "  pickup|load <id>       session meta pickup (resume msgs = host)\n"
           "  law [cubalc]           Cube Standards plate (pure C; cubalc opt-in)\n"
+          "  license                Apache-2.0 / not xAI dual-wire plate (pure C)\n"
           "  status [cubalc|board]  dual-wire honesty plate (pure C; cubalc opt-in)\n"
           "  llama|llama-probe      local llama.cpp reachability\n"
           "  integrity tick|policy|reseal  code seal / privacy fail-closed\n"
@@ -613,6 +614,13 @@ int main(int argc, char **argv) {
     return cmd_status(argc - ai - 1, argv + ai + 1);
   if (strcmp(cmd, "law") == 0 || strcmp(cmd, "laws") == 0)
     return cmd_law(argc - ai - 1, argv + ai + 1);
+  if (strcmp(cmd, "license") == 0 || strcmp(cmd, "licence") == 0) {
+    char plate[512];
+    /* Shared c_core dual-wire plate (match GET /v1/license). */
+    grokium_license_json(plate, sizeof plate);
+    printf("%s\n", plate);
+    return 0;
+  }
   /* Hive Mind pure-C surface (product bus = SMX2; HTTP loopback = lab/ops) */
   if (strcmp(cmd, "serve") == 0) {
     return run_c_core("grokium-serve", argc - ai - 1, argv + ai + 1);

@@ -45,7 +45,7 @@ make -C c_core all
 | POST | `/v1/contract/validate` | `{path, bits?}` accept check (dual-wire plate) |
 | GET/POST | `/v1/manager/tick` | motivate incomplete contracts (dual-wire plate) |
 | GET | `/v1/instinct` | hive creed + dual-wire honesty (`product_wire=smx2`) |
-| GET | `/v1/license` | Apache-2.0, not xAI, Commander≠model, dual-wire plate |
+| GET | `/v1/license` | Apache-2.0, not xAI, Commander≠model (shared `grokium_license_json`) |
 | GET | `/v1/commander` | fingerprint (pk); never emits sk |
 | POST | `/v1/commander/verify` | `{device,action,nonce,ts,sig}` |
 | POST | `/v1/commander/sign` | loopback + local `commander.sk` only |
@@ -65,8 +65,8 @@ Fleet plate load preserves pids across `note-pid` / `status` / `separate`.
 Law dir: `GROKIUM_LAW_DIR` or `{data_root}/law`.  
 Llama base: `GROKIUM_LLAMA_BASE` / `NANOBOT_BASE_URL` (loopback only).  
 Host CLI: `contract`, `manager-tick`, `commander`, `llama`, `integrity tick|reseal`,
-`sessions [q]`, `pickup|load <id>` (meta only), `law` / `status` (pure-C honesty plates;
-`law cubalc` / `status cubalc` opt-in CubalC board).
+`sessions [q]`, `pickup|load <id>` (meta only), `law` / `license` / `status` (pure-C honesty plates;
+`law cubalc` / `status cubalc` opt-in CubalC board). Serve CLI: `license` (no server).
 
 ### Planned / not yet in pure-C serve
 

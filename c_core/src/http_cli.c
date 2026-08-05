@@ -951,7 +951,7 @@ static const char k_need_subcmd[] =
     "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
     "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
     "\"llm_is_commander\":false,\"loopback_only\":true,"
-    "\"hint\":\"[port]|selftest|probe|chat MSG|help\"}";
+    "\"hint\":\"[port]|selftest|probe|chat MSG|license|help\"}";
 
 static const char k_need_message[] =
     "{\"schema\":\"grokium.chat.v1\",\"ok\":false,"
@@ -984,6 +984,19 @@ int main(int argc, char **argv) {
     fprintf(stderr, "grokium-serve: deny plate dual-wire fail\n");
     return 1;
   }
+  {
+    char lic[512];
+    grokium_license_json(lic, sizeof lic);
+    if (!plate_dual_wire_ok(lic) ||
+        !strstr(lic, "\"schema\":\"grokium.license.v1\"") ||
+        !strstr(lic, "Apache-2.0") ||
+        !strstr(lic, "not_affiliated_with_xAI") ||
+        !strstr(lic, "\"commander_is_not_model\":true") ||
+        !strstr(lic, "\"python\":0")) {
+      fprintf(stderr, "grokium-serve: license dual-wire fail: %.200s\n", lic);
+      return 1;
+    }
+  }
 
   if (argc >= 2 && !strcmp(argv[1], "selftest"))
     return selftest();
@@ -991,6 +1004,14 @@ int main(int argc, char **argv) {
   if (argc >= 2 && !strcmp(argv[1], "probe")) {
     char buf[1024];
     if (grokium_llama_probe(buf, sizeof buf) != 0) return 1;
+    puts(buf);
+    return 0;
+  }
+
+  if (argc >= 2 && !strcmp(argv[1], "license")) {
+    char buf[512];
+    /* Same dual-wire plate as GET /v1/license (no server needed). */
+    grokium_license_json(buf, sizeof buf);
     puts(buf);
     return 0;
   }
