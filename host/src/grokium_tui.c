@@ -6,6 +6,7 @@
 #include "grokium_version.h"
 #include "grokium_hub.h"
 #include "grokium_media.h"
+#include "grokium_session.h"
 #include "grokium_status.h"
 #include "util.h"
 #include "ng_sched.h"
@@ -768,22 +769,9 @@ static int contains_ci(const char *hay, const char *needle) {
   return 0;
 }
 
-static int session_id_safe(const char *id) {
-  size_t i;
-  if (!id || !id[0] || strlen(id) > 80) return 0;
-  for (i = 0; id[i]; i++) {
-    char c = id[i];
-    if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
-        (c >= 'A' && c <= 'F') || c == '-')
-      continue;
-    return 0;
-  }
-  return 1;
-}
-
 /* Imported Grok Build metas only — no chat transcripts on the TUI log. */
 static void cmd_sessions_search(const char *q) {
-  char dir[PATH_MAX], path[PATH_MAX], meta[2048], line[320];
+  char dir[PATH_MAX], path[PATH_MAX], meta[2048], line[320], plate[768];
   char id[96], title[96], updated[48], model[48];
   DIR *d;
   struct dirent *e;
@@ -794,7 +782,12 @@ static void cmd_sessions_search(const char *q) {
   snprintf(dir, sizeof dir, "%s/data/import", root);
   d = opendir(dir);
   if (!d) {
-    log_add("sessions> no data/import (meta only)");
+    /* Dual-wire empty plate (same contract as host CLI). */
+    if (gkx_session_list_empty_json(q ? q : "", dir, "no_import_dir", plate,
+                                    sizeof plate) == 0)
+      log_add(plate);
+    else
+      log_add("sessions> no data/import (meta only)");
     return;
   }
   snprintf(line, sizeof line, "--- sessions meta-only q=%s ---",
@@ -824,6 +817,8 @@ static void cmd_sessions_search(const char *q) {
       tlen = strlen(id);
       if (tlen > 10) id[tlen - 10] = 0;
     }
+    /* Drop non-hex ids so free-text/path names never hit the log wire. */
+    if (!gkx_session_id_safe(id)) continue;
     if (!title[0]) snprintf(title, sizeof title, "%s", id);
     if (strlen(title) > 48) title[48] = 0;
     snprintf(line, sizeof line, "%s | %s | %s | %s", id, title,
@@ -834,6 +829,7 @@ static void cmd_sessions_search(const char *q) {
   closedir(d);
   snprintf(line, sizeof line,
            "sessions> n=%d scanned=%d · content=meta_only · "
+           "product_wire=smx2 · peer_http=lab_ops_only · hold_flash=1 · "
            "resume messages=host (not on product bus)",
            matched, scanned);
   log_add(line);
@@ -1060,21 +1056,28 @@ static int session_resume_local(const char *id, const char *meta) {
 }
 
 static void cmd_session_pickup(const char *id) {
-  char path[PATH_MAX], meta[2048], line[320];
+  char path[PATH_MAX], meta[2048], line[320], plate[768];
   char title[96], updated[48], model[48];
   FILE *f;
   size_t nread;
   int resumed = 0;
-  if (!session_id_safe(id)) {
-    log_add("usage: /pickup <session-id>  (host-local resume when history exists)");
+  if (!id || !id[0]) {
+    if (gkx_session_pickup_deny_json(NULL, "need_session_id", plate,
+                                     sizeof plate) == 0)
+      log_add(plate);
+    return;
+  }
+  if (!gkx_session_id_safe(id)) {
+    if (gkx_session_pickup_deny_json(NULL, "bad_session_id", plate,
+                                     sizeof plate) == 0)
+      log_add(plate);
     return;
   }
   snprintf(path, sizeof path, "%s/data/import/%s.meta.json", root, id);
   f = fopen(path, "r");
   if (!f) {
-    snprintf(line, sizeof line, "pickup> not found: %s", id);
-    log_add(line);
-    log_add("pickup> meta from data/import · no product-bus transcript");
+    if (gkx_session_pickup_deny_json(id, "not_found", plate, sizeof plate) == 0)
+      log_add(plate);
     return;
   }
   nread = fread(meta, 1, sizeof meta - 1, f);
@@ -1105,10 +1108,12 @@ static void cmd_session_pickup(const char *id) {
              resumed, RESUME_MAX_MSGS);
     log_add(line);
     log_add("  host-local TUI + nanobot memory seed · not SMX product bus");
-    log_add("  share=state_matrix_only · next agent turns use recent memory");
+    log_add("  share=state_matrix_only · product_wire=smx2 · hold_flash=1");
+    log_add("  peer_http=lab_ops_only · next agent turns use recent memory");
   } else {
     log_add("  meta only · no chat_history.jsonl under import_path");
-    log_add("  share=state_matrix_only · product_wire=smx2");
+    log_add("  share=state_matrix_only · product_wire=smx2 · hold_flash=1");
+    log_add("  peer_http=lab_ops_only · peer_http_is_product_bus=0");
   }
 }
 
