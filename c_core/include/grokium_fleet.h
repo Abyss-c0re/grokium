@@ -75,6 +75,13 @@ void fleet_note_pid_err_json(const char *error, char *out, size_t cap);
 void fleet_stop_json(gk_fleet *F, const char *path, char *out, size_t cap);
 /* Dual-wire stop-all deny (no_fleet). */
 void fleet_stop_err_json(const char *error, char *out, size_t cap);
+/*
+ * Dual-wire save ack (schema grokium.nanobot_save.v1).
+ * Call after fleet_save; path escaped; alive re-probed (honest plate write).
+ */
+void fleet_save_json(gk_fleet *F, const char *path, char *out, size_t cap);
+/* Dual-wire save deny (no_fleet). */
+void fleet_save_err_json(const char *error, char *out, size_t cap);
 /* Host/hub records a spawned bot pid (or -1 to clear). */
 int  fleet_note_pid(gk_fleet *F, const char *bot_id, int pid);
 /* Fork/exec F->binary (--home/--port/--offline). Peer HTTP = lab_ops only. */

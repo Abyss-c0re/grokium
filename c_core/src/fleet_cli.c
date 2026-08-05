@@ -320,12 +320,21 @@ static int fleet_selftest(void) {
       fprintf(stderr, "selftest: fleet_stop_json dual-wire fail: %.250s\n", st);
       return 1;
     }
+    fleet_save_json(&F, path, st, sizeof st);
+    if (!plate_dual_wire_ok(st) ||
+        !strstr(st, "\"schema\":\"grokium.nanobot_save.v1\"") ||
+        !strstr(st, "\"ok\":true") || !strstr(st, "\"saved\":") ||
+        !strstr(st, "\"nb_manager\":true") || !strstr(st, "\"alive\":0")) {
+      fprintf(stderr, "selftest: fleet_save_json dual-wire fail: %.250s\n", st);
+      return 1;
+    }
   }
   printf("FLEET_SELFTEST_OK n=%d alive=0 nb_manager=1 product_wire=smx2 "
          "peer_http=lab_ops_only bot_dual_wire=1 purpose=honest "
          "status_plate=nanobot_status_v1 deploy_plate=nanobot_deploy_v1 "
          "spawn_plate=nanobot_spawn_v1 separate_plate=nanobot_separate_v1 "
-         "note_pid_plate=nanobot_note_pid_v1 stop_plate=nanobot_stop_v1\n",
+         "note_pid_plate=nanobot_note_pid_v1 stop_plate=nanobot_stop_v1 "
+         "save_plate=nanobot_save_v1\n",
          F.n);
   return 0;
 }
@@ -358,16 +367,13 @@ int main(int argc, char **argv) {
     return 0;
   }
   if (!strcmp(argv[1], "save")) {
+    char plate[1024];
     if (argc > 2) path = argv[2];
     fleet_load(&F, path);
     fleet_save(&F, path);
-    printf("{\"schema\":\"grokium.fleet_save.v1\",\"ok\":true,"
-           "\"saved\":\"%s\",\"n\":%d,\"alive\":%d,\"nb_manager\":true,"
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false}\n",
-           path, F.n, fleet_status(&F));
+    /* Same dual-wire plate as POST /v1/nanobot/save. */
+    fleet_save_json(&F, path, plate, sizeof plate);
+    printf("%s\n", plate);
     return 0;
   }
   if (!strcmp(argv[1], "status")) {

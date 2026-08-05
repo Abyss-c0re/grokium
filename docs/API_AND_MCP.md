@@ -40,6 +40,7 @@ make -C c_core all
 | POST | `/v1/nanobot/separate` | SIGTERM one bot; body = id or `{"id":…}` |
 | POST | `/v1/nanobot/note-pid` | host/hub record pid; body = `ID PID` or `{"id","pid"}` |
 | POST | `/v1/nanobot/stop-all` | SIGTERM all live bots; honest alive after clear |
+| POST | `/v1/nanobot/save` | re-probe pids + rewrite honest FLEET.json |
 | POST | `/v1/contract/form` | form external contract (dual-wire honesty plate) |
 | POST | `/v1/contract/validate` | `{path, bits?}` accept check (dual-wire plate) |
 | GET/POST | `/v1/manager/tick` | motivate incomplete contracts (dual-wire plate) |

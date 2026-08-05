@@ -397,6 +397,33 @@ void fleet_stop_json(gk_fleet *F, const char *path, char *out, size_t cap) {
            F->n, alive, path_esc);
 }
 
+void fleet_save_err_json(const char *error, char *out, size_t cap) {
+  const char *err = error && error[0] ? error : "no_fleet";
+  if (!out || cap < 64) return;
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.nanobot_save.v1\",\"ok\":false,"
+           "\"error\":\"%s\"," FLEET_DUAL_WIRE_TAIL "}",
+           err);
+}
+
+void fleet_save_json(gk_fleet *F, const char *path, char *out, size_t cap) {
+  char path_esc[640];
+  int alive;
+  if (!out || cap < 64) return;
+  if (!F) {
+    fleet_save_err_json("no_fleet", out, cap);
+    return;
+  }
+  alive = fleet_status(F);
+  path_escape(path ? path : "", path_esc, sizeof path_esc);
+  /* Save ack: path escaped; alive from kill(0) probe (honest plate write). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.nanobot_save.v1\",\"ok\":true,"
+           "\"saved\":\"%s\",\"n\":%d,\"alive\":%d,\"nb_manager\":true,"
+           FLEET_DUAL_WIRE_TAIL "}",
+           path_esc, F->n, alive);
+}
+
 int fleet_note_pid(gk_fleet *F, const char *bot_id, int pid) {
   int i;
   if (!F || !bot_id) return -1;

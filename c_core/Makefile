@@ -220,9 +220,11 @@ test-fleet: $(BUILD)/grokium-fleet
 	echo "$$OUT" | grep -q '"peer_http_is_product_bus":false'; \
 	echo "$$OUT" | grep -q '"llm_is_commander":false'; \
 	OUT=$$($(BUILD)/grokium-fleet save $$P); \
-	echo "$$OUT" | grep -q '"schema":"grokium.fleet_save.v1"'; \
+	echo "$$OUT" | grep -q '"schema":"grokium.nanobot_save.v1"'; \
+	echo "$$OUT" | grep -q '"saved":'; \
 	echo "$$OUT" | grep -q '"product_wire":"smx2"'; \
 	echo "$$OUT" | grep -q '"share":"state_matrix_only"'; \
+	echo "$$OUT" | grep -q '"nb_manager":true'; \
 	OUT=$$($(BUILD)/grokium-fleet status $$P); \
 	echo "$$OUT" | grep -q '"product_wire":"smx2"'; \
 	OUT=$$($(BUILD)/grokium-fleet note-pid nb-manager 999999999 $$P); \
