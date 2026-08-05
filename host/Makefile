@@ -34,7 +34,7 @@ SRCS := src/grokium_main.c src/grokium_tui.c src/grokium_chat.c \
 	src/grokium_media.c src/grokium_status.c
 
 .PHONY: all clean nanobot install test-status test-version-compat \
-	test-memory-seed test
+	test-hub-status test-memory-seed test
 
 all: nanobot out/grokium
 
@@ -61,6 +61,12 @@ out/version_compat_selftest: tests/version_compat_selftest.c \
 	@mkdir -p out
 	$(CC) $(CFLAGS) -o $@ tests/version_compat_selftest.c src/grokium_version.c
 
+# Hub status dual-wire plate — no nanobot/ncurses link (may call curl for http).
+out/hub_status_selftest: tests/hub_status_selftest.c src/grokium_hub.c \
+	include/grokium_hub.h include/grokium.h include/grokium_config.h
+	@mkdir -p out
+	$(CC) $(CFLAGS) -o $@ tests/hub_status_selftest.c src/grokium_hub.c
+
 # Resume memory seed: chat seed path + nanobot memory (no TUI/ncurses).
 out/memory_seed_selftest: tests/memory_seed_selftest.c src/grokium_chat.c \
 	include/grokium_chat.h nanobot
@@ -73,14 +79,17 @@ test-status: out/status_probe_selftest
 test-version-compat: out/version_compat_selftest
 	@./out/version_compat_selftest
 
+test-hub-status: out/hub_status_selftest
+	@./out/hub_status_selftest
+
 test-memory-seed: out/memory_seed_selftest
 	@./out/memory_seed_selftest
 
-test: test-status test-version-compat test-memory-seed
+test: test-status test-version-compat test-hub-status test-memory-seed
 
 clean:
 	rm -f out/grokium out/status_probe_selftest out/version_compat_selftest \
-		out/memory_seed_selftest
+		out/hub_status_selftest out/memory_seed_selftest
 
 install: all
 	install -m755 out/grokium $(HOME)/.local/bin/grokium

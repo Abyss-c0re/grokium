@@ -124,15 +124,48 @@ static const char *find_nanobot_bin(void) {
   return "nanobot";
 }
 
+/* Copy path-ish string into out with JSON-safe chars only (no quotes/control). */
+static void json_safe_path(const char *in, char *out, size_t n) {
+  size_t i = 0, j = 0;
+  if (!out || n == 0) return;
+  if (!in) in = "";
+  for (; in[i] && j + 1 < n; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if (c < 0x20 || c == '"' || c == '\\') continue;
+    out[j++] = (char)c;
+  }
+  out[j] = 0;
+  if (!out[0] && n > 1) {
+    out[0] = '-';
+    out[1] = 0;
+  }
+}
+
 int gkx_hub_status(char *buf, size_t n) {
   int pid = read_pid();
   int alive = pid_alive(pid);
   int http = hub_http_ok();
-  snprintf(buf, n, "hub port=%d pid=%d alive=%d http=%d lock=%s slots=%s",
-           GKX_HUB_PORT, pid, alive, http,
-           getenv("NANOBOT_LLM_LOCK") ? getenv("NANOBOT_LLM_LOCK") : "(default)",
-           getenv("NANOBOT_LLM_SLOTS") ? getenv("NANOBOT_LLM_SLOTS") : "1");
-  return (alive && http) ? 0 : 1;
+  int ok = (alive && http) ? 1 : 0;
+  char lock_s[160], slots_s[32];
+  const char *lock = getenv("NANOBOT_LLM_LOCK");
+  const char *slots = getenv("NANOBOT_LLM_SLOTS");
+  /* Hub peer HTTP is lab/ops only — product bus remains SMX2. */
+  json_safe_path(lock && lock[0] ? lock : "default", lock_s, sizeof lock_s);
+  json_safe_path(slots && slots[0] ? slots : "1", slots_s, sizeof slots_s);
+  snprintf(buf, n,
+           "{\"schema\":\"grokium.hub_status.v1\",\"ok\":%s,"
+           "\"port\":%d,\"pid\":%d,\"alive\":%s,\"http\":%s,"
+           "\"lock\":\"%s\",\"slots\":\"%s\","
+           "\"control_plane\":\"host_hub\","
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false,\"llm_on_hot_path\":false,"
+           "\"python\":0}",
+           ok ? "true" : "false", GKX_HUB_PORT, pid > 0 ? pid : 0,
+           alive ? "true" : "false", http ? "true" : "false", lock_s,
+           slots_s);
+  return ok ? 0 : 1;
 }
 
 int gkx_hub_stop(void) {

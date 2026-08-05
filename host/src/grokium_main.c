@@ -681,18 +681,23 @@ int main(int argc, char **argv) {
     const char *sub = (ai + 1 < argc) ? argv[ai + 1] : "status";
     if (strcmp(sub, "start") == 0 || strcmp(sub, "ensure") == 0) {
       int rc = gkx_hub_ensure(&cfg);
-      char buf[256];
+      char buf[640];
       gkx_hub_status(buf, sizeof buf);
       printf("%s\n", buf);
       return rc == 0 ? 0 : 1;
     }
     if (strcmp(sub, "stop") == 0) {
       gkx_hub_stop();
-      printf("hub stopped\n");
+      printf("{\"schema\":\"grokium.hub_status.v1\",\"ok\":true,"
+             "\"stopped\":true,\"product_wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false}\n");
       return 0;
     }
     {
-      char buf[256];
+      char buf[640];
       int rc = gkx_hub_status(buf, sizeof buf);
       printf("%s\n", buf);
       return rc;

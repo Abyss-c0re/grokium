@@ -10,7 +10,7 @@ int gkx_hub_ensure(const gkx_config *cfg);
 /* Stop hub if we started it (pid file). */
 int gkx_hub_stop(void);
 
-/* Status line into buf; returns 0 if healthy. */
+/* Dual-wire hub status plate into buf; returns 0 if healthy (alive+http). */
 int gkx_hub_status(char *buf, size_t n);
 
 /* Apply shared LLM sched env for this process (and children). */

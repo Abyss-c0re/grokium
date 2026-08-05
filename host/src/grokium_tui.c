@@ -1149,7 +1149,7 @@ static void cmd_law_show(void) {
 
 /* Dual-wire honesty status plate (shared probes with host CLI). */
 static void cmd_status_show(void) {
-  char line[280], grade[32], hub[240], plate[512];
+  char line[280], grade[32], hub[640], plate[512];
   int fleet_n = 0, fleet_alive = 0;
   unsigned matrix_bits = 0;
   gkx_status_fleet_probe(root, &fleet_n, &fleet_alive);
@@ -1168,10 +1168,8 @@ static void cmd_status_show(void) {
     log_add_block(plate);
   hub[0] = 0;
   gkx_hub_status(hub, sizeof hub);
-  if (hub[0]) {
-    snprintf(line, sizeof line, "  hub: %s", hub);
-    log_add(line);
-  }
+  if (hub[0])
+    log_add_block(hub);
 }
 
 /* Mode is host UX: chat/agent toggle tools; resume = meta pickup honesty. */
@@ -1701,9 +1699,9 @@ static void do_command(const char *raw) {
     return;
   }
   if (strcmp(cmd, "compat") == 0 || strcmp(cmd, "hub") == 0) {
-    char line[240];
+    char line[640];
     gkx_hub_status(line, sizeof line);
-    log_add(line);
+    log_add_block(line);
     {
       char *js = ng_llm_sched_status_json();
       if (js) {
