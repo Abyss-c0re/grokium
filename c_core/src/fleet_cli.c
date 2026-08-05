@@ -113,9 +113,26 @@ static int fleet_selftest(void) {
       !strstr(body, "\"peer_http_is_product_bus\": false") ||
       !strstr(body, "\"llm_is_commander\": false") ||
       !strstr(body, "\"commander_is_model\": false") ||
-      !strstr(body, "\"hold_flash\": 1") || !strstr(body, "nb-manager")) {
+      !strstr(body, "\"hold_flash\": 1") || !strstr(body, "nb-manager") ||
+      !strstr(body, "\"wire\": \"smx_motivate\"")) {
     fprintf(stderr, "selftest: plate missing dual-wire honesty fields\n");
     return 1;
+  }
+  /* Fleet root + every bot object must carry product_wire (not wire alone). */
+  {
+    int pw = 0, ph = 0;
+    const char *q;
+    for (q = body; (q = strstr(q, "\"product_wire\"")) != NULL; q++)
+      pw++;
+    for (q = body; (q = strstr(q, "\"peer_http_is_product_bus\"")) != NULL; q++)
+      ph++;
+    if (pw < F.n + 1 || ph < F.n + 1) {
+      fprintf(stderr,
+              "selftest: bot-level dual-wire missing (product_wire=%d "
+              "peer_http_is_product_bus=%d n=%d)\n",
+              pw, ph, F.n);
+      return 1;
+    }
   }
   /* ensure dead pid not serialized as positive */
   if (strstr(body, "999999999")) {
@@ -123,7 +140,7 @@ static int fleet_selftest(void) {
     return 1;
   }
   printf("FLEET_SELFTEST_OK n=%d alive=1 nb_manager=1 product_wire=smx2 "
-         "peer_http=lab_ops_only\n",
+         "peer_http=lab_ops_only bot_dual_wire=1\n",
          F.n);
   return 0;
 }

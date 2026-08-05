@@ -284,6 +284,7 @@ int fleet_save(gk_fleet *F, const char *path) {
       snprintf(pid_buf, sizeof pid_buf, "%d", b->pid);
     else
       snprintf(pid_buf, sizeof pid_buf, "null");
+    /* Per-bot dual-wire honesty: role wire (smx2 / smx_motivate) ≠ peer HTTP. */
     fprintf(f,
             "    \"%s\": {\n"
             "      \"id\": \"%s\",\n"
@@ -299,7 +300,11 @@ int fleet_save(gk_fleet *F, const char *path) {
             "      \"status\": \"%s\",\n"
             "      \"separated\": %s,\n"
             "      \"law\": \"cube_purpose_assigned\",\n"
-            "      \"wire\": \"%s\"\n"
+            "      \"wire\": \"%s\",\n"
+            "      \"product_wire\": \"smx2\",\n"
+            "      \"peer_http\": \"lab_ops_only\",\n"
+            "      \"peer_http_is_product_bus\": false,\n"
+            "      \"llm_is_commander\": false\n"
             "    }%s\n",
             b->id, b->id, b->purpose, b->shell ? "true" : "false", b->port,
             pid_buf, b->home, F->binary, b->running ? "false" : "true",
