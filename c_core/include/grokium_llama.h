@@ -22,4 +22,13 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap);
 void grokium_chat_err_json(const char *error, const char *hint, char *out,
                            size_t cap);
 
+/*
+ * Dual-wire agent-lite deny plate (schema grokium.agent.v1).
+ * Always tools:false · tool_agent=host_nanobot · LLM ≠ commander.
+ * NULL/empty hint → error-specific default (need_message / tools_not_on_lab_ops / method).
+ * POST /v1/agent deny paths and serve selftest share this plate.
+ */
+void grokium_agent_err_json(const char *error, const char *hint, char *out,
+                            size_t cap);
+
 #endif

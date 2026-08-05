@@ -1240,29 +1240,14 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     char errf[96];
     int code, ok;
     if (strcmp(method, "POST") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"schema\":\"grokium.agent.v1\",\"ok\":false,"
-                 "\"error\":\"method\",\"tools\":false,"
-                 "\"tool_agent\":\"host_nanobot\","
-                 "\"llm_is_commander\":false,\"product_wire\":\"smx2\","
-                 "\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
+      /* Shared dual-wire agent deny (tools always off on lab/ops path). */
+      grokium_agent_err_json("method", NULL, resp, sizeof resp);
+      http_reply(cfd, 405, "application/json", resp);
       return;
     }
     if (body_requests_tools(body, body_n)) {
-      http_reply(cfd, 501, "application/json",
-                 "{\"schema\":\"grokium.agent.v1\",\"ok\":false,"
-                 "\"error\":\"tools_not_on_lab_ops\",\"tools\":false,"
-                 "\"tool_agent\":\"host_nanobot\","
-                 "\"agent_mode\":\"lab_ops_chat_only\","
-                 "\"hint\":\"use host TUI / nanobot for shell tools;"
-                 " POST /v1/agent without tools for local chat\","
-                 "\"llm_is_commander\":false,\"commander_is_model\":false,"
-                 "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                 "\"telemetry\":\"off\"}");
+      grokium_agent_err_json("tools_not_on_lab_ops", NULL, resp, sizeof resp);
+      http_reply(cfd, 501, "application/json", resp);
       return;
     }
     msg[0] = 0;
@@ -1282,25 +1267,13 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       }
     }
     if (!msg[0]) {
-      http_reply(cfd, 400, "application/json",
-                 "{\"schema\":\"grokium.agent.v1\",\"ok\":false,"
-                 "\"error\":\"need_message\",\"tools\":false,"
-                 "\"tool_agent\":\"host_nanobot\","
-                 "\"llm_is_commander\":false,\"share\":\"state_matrix_only\","
-                 "\"hold_flash\":1,\"product_wire\":\"smx2\","
-                 "\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false}");
+      grokium_agent_err_json("need_message", NULL, resp, sizeof resp);
+      http_reply(cfd, 400, "application/json", resp);
       return;
     }
     if (grokium_llama_chat(msg, chat, sizeof chat) != 0) {
-      http_reply(cfd, 500, "application/json",
-                 "{\"schema\":\"grokium.agent.v1\",\"ok\":false,"
-                 "\"error\":\"agent_chat_failed\",\"tools\":false,"
-                 "\"tool_agent\":\"host_nanobot\","
-                 "\"llm_is_commander\":false,\"product_wire\":\"smx2\","
-                 "\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
+      grokium_agent_err_json("agent_chat_failed", NULL, resp, sizeof resp);
+      http_reply(cfd, 500, "application/json", resp);
       return;
     }
     ok = strstr(chat, "\"ok\":true") != NULL;
@@ -1328,28 +1301,13 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
                content_esc);
       code = 200;
     } else if (strstr(chat, "\"reachable\":false")) {
-      snprintf(resp, sizeof resp,
-               "{\"schema\":\"grokium.agent.v1\",\"ok\":false,"
-               "\"tools\":false,\"tool_agent\":\"host_nanobot\","
-               "\"agent_mode\":\"lab_ops_chat_only\","
-               "\"error\":\"%s\",\"llm_is_commander\":false,"
-               "\"commander_is_model\":false,\"product_wire\":\"smx2\","
-               "\"peer_http\":\"lab_ops_only\","
-               "\"peer_http_is_product_bus\":false,"
-               "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-               "\"local_first\":true}",
-               errf[0] ? errf : "unreachable");
+      /* Shared dual-wire deny; errf is free-text so builder sanitizes. */
+      grokium_agent_err_json(errf[0] ? errf : "unreachable", NULL, resp,
+                             sizeof resp);
       code = 503;
     } else {
-      snprintf(resp, sizeof resp,
-               "{\"schema\":\"grokium.agent.v1\",\"ok\":false,"
-               "\"tools\":false,\"tool_agent\":\"host_nanobot\","
-               "\"agent_mode\":\"lab_ops_chat_only\","
-               "\"error\":\"%s\",\"llm_is_commander\":false,"
-               "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-               "\"peer_http_is_product_bus\":false,"
-               "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
-               errf[0] ? errf : "no_content");
+      grokium_agent_err_json(errf[0] ? errf : "no_content", NULL, resp,
+                             sizeof resp);
       code = 502;
     }
     http_reply(cfd, code, "application/json", resp);

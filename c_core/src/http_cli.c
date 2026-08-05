@@ -987,6 +987,32 @@ int main(int argc, char **argv) {
     return 1;
   }
   {
+    char agent[640];
+    /* Shared agent-lite denys (POST /v1/agent tools + need_message). */
+    grokium_agent_err_json("tools_not_on_lab_ops", NULL, agent, sizeof agent);
+    if (!plate_dual_wire_ok(agent) ||
+        !strstr(agent, "\"schema\":\"grokium.agent.v1\"") ||
+        !strstr(agent, "\"error\":\"tools_not_on_lab_ops\"") ||
+        !strstr(agent, "\"tools\":false") ||
+        !strstr(agent, "\"tool_agent\":\"host_nanobot\"") ||
+        !strstr(agent, "\"agent_mode\":\"lab_ops_chat_only\"") ||
+        !strstr(agent, "\"commander_is_model\":false")) {
+      fprintf(stderr, "grokium-serve: agent tools dual-wire fail: %.200s\n",
+              agent);
+      return 1;
+    }
+    grokium_agent_err_json("need_message", NULL, agent, sizeof agent);
+    if (!plate_dual_wire_ok(agent) ||
+        !strstr(agent, "\"error\":\"need_message\"") ||
+        !strstr(agent, "\"tools\":false") ||
+        !strstr(agent, "\"tool_agent\":\"host_nanobot\"")) {
+      fprintf(stderr,
+              "grokium-serve: agent need_message dual-wire fail: %.200s\n",
+              agent);
+      return 1;
+    }
+  }
+  {
     char lic[512];
     grokium_license_json(lic, sizeof lic);
     if (!plate_dual_wire_ok(lic) ||

@@ -549,3 +549,54 @@ void grokium_chat_err_json(const char *error, const char *hint, char *out,
              err_tok);
   }
 }
+
+void grokium_agent_err_json(const char *error, const char *hint, char *out,
+                            size_t cap) {
+  char err_tok[80], hint_tok[160];
+  const char *h;
+  int tools_denied;
+  if (!out || cap < 64) return;
+  machine_token(error && error[0] ? error : "agent_chat_failed", err_tok,
+                sizeof err_tok);
+  if (!err_tok[0]) snprintf(err_tok, sizeof err_tok, "agent_chat_failed");
+  tools_denied = !strcmp(err_tok, "tools_not_on_lab_ops");
+  if (hint && hint[0]) {
+    hint_token(hint, hint_tok, sizeof hint_tok);
+    h = hint_tok[0] ? hint_tok : NULL;
+  } else if (tools_denied) {
+    h = "use host TUI / nanobot for shell tools; POST /v1/agent without tools";
+  } else if (!strcmp(err_tok, "need_message")) {
+    h = "message required · lab_ops chat-only · tools on host nanobot";
+  } else if (!strcmp(err_tok, "method")) {
+    h = "POST /v1/agent · lab_ops chat-only · tools:false";
+  } else {
+    h = NULL;
+  }
+  /* Shared dual-wire plate: POST /v1/agent denys · serve selftest. */
+  if (h && h[0]) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.agent.v1\",\"ok\":false,"
+             "\"error\":\"%s\",\"tools\":false,"
+             "\"tool_agent\":\"host_nanobot\","
+             "\"agent_mode\":\"lab_ops_chat_only\","
+             "\"hint\":\"%s\","
+             "\"llm_is_commander\":false,\"commander_is_model\":false,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"local_first\":true,\"telemetry\":\"off\"}",
+             err_tok, h);
+  } else {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.agent.v1\",\"ok\":false,"
+             "\"error\":\"%s\",\"tools\":false,"
+             "\"tool_agent\":\"host_nanobot\","
+             "\"agent_mode\":\"lab_ops_chat_only\","
+             "\"llm_is_commander\":false,\"commander_is_model\":false,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"local_first\":true,\"telemetry\":\"off\"}",
+             err_tok);
+  }
+}
