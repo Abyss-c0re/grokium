@@ -29,6 +29,24 @@
 #define GK_SESSIONS_MAX  8
 #define GK_SESSIONS_SCAN 600
 
+/* Short machine token for JSON plates (drop free-text / path inject). */
+static void machine_token(const char *in, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in || !in[0]) return;
+  for (i = 0; in[i] && o + 1 < cap && o < 64; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.' ||
+        c == '/')
+      out[o++] = (char)c;
+    else if (c == ' ' || c == ':' || c == '\\' || c == '"' || c == '\'')
+      out[o++] = '_';
+  }
+  out[o] = 0;
+}
+
 static int host_is_loopback(const char *host) {
   if (!host || !host[0]) return 1;
   if (!strcmp(host, "127.0.0.1")) return 1;
@@ -93,16 +111,18 @@ static void http_reply(int fd, int code, const char *ctype, const char *body) {
   if (body && blen) (void)write(fd, body, blen);
 }
 
-/* Lab/ops error plate: dual-wire honesty even on failure paths. */
+/* Lab/ops error plate: dual-wire honesty; error is machine token only. */
 static void http_reply_err(int fd, int code, const char *err) {
-  char body[384];
+  char body[384], tok[64];
+  machine_token(err, tok, sizeof tok);
+  if (!tok[0]) snprintf(tok, sizeof tok, "error");
   snprintf(body, sizeof body,
            "{\"schema\":\"grokium.error.v1\",\"ok\":false,\"error\":\"%s\","
            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"llm_on_hot_path\":false,\"llm_is_commander\":false}",
-           err && err[0] ? err : "error");
+           tok);
   http_reply(fd, code, "application/json", body);
 }
 
@@ -430,14 +450,15 @@ int grokium_llama_probe(char *json_out, size_t cap) {
   if (!base || !base[0]) base = "http://127.0.0.1:1212/v1";
   model_snip[0] = 0;
   if (parse_llama_base(base, host, sizeof host, &port, path, sizeof path) != 0) {
+    /* No raw env base_url on wire — machine token only (sanitize). */
     snprintf(json_out, cap,
-             "{\"ok\":false,\"reachable\":false,\"error\":\"non_loopback_base\","
-             "\"base_url\":\"%s\",\"llm_is_commander\":false,"
+             "{\"schema\":\"grokium.llama_probe.v1\",\"ok\":false,"
+             "\"reachable\":false,\"error\":\"non_loopback_base\","
+             "\"llm_is_commander\":false,"
              "\"commander_is_model\":false,\"product_wire\":\"smx2\","
              "\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
-             base);
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
     return 0;
   }
   fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -504,27 +525,37 @@ int grokium_llama_probe(char *json_out, size_t cap) {
   err = NULL;
 done:
   if (fd >= 0) close(fd);
-  if (!reachable) {
+  {
+    char path_tok[96], model_tok[96], err_tok[64];
+    machine_token(path, path_tok, sizeof path_tok);
+    if (!path_tok[0]) snprintf(path_tok, sizeof path_tok, "/v1/models");
+    machine_token(model_snip, model_tok, sizeof model_tok);
+    machine_token(err ? err : "down", err_tok, sizeof err_tok);
+    if (!err_tok[0]) snprintf(err_tok, sizeof err_tok, "down");
+    if (!reachable) {
+      snprintf(json_out, cap,
+               "{\"schema\":\"grokium.llama_probe.v1\",\"ok\":true,"
+               "\"reachable\":false,\"http_code\":0,"
+               "\"base_url\":\"http://127.0.0.1:%d%s\","
+               "\"error\":\"%s\",\"llm_is_commander\":false,"
+               "\"commander_is_model\":false,\"product_wire\":\"smx2\","
+               "\"peer_http\":\"lab_ops_only\","
+               "\"peer_http_is_product_bus\":false,"
+               "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
+               port, path_tok, err_tok);
+      return 0;
+    }
     snprintf(json_out, cap,
-             "{\"ok\":true,\"reachable\":false,\"http_code\":0,"
+             "{\"schema\":\"grokium.llama_probe.v1\",\"ok\":true,"
+             "\"reachable\":true,\"http_code\":%d,"
              "\"base_url\":\"http://127.0.0.1:%d%s\","
-             "\"error\":\"%s\",\"llm_is_commander\":false,"
+             "\"model_id\":\"%s\",\"llm_is_commander\":false,"
              "\"commander_is_model\":false,\"product_wire\":\"smx2\","
              "\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
-             port, path, err ? err : "down");
-    return 0;
+             code, port, path_tok, model_tok);
   }
-  snprintf(json_out, cap,
-           "{\"ok\":true,\"reachable\":true,\"http_code\":%d,"
-           "\"base_url\":\"http://127.0.0.1:%d%s\","
-           "\"model_id\":\"%s\",\"llm_is_commander\":false,"
-           "\"commander_is_model\":false,\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
-           code, port, path, model_snip[0] ? model_snip : "");
   return 0;
 }
 
@@ -652,7 +683,8 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
   if (!json_out || cap < 64) return -1;
   if (!message || !message[0]) {
     snprintf(json_out, cap,
-             "{\"ok\":false,\"error\":\"empty_message\","
+             "{\"schema\":\"grokium.llama_chat.v1\",\"ok\":false,"
+             "\"error\":\"empty_message\","
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
@@ -666,7 +698,8 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
   if (parse_llama_base(base, host, sizeof host, &port, path_models,
                        sizeof path_models) != 0) {
     snprintf(json_out, cap,
-             "{\"ok\":false,\"reachable\":false,\"error\":\"non_loopback_base\","
+             "{\"schema\":\"grokium.llama_chat.v1\",\"ok\":false,"
+             "\"reachable\":false,\"error\":\"non_loopback_base\","
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
@@ -676,7 +709,8 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
   (void)path_models;
   if (!json_escape(message, esc, sizeof esc)) {
     snprintf(json_out, cap,
-             "{\"ok\":false,\"error\":\"message_escape\","
+             "{\"schema\":\"grokium.llama_chat.v1\",\"ok\":false,"
+             "\"error\":\"message_escape\","
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
@@ -693,7 +727,8 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
       esc);
   if (blen >= sizeof req_body) {
     snprintf(json_out, cap,
-             "{\"ok\":false,\"error\":\"message_too_long\","
+             "{\"schema\":\"grokium.llama_chat.v1\",\"ok\":false,"
+             "\"error\":\"message_too_long\","
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
@@ -757,7 +792,8 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
   content[0] = 0;
   if (extract_chat_content(buf, content, sizeof content) != 0) {
     snprintf(json_out, cap,
-             "{\"ok\":false,\"reachable\":true,\"http_code\":%d,"
+             "{\"schema\":\"grokium.llama_chat.v1\",\"ok\":false,"
+             "\"reachable\":true,\"http_code\":%d,"
              "\"error\":\"no_content\",\"llm_is_commander\":false,"
              "\"commander_is_model\":false,\"product_wire\":\"smx2\","
              "\"peer_http\":\"lab_ops_only\","
@@ -769,7 +805,8 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
   }
   json_escape(content, content_esc, sizeof content_esc);
   snprintf(json_out, cap,
-           "{\"ok\":true,\"reachable\":true,\"http_code\":%d,"
+           "{\"schema\":\"grokium.llama_chat.v1\",\"ok\":true,"
+           "\"reachable\":true,\"http_code\":%d,"
            "\"content\":\"%s\",\"llm_is_commander\":false,"
            "\"commander_is_model\":false,\"product_wire\":\"smx2\","
            "\"peer_http\":\"lab_ops_only\","
@@ -781,15 +818,21 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
 
 fail:
   if (fd >= 0) close(fd);
-  snprintf(json_out, cap,
-           "{\"ok\":false,\"reachable\":false,\"error\":\"%s\","
-           "\"base_url\":\"http://127.0.0.1:%d/v1/chat/completions\","
-           "\"llm_is_commander\":false,\"commander_is_model\":false,"
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"local_first\":true}",
-           err ? err : "down", port);
+  {
+    char err_tok[64];
+    machine_token(err ? err : "down", err_tok, sizeof err_tok);
+    if (!err_tok[0]) snprintf(err_tok, sizeof err_tok, "down");
+    snprintf(json_out, cap,
+             "{\"schema\":\"grokium.llama_chat.v1\",\"ok\":false,"
+             "\"reachable\":false,\"error\":\"%s\","
+             "\"base_url\":\"http://127.0.0.1:%d/v1/chat/completions\","
+             "\"llm_is_commander\":false,\"commander_is_model\":false,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"local_first\":true}",
+             err_tok, port);
+  }
   return 0;
 }
 
