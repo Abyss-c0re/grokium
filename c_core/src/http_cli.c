@@ -980,15 +980,9 @@ static int selftest(void) {
   return 0;
 }
 
-/* Dual-wire CLI plates — no free-text usage on the machine wire.
- * LLM is never commander; product bus stays SMX2 (peer HTTP = lab/ops). */
-static const char k_need_subcmd[] =
-    "{\"schema\":\"grokium.serve.v1\",\"ok\":false,"
-    "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false,\"loopback_only\":true,"
-    "\"hint\":\"[port]|selftest|probe|chat MSG|license|healthz|help\"}";
+/* Shared dual-wire need_subcmd — loopback honesty lives on healthz/listen. */
+static const char k_serve_hint[] =
+    "[port]|selftest|probe|chat MSG|license|healthz|help";
 
 static int plate_dual_wire_ok(const char *p) {
   return p && strstr(p, "\"product_wire\":\"smx2\"") &&
@@ -999,6 +993,12 @@ static int plate_dual_wire_ok(const char *p) {
          strstr(p, "\"share\":\"state_matrix_only\"");
 }
 
+static void emit_need_subcmd(void) {
+  char plate[512];
+  grokium_need_subcmd_json("serve", k_serve_hint, plate, sizeof plate);
+  printf("%s\n", plate);
+}
+
 int main(int argc, char **argv) {
   gk_consolidator C;
   gk_fleet F;
@@ -1007,10 +1007,15 @@ int main(int argc, char **argv) {
   const char *root = "data";
   char need_msg[512];
 
-  if (!plate_dual_wire_ok(k_need_subcmd) ||
-      !strstr(k_need_subcmd, "\"error\":\"need_subcmd\"")) {
-    fprintf(stderr, "grokium-serve: deny plate dual-wire fail\n");
-    return 1;
+  {
+    char need[512];
+    grokium_need_subcmd_json("serve", k_serve_hint, need, sizeof need);
+    if (!plate_dual_wire_ok(need) ||
+        !strstr(need, "\"error\":\"need_subcmd\"") ||
+        !strstr(need, "\"schema\":\"grokium.serve.v1\"")) {
+      fprintf(stderr, "grokium-serve: deny plate dual-wire fail\n");
+      return 1;
+    }
   }
   /* Shared chat need_message plate (HTTP /v1/chat · host chat same builder). */
   grokium_chat_err_json("need_message", NULL, need_msg, sizeof need_msg);
@@ -1136,13 +1141,13 @@ int main(int argc, char **argv) {
   if (argc >= 2 &&
       (!strcmp(argv[1], "help") || !strcmp(argv[1], "-h") ||
        !strcmp(argv[1], "--help"))) {
-    printf("%s\n", k_need_subcmd);
+    emit_need_subcmd();
     return 0;
   }
   /* Non-numeric first arg (not a known subcmd handled above) → need plate. */
   if (argc >= 2 && argv[1][0] &&
       !(argv[1][0] >= '0' && argv[1][0] <= '9')) {
-    printf("%s\n", k_need_subcmd);
+    emit_need_subcmd();
     return 2;
   }
   if (argc >= 2) port = atoi(argv[1]);
