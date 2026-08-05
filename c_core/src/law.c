@@ -90,7 +90,7 @@ static void hint_token(const char *in, char *out, size_t cap) {
         c == '/' || c == ' ' || c == '|' || c == '[' || c == ']' ||
         c == '<' || c == '>' || c == ':' || c == '=' || c == '?' ||
         c == '!' || c == '+' || c == '*' || c == '#' || c == '@' ||
-        c == '(' || c == ')' || c == ';') {
+        c == '(' || c == ')' || c == ';' || c == '&') {
       out[o++] = (char)c;
     } else if (c == '"' || c == '\\') {
       out[o++] = '_';
@@ -101,37 +101,49 @@ static void hint_token(const char *in, char *out, size_t cap) {
   out[o] = 0;
 }
 
-void grokium_need_subcmd_json(const char *schema_leaf, const char *hint,
-                              char *out, size_t cap) {
-  char leaf[56], hint_tok[160];
+void grokium_err_json(const char *schema_leaf, const char *error,
+                      const char *hint, char *out, size_t cap) {
+  char leaf[56], err[56], hint_tok[160];
   if (!out || cap < 64) return;
   leaf_token(schema_leaf, leaf, sizeof leaf);
-  if (!leaf[0]) snprintf(leaf, sizeof leaf, "command");
+  if (!leaf[0]) snprintf(leaf, sizeof leaf, "error");
+  leaf_token(error, err, sizeof err);
+  if (!err[0]) snprintf(err, sizeof err, "error");
   if (hint && hint[0]) {
     hint_token(hint, hint_tok, sizeof hint_tok);
   } else {
     hint_tok[0] = 0;
   }
-  /* Shared dual-wire need_subcmd: host contract/hub/… help surfaces. */
+  /* Shared dual-wire deny: product bus SMX2; peer HTTP lab/ops only. */
   if (hint_tok[0]) {
     snprintf(out, cap,
              "{\"schema\":\"grokium.%s.v1\",\"ok\":false,"
-             "\"error\":\"need_subcmd\","
+             "\"error\":\"%s\","
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
              "\"llm_is_commander\":false,\"hint\":\"%s\"}",
-             leaf, hint_tok);
+             leaf, err, hint_tok);
   } else {
     snprintf(out, cap,
              "{\"schema\":\"grokium.%s.v1\",\"ok\":false,"
-             "\"error\":\"need_subcmd\","
+             "\"error\":\"%s\","
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
              "\"llm_is_commander\":false}",
-             leaf);
+             leaf, err);
   }
+}
+
+void grokium_need_subcmd_json(const char *schema_leaf, const char *hint,
+                              char *out, size_t cap) {
+  char leaf[56];
+  if (!out || cap < 64) return;
+  leaf_token(schema_leaf, leaf, sizeof leaf);
+  if (!leaf[0]) snprintf(leaf, sizeof leaf, "command");
+  /* Shared dual-wire need_subcmd: host contract/hub/… help surfaces. */
+  grokium_err_json(leaf, "need_subcmd", hint, out, cap);
 }
 
 void grokium_commander_deny_json(const char *schema_leaf, const char *error,

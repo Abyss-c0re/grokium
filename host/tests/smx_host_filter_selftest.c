@@ -171,10 +171,40 @@ int main(void) {
         !strstr(plate, "\"llm_is_commander\":false") ||
         !strstr(plate, "\"hold_flash\":1"))
       return fail("mode need_subcmd dual-wire plate fail");
+    /* Generic dual-wire err (host cubalc/tool denials same builder). */
+    grokium_err_json("cubalc", "missing_program", "cubalc/programs/<name.cubalc>",
+                     plate, sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.cubalc.v1\"") ||
+        !strstr(plate, "\"error\":\"missing_program\"") ||
+        !strstr(plate, "\"product_wire\":\"smx2\"") ||
+        !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+        !strstr(plate, "\"llm_is_commander\":false") ||
+        !strstr(plate, "\"hold_flash\":1") ||
+        !strstr(plate, "cubalc/programs/<name.cubalc>"))
+      return fail("cubalc err dual-wire plate fail");
+    grokium_err_json(
+        "cubalc", "missing_binary",
+        "./scripts/sync_cubalc.sh && make -C deps/cubalc all", plate,
+        sizeof plate);
+    if (!strstr(plate, "\"error\":\"missing_binary\"") ||
+        !strstr(plate, "&&") || !strstr(plate, "deps/cubalc"))
+      return fail("cubalc missing_binary hint sanitize fail");
+    grokium_err_json("tool", "missing_c_core", "make -C c_core all", plate,
+                     sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.tool.v1\"") ||
+        !strstr(plate, "\"error\":\"missing_c_core\"") ||
+        !strstr(plate, "make -C c_core all"))
+      return fail("tool missing_c_core dual-wire plate fail");
+    grokium_err_json("x\",\"evil\":true", "bad\";drop", "a\"b && c", plate,
+                     sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.xeviltrue.v1\"") ||
+        strstr(plate, "\"evil\"") || !strstr(plate, "\"error\":\"baddrop\"") ||
+        !strstr(plate, "a_b && c"))
+      return fail("err_json inject sanitize fail");
   }
 
   printf("HOST_SMX_FILTER_OK external=strict hold_flash=1 dual_wire=gate "
          "allow_plate=1 instinct_plate=1 manager_help_plate=1 license_plate=1 "
-         "need_subcmd=1 commander_deny=1 mode_need_subcmd=1\n");
+         "need_subcmd=1 commander_deny=1 mode_need_subcmd=1 err_json=1\n");
   return 0;
 }

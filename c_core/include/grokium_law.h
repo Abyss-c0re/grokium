@@ -36,7 +36,16 @@ void grokium_law_json(const grokium_law *L, char *out, size_t cap);
 void grokium_license_json(char *out, size_t cap);
 
 /*
- * Dual-wire need_subcmd deny plate.
+ * Dual-wire machine deny plate (generic).
+ * schema_leaf → "schema":"grokium.<leaf>.v1"; error → machine token.
+ * Optional hint is machine-sanitized (no JSON inject).
+ * NULL leaf → "error"; NULL error → "error". Host cubalc/tool/settings share this.
+ */
+void grokium_err_json(const char *schema_leaf, const char *error,
+                      const char *hint, char *out, size_t cap);
+
+/*
+ * Dual-wire need_subcmd deny plate (wrapper around grokium_err_json).
  * schema_leaf → "schema":"grokium.<leaf>.v1" (sanitized machine token).
  * Optional hint is machine-sanitized (no JSON inject). NULL leaf → "command".
  * Host contract/hub/… help surfaces share this builder.

@@ -587,25 +587,21 @@ static int run_prog_capture(const char *name) {
   char prog[PATH_MAX];
   snprintf(prog, sizeof prog, "%s/%s", prog_dir, name);
   if (access(prog, R_OK) != 0) {
-    /* Machine missing_program — dual-wire honesty (no free-text-only). */
-    log_add("{\"schema\":\"grokium.cubalc.v1\",\"ok\":false,"
-            "\"error\":\"missing_program\",\"product_wire\":\"smx2\","
-            "\"peer_http\":\"lab_ops_only\","
-            "\"peer_http_is_product_bus\":false,"
-            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-            "\"llm_is_commander\":false,"
-            "\"hint\":\"cubalc/programs/<name.cubalc>\"}");
+    char plate[512];
+    /* Shared dual-wire missing_program (no free-text path echo). */
+    grokium_err_json("cubalc", "missing_program",
+                     "cubalc/programs/<name.cubalc>", plate, sizeof plate);
+    log_add(plate);
     return 2;
   }
   if (!file_ok(cubalc_bin)) {
-    log_add("{\"schema\":\"grokium.cubalc.v1\",\"ok\":false,"
-            "\"error\":\"missing_binary\",\"product_wire\":\"smx2\","
-            "\"peer_http\":\"lab_ops_only\","
-            "\"peer_http_is_product_bus\":false,"
-            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-            "\"llm_is_commander\":false,"
-            "\"optional\":true,"
-            "\"hint\":\"./scripts/sync_cubalc.sh && make -C deps/cubalc all\"}");
+    char plate[512];
+    /* Shared dual-wire missing_binary (CubalC optional · hint says how). */
+    grokium_err_json(
+        "cubalc", "missing_binary",
+        "./scripts/sync_cubalc.sh && make -C deps/cubalc all", plate,
+        sizeof plate);
+    log_add(plate);
     return 99;
   }
   int pipefd[2];
@@ -655,14 +651,11 @@ static int run_c_core_capture(const char *name, char *const args[]) {
   if (!name || !args) return -1;
   snprintf(bin, sizeof bin, "%s/build/%s", root, name);
   if (access(bin, X_OK) != 0) {
-    /* Machine missing_c_core — dual-wire honesty (no free-text-only). */
-    log_add("{\"schema\":\"grokium.tool.v1\",\"ok\":false,"
-            "\"error\":\"missing_c_core\",\"product_wire\":\"smx2\","
-            "\"peer_http\":\"lab_ops_only\","
-            "\"peer_http_is_product_bus\":false,"
-            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-            "\"llm_is_commander\":false,"
-            "\"hint\":\"make -C c_core all\"}");
+    char plate[512];
+    /* Shared dual-wire missing_c_core (no free-text path). */
+    grokium_err_json("tool", "missing_c_core", "make -C c_core all", plate,
+                     sizeof plate);
+    log_add(plate);
     return 99;
   }
   av[n++] = bin;

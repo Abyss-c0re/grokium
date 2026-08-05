@@ -120,24 +120,20 @@ static int run_cubalc_program(const char *name, const char *plate) {
   char prog[PATH_MAX], tmp[PATH_MAX];
   snprintf(prog, sizeof prog, "%s/%s", prog_dir, name);
   if (access(prog, R_OK) != 0) {
-    /* Machine missing_program — dual-wire (no free-text path echo). */
-    printf("{\"schema\":\"grokium.cubalc.v1\",\"ok\":false,"
-           "\"error\":\"missing_program\",\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false,"
-           "\"hint\":\"cubalc/programs/<name.cubalc>\"}\n");
+    char plate[512];
+    /* Shared dual-wire missing_program (no free-text path echo). */
+    grokium_err_json("cubalc", "missing_program",
+                     "cubalc/programs/<name.cubalc>", plate, sizeof plate);
+    printf("%s\n", plate);
     return 2;
   }
   if (!file_ok(cubalc_bin)) {
-    printf("{\"schema\":\"grokium.cubalc.v1\",\"ok\":false,"
-           "\"error\":\"missing_binary\",\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false,"
-           "\"hint\":\"./scripts/sync_cubalc.sh && make -C deps/cubalc all\"}\n");
+    char plate[512];
+    grokium_err_json(
+        "cubalc", "missing_binary",
+        "./scripts/sync_cubalc.sh && make -C deps/cubalc all", plate,
+        sizeof plate);
+    printf("%s\n", plate);
     return 99;
   }
 
@@ -177,13 +173,12 @@ static int run_cubalc_program(const char *name, const char *plate) {
 
 static int run_cubalc_args(char *const argv[]) {
   if (!file_ok(cubalc_bin)) {
-    printf("{\"schema\":\"grokium.cubalc.v1\",\"ok\":false,"
-           "\"error\":\"missing_binary\",\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false,"
-           "\"hint\":\"./scripts/sync_cubalc.sh && make -C deps/cubalc all\"}\n");
+    char plate[512];
+    grokium_err_json(
+        "cubalc", "missing_binary",
+        "./scripts/sync_cubalc.sh && make -C deps/cubalc all", plate,
+        sizeof plate);
+    printf("%s\n", plate);
     return 99;
   }
   pid_t pid = fork();
@@ -214,23 +209,17 @@ static int run_c_core(const char *name, int argc, char **argv) {
   pid_t pid;
   int st = 0;
   if (resolve_c_core_bin(name, bin, sizeof bin) != 0) {
-    /* Machine missing_c_core — dual-wire honesty (no free-text path). */
-    printf("{\"schema\":\"grokium.tool.v1\",\"ok\":false,"
-           "\"error\":\"missing_c_core\",\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false,"
-           "\"hint\":\"make -C c_core all\"}\n");
+    char plate[512];
+    /* Shared dual-wire missing_c_core (no free-text path). */
+    grokium_err_json("tool", "missing_c_core", "make -C c_core all", plate,
+                     sizeof plate);
+    printf("%s\n", plate);
     return 99;
   }
   if (argc + 1 >= (int)(sizeof av / sizeof av[0])) {
-    printf("{\"schema\":\"grokium.tool.v1\",\"ok\":false,"
-           "\"error\":\"too_many_args\",\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false}\n");
+    char plate[512];
+    grokium_err_json("tool", "too_many_args", NULL, plate, sizeof plate);
+    printf("%s\n", plate);
     return 2;
   }
   av[n++] = bin;
