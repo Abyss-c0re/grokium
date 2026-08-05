@@ -117,6 +117,27 @@ int main(void) {
     if (!strstr(plate, "\"schema\":\"grokium.xeviltrue.v1\"") ||
         strstr(plate, "\"evil\"") || !strstr(plate, "\"error\":\"need_subcmd\""))
       return fail("need_subcmd leaf/hint sanitize fail");
+    /* Host CLI/TUI surfaces share the same builder (hub/integrity/cli). */
+    grokium_need_subcmd_json("hub", "hub [start|stop|status]", plate,
+                             sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.hub.v1\"") ||
+        !strstr(plate, "\"error\":\"need_subcmd\"") ||
+        !strstr(plate, "\"product_wire\":\"smx2\"") ||
+        !strstr(plate, "\"peer_http_is_product_bus\":false"))
+      return fail("hub need_subcmd dual-wire plate fail");
+    grokium_need_subcmd_json("integrity_report", "tick|policy|reseal", plate,
+                             sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.integrity_report.v1\"") ||
+        !strstr(plate, "\"hint\":\"tick|policy|reseal\"") ||
+        !strstr(plate, "\"hold_flash\":1"))
+      return fail("integrity need_subcmd dual-wire plate fail");
+    grokium_need_subcmd_json(
+        "cli", "help|chat|tui|serve|fleet|coord|status|law|integrity", plate,
+        sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.cli.v1\"") ||
+        !strstr(plate, "\"error\":\"need_subcmd\"") ||
+        !strstr(plate, "\"share\":\"state_matrix_only\""))
+      return fail("cli need_subcmd dual-wire plate fail");
   }
 
   printf("HOST_SMX_FILTER_OK external=strict hold_flash=1 dual_wire=gate "

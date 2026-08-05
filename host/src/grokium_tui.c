@@ -1344,16 +1344,14 @@ static void cmd_fleet(const char *arg) {
     return;
   }
   if (!strcmp(sub, "help") || !strcmp(sub, "?")) {
-    /* Machine help plate — dual-wire honesty (no free-text-only usage). */
-    log_add("{\"schema\":\"grokium.fleet.v1\",\"ok\":false,"
-            "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-            "\"peer_http\":\"lab_ops_only\","
-            "\"peer_http_is_product_bus\":false,"
-            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-            "\"llm_is_commander\":false,"
-            "\"hint\":\"/fleet [status|defaults|deploy|save|spawn ID|"
-            "spawn-all|note-pid ID PID|separate ID|stop-all|cubalc] · "
-            "pid honest\"}");
+    char plate[512];
+    /* Shared dual-wire need_subcmd (pid honest · no free-text-only usage). */
+    grokium_need_subcmd_json(
+        "fleet",
+        "/fleet [status|defaults|deploy|save|spawn ID|spawn-all|"
+        "note-pid ID PID|separate ID|stop-all|cubalc] pid honest",
+        plate, sizeof plate);
+    log_add(plate);
     return;
   }
   if (!strcmp(sub, "cubalc")) {
@@ -1763,14 +1761,11 @@ static void do_command(const char *raw) {
     } else if (rest[0] && strcmp(rest, "status") != 0 &&
                strcmp(rest, "show") != 0 && strcmp(rest, "help") != 0 &&
                strcmp(rest, "?") != 0 && strcmp(rest, "compat") != 0) {
-      /* Machine need_subcmd — dual-wire honesty (no silent free-text miss). */
-      log_add("{\"schema\":\"grokium.hub.v1\",\"ok\":false,"
-              "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-              "\"peer_http\":\"lab_ops_only\","
-              "\"peer_http_is_product_bus\":false,"
-              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-              "\"llm_is_commander\":false,"
-              "\"hint\":\"/hub [start|stop|status]\"}");
+      char plate[512];
+      /* Shared dual-wire need_subcmd (match CLI hub path). */
+      grokium_need_subcmd_json("hub", "/hub [start|stop|status]", plate,
+                               sizeof plate);
+      log_add(plate);
     }
     return;
   }
@@ -1905,14 +1900,13 @@ static void do_command(const char *raw) {
       log_add("/viz open <path>        desktop viewer (config viz.desktop_cmd)");
       log_add("/viz vr <path>          VR/desktop cmd (viz.vr_cmd or desktop)");
       log_add("No hard-coded VR SDK — set viz.vr_cmd = \"your-viewer %s\"");
-      /* Machine need_subcmd plate — dual-wire honesty (no free-text-only). */
-      log_add("{\"schema\":\"grokium.viz.v1\",\"ok\":false,"
-              "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-              "\"peer_http\":\"lab_ops_only\","
-              "\"peer_http_is_product_bus\":false,"
-              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-              "\"llm_is_commander\":false,"
-              "\"hint\":\"/viz term|open|vr …\"}");
+      {
+        char plate[512];
+        /* Shared dual-wire need_subcmd (no free-text-only). */
+        grokium_need_subcmd_json("viz", "/viz term|open|vr", plate,
+                                 sizeof plate);
+        log_add(plate);
+      }
       return;
     }
     if (!strcmp(sub, "open")) {
@@ -1990,14 +1984,12 @@ static void do_command(const char *raw) {
       }
       return;
     }
-    /* Unknown subcmd — dual-wire need_subcmd (no free-text-only usage). */
-    log_add("{\"schema\":\"grokium.viz.v1\",\"ok\":false,"
-            "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-            "\"peer_http\":\"lab_ops_only\","
-            "\"peer_http_is_product_bus\":false,"
-            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-            "\"llm_is_commander\":false,"
-            "\"hint\":\"/viz term|open|vr …\"}");
+    {
+      char plate[512];
+      /* Unknown subcmd — shared dual-wire need_subcmd. */
+      grokium_need_subcmd_json("viz", "/viz term|open|vr", plate, sizeof plate);
+      log_add(plate);
+    }
     return;
   }
   if (strcmp(cmd, "board") == 0) {

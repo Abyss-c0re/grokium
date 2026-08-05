@@ -592,14 +592,13 @@ int main(int argc, char **argv) {
       printf("%s\n", buf);
       return rc;
     }
-    /* Machine need_subcmd — dual-wire honesty (match TUI /hub path). */
-    printf("{\"schema\":\"grokium.hub.v1\",\"ok\":false,"
-           "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false,"
-           "\"hint\":\"hub [start|stop|status]\"}\n");
+    /* Shared dual-wire need_subcmd (match TUI /hub path). */
+    {
+      char plate[512];
+      grokium_need_subcmd_json("hub", "hub [start|stop|status]", plate,
+                               sizeof plate);
+      printf("%s\n", plate);
+    }
     return 2;
   }
   if (strcmp(cmd, "board") == 0)
@@ -708,14 +707,13 @@ int main(int argc, char **argv) {
     if (ai + 1 >= argc ||
         !strcmp(argv[ai + 1], "help") || !strcmp(argv[ai + 1], "-h") ||
         !strcmp(argv[ai + 1], "--help")) {
-      /* Machine need_subcmd plate — dual-wire honesty (fail-closed seal). */
-      printf("{\"schema\":\"grokium.integrity_report.v1\",\"ok\":false,"
-             "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-             "\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"llm_is_commander\":false,"
-             "\"hint\":\"tick|policy|reseal\"}\n");
+      /* Shared dual-wire need_subcmd (fail-closed seal · integrity_report leaf). */
+      {
+        char plate[512];
+        grokium_need_subcmd_json("integrity_report", "tick|policy|reseal",
+                                 plate, sizeof plate);
+        printf("%s\n", plate);
+      }
       return 2;
     }
     return run_c_core("grokium-integrity", argc - ai - 1, argv + ai + 1);
@@ -881,14 +879,14 @@ int main(int argc, char **argv) {
     return grokium_tui(argc, argv);
   }
 
-  /* Machine need_subcmd — no free-text echo of user argv (dual-wire honesty). */
-  printf("{\"schema\":\"grokium.cli.v1\",\"ok\":false,"
-         "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-         "\"peer_http\":\"lab_ops_only\","
-         "\"peer_http_is_product_bus\":false,"
-         "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-         "\"llm_is_commander\":false,"
-         "\"hint\":\"help|chat|tui|serve|fleet|coord|status|law|integrity\"}\n");
+  /* Shared dual-wire need_subcmd — no free-text echo of user argv. */
+  {
+    char plate[512];
+    grokium_need_subcmd_json(
+        "cli", "help|chat|tui|serve|fleet|coord|status|law|integrity", plate,
+        sizeof plate);
+    printf("%s\n", plate);
+  }
   usage();
   return 2;
 }
