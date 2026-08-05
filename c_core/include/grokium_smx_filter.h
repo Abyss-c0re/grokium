@@ -75,6 +75,28 @@ int grokium_manager_motivate_dir(const char *dir);
 void grokium_manager_tick_json(int motivated, const char *dir, char *out,
                                size_t cap);
 
+/*
+ * Dual-wire contract form ack (schema grokium.contract_form.v1).
+ * Call after grokium_contract_form; id/path/assignee escaped.
+ * CLI form and POST /v1/contract/form share this plate.
+ */
+void grokium_contract_form_json(const grokium_contract *c, char *out,
+                                size_t cap);
+/* Dual-wire form deny (need_assignee_and_task | form_failed | need_json_body). */
+void grokium_contract_form_err_json(const char *error, char *out, size_t cap);
+
+/*
+ * Dual-wire contract validate ack (schema grokium.contract_validate.v1).
+ * rc is grokium_contract_validate return (1 complete, 0 incomplete, -1 error).
+ * CLI validate and POST /v1/contract/validate share this plate.
+ */
+void grokium_contract_validate_json(const grokium_contract *c, int rc,
+                                    int digit, unsigned bits_set, char *out,
+                                    size_t cap);
+/* Dual-wire validate deny (need_path | contract_not_found | need_json_body). */
+void grokium_contract_validate_err_json(const char *error, char *out,
+                                        size_t cap);
+
 /* Instinct attitude line for core nanobot system memory (static string). */
 const char *grokium_hive_instinct_creed(void);
 

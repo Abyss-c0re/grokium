@@ -126,7 +126,10 @@ test-filter: $(BIN_FILTER)
 	D=$(BUILD)/contracts_test; rm -rf $$D; mkdir -p $$D; \
 	export GROKIUM_CONTRACT_DIR=$$D; \
 	J=$$($(BIN_FILTER) form --assignee nb-worker-1 --task 'map tool loop' --min-set 1); \
+	echo "$$J" | grep -q '"schema":"grokium.contract_form.v1"'; \
 	echo "$$J" | grep -q '"ok":true'; \
+	echo "$$J" | grep -q '"observer":"NexusCore"'; \
+	echo "$$J" | grep -q '"llm_on_hot_path":false'; \
 	echo "$$J" | grep -q '"product_wire":"smx2"'; \
 	P=$$(echo "$$J" | sed -n 's/.*"path":"\([^"]*\)".*/\1/p'); \
 	test -n "$$P"; \

@@ -20,36 +20,6 @@ static const char k_need_subcmd[] =
     "\"hint\":\"form|validate|manager-tick|allow-check|instinct|"
     "heartbeat-ack\"}";
 
-static const char k_need_form_args[] =
-    "{\"schema\":\"grokium.contract_form.v1\",\"ok\":false,"
-    "\"error\":\"need_assignee_and_task\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false,"
-    "\"hint\":\"form --assignee ID --task TEXT\"}";
-
-static const char k_form_failed[] =
-    "{\"schema\":\"grokium.contract_form.v1\",\"ok\":false,"
-    "\"error\":\"form_failed\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false}";
-
-static const char k_need_path[] =
-    "{\"schema\":\"grokium.contract_validate.v1\",\"ok\":false,"
-    "\"error\":\"need_path\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false,"
-    "\"hint\":\"validate PATH [--bits 01…]\"}";
-
-static const char k_contract_not_found[] =
-    "{\"schema\":\"grokium.contract_validate.v1\",\"ok\":false,"
-    "\"error\":\"contract_not_found\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false}";
-
 static int plate_dual_wire_ok(const char *p) {
   return p && strstr(p, "\"product_wire\":\"smx2\"") &&
          strstr(p, "\"peer_http\":\"lab_ops_only\"") &&
@@ -62,14 +32,39 @@ static int plate_dual_wire_ok(const char *p) {
 static void usage(void) { printf("%s\n", k_need_subcmd); }
 
 int main(int argc, char **argv) {
-  if (!plate_dual_wire_ok(k_need_subcmd) ||
-      !plate_dual_wire_ok(k_need_form_args) ||
-      !plate_dual_wire_ok(k_need_path) ||
-      !plate_dual_wire_ok(k_form_failed) ||
-      !plate_dual_wire_ok(k_contract_not_found) ||
-      !strstr(k_need_subcmd, "\"error\":\"need_subcmd\"")) {
-    fprintf(stderr, "grokium-smx-filter: deny plate dual-wire fail\n");
-    return 1;
+  {
+    char den[512];
+    if (!plate_dual_wire_ok(k_need_subcmd) ||
+        !strstr(k_need_subcmd, "\"error\":\"need_subcmd\"")) {
+      fprintf(stderr, "grokium-smx-filter: deny plate dual-wire fail\n");
+      return 1;
+    }
+    grokium_contract_form_err_json("need_assignee_and_task", den, sizeof den);
+    if (!plate_dual_wire_ok(den) ||
+        !strstr(den, "\"schema\":\"grokium.contract_form.v1\"") ||
+        !strstr(den, "\"error\":\"need_assignee_and_task\"")) {
+      fprintf(stderr, "grokium-smx-filter: form deny dual-wire fail: %.200s\n",
+              den);
+      return 1;
+    }
+    grokium_contract_form_err_json("form_failed", den, sizeof den);
+    if (!plate_dual_wire_ok(den) || !strstr(den, "\"error\":\"form_failed\"")) {
+      fprintf(stderr, "grokium-smx-filter: form_failed dual-wire fail\n");
+      return 1;
+    }
+    grokium_contract_validate_err_json("need_path", den, sizeof den);
+    if (!plate_dual_wire_ok(den) ||
+        !strstr(den, "\"schema\":\"grokium.contract_validate.v1\"") ||
+        !strstr(den, "\"error\":\"need_path\"")) {
+      fprintf(stderr, "grokium-smx-filter: validate need_path dual-wire fail\n");
+      return 1;
+    }
+    grokium_contract_validate_err_json("contract_not_found", den, sizeof den);
+    if (!plate_dual_wire_ok(den) ||
+        !strstr(den, "\"error\":\"contract_not_found\"")) {
+      fprintf(stderr, "grokium-smx-filter: validate not_found dual-wire fail\n");
+      return 1;
+    }
   }
   if (argc < 2 || !strcmp(argv[1], "help") || !strcmp(argv[1], "-h") ||
       !strcmp(argv[1], "--help")) {
@@ -123,6 +118,7 @@ int main(int argc, char **argv) {
   }
 
   if (!strcmp(argv[1], "form")) {
+    char plate[1024];
     const char *assignee = NULL, *task = NULL, *sha = NULL;
     int digit = -1, min_set = 0;
     grokium_contract c;
@@ -140,34 +136,33 @@ int main(int argc, char **argv) {
         sha = argv[++i];
     }
     if (!assignee || !task) {
-      printf("%s\n", k_need_form_args);
+      grokium_contract_form_err_json("need_assignee_and_task", plate,
+                                     sizeof plate);
+      printf("%s\n", plate);
       return 2;
     }
     if (grokium_contract_form(&c, NULL, assignee, task, digit, min_set, sha) !=
         0) {
-      printf("%s\n", k_form_failed);
+      grokium_contract_form_err_json("form_failed", plate, sizeof plate);
+      printf("%s\n", plate);
       return 1;
     }
-    printf("{\"schema\":\"grokium.contract_form.v1\",\"ok\":true,"
-           "\"id\":\"%s\",\"path\":\"%s\",\"status\":\"open\","
-           "\"assignee\":\"%s\",\"hold_flash\":1,"
-           "\"product_wire\":\"smx2\",\"wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"llm_is_commander\":false,"
-           "\"observer\":\"NexusCore\"}\n",
-           c.id, c.path, c.assignee);
+    /* Same dual-wire plate as POST /v1/contract/form. */
+    grokium_contract_form_json(&c, plate, sizeof plate);
+    printf("%s\n", plate);
     return 0;
   }
 
   if (!strcmp(argv[1], "validate")) {
+    char plate[1024];
     grokium_contract c;
     grokium_smx m;
     const char *path = argc > 2 ? argv[2] : NULL;
     const char *bits = NULL;
     int i, rc, dig;
     if (!path) {
-      printf("%s\n", k_need_path);
+      grokium_contract_validate_err_json("need_path", plate, sizeof plate);
+      printf("%s\n", plate);
       return 2;
     }
     for (i = 3; i < argc; i++) {
@@ -177,7 +172,9 @@ int main(int argc, char **argv) {
         FILE *f = fopen(argv[++i], "r");
         static char buf[600];
         if (!f) {
-          printf("%s\n", k_contract_not_found);
+          grokium_contract_validate_err_json("contract_not_found", plate,
+                                             sizeof plate);
+          printf("%s\n", plate);
           return 1;
         }
         if (!fgets(buf, sizeof buf, f)) buf[0] = 0;
@@ -186,7 +183,9 @@ int main(int argc, char **argv) {
       }
     }
     if (grokium_contract_load(&c, path) != 0) {
-      printf("%s\n", k_contract_not_found);
+      grokium_contract_validate_err_json("contract_not_found", plate,
+                                         sizeof plate);
+      printf("%s\n", plate);
       return 1;
     }
     smx_clear(&m, "result");
@@ -198,15 +197,9 @@ int main(int argc, char **argv) {
     }
     dig = algocube_digit(&m, c.id);
     rc = grokium_contract_validate(&c, &m, dig);
-    printf("{\"schema\":\"grokium.contract_validate.v1\",\"ok\":%s,"
-           "\"complete\":%s,\"status\":%d,\"digit\":%d,"
-           "\"bits_set\":%u,\"id\":\"%s\",\"hold_flash\":1,"
-           "\"product_wire\":\"smx2\",\"wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"llm_is_commander\":false}\n",
-           rc >= 0 ? "true" : "false", rc == 1 ? "true" : "false",
-           (int)c.status, dig, m.bits_set, c.id);
+    /* Same dual-wire plate as POST /v1/contract/validate. */
+    grokium_contract_validate_json(&c, rc, dig, m.bits_set, plate, sizeof plate);
+    printf("%s\n", plate);
     return rc == 1 ? 0 : 1;
   }
 

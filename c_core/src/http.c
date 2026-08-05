@@ -1087,14 +1087,9 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       return;
     }
     if (!body || body_n == 0) {
-      /* Schema-scoped dual-wire (match CLI contract form deny). */
-      http_reply(cfd, 400, "application/json",
-                 "{\"schema\":\"grokium.contract_form.v1\",\"ok\":false,"
-                 "\"error\":\"need_json_body\",\"product_wire\":\"smx2\","
-                 "\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                 "\"llm_is_commander\":false}");
+      /* Schema-scoped dual-wire (shared with smx-filter CLI). */
+      grokium_contract_form_err_json("need_json_body", resp, sizeof resp);
+      http_reply(cfd, 400, "application/json", resp);
       return;
     }
     assignee[0] = task[0] = sha[0] = 0;
@@ -1105,44 +1100,20 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     digit = json_get_int(body, body_n, "digit", -1);
     min_set = json_get_int(body, body_n, "min_set", 0);
     if (!assignee[0] || !task[0]) {
-      http_reply(cfd, 400, "application/json",
-                 "{\"schema\":\"grokium.contract_form.v1\",\"ok\":false,"
-                 "\"error\":\"need_assignee_and_task\","
-                 "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                 "\"llm_is_commander\":false}");
+      grokium_contract_form_err_json("need_assignee_and_task", resp,
+                                     sizeof resp);
+      http_reply(cfd, 400, "application/json", resp);
       return;
     }
     contract_dir_for(root, cdir, sizeof cdir);
     if (grokium_contract_form(&c, cdir, assignee, task, digit, min_set,
                               sha[0] ? sha : NULL) != 0) {
-      http_reply(cfd, 500, "application/json",
-                 "{\"schema\":\"grokium.contract_form.v1\",\"ok\":false,"
-                 "\"error\":\"form_failed\",\"product_wire\":\"smx2\","
-                 "\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                 "\"llm_is_commander\":false}");
+      grokium_contract_form_err_json("form_failed", resp, sizeof resp);
+      http_reply(cfd, 500, "application/json", resp);
       return;
     }
-    /* Lab/ops contract form plate; product bus remains SMX2. */
-    {
-      char id_esc[80], path_esc[640], asg_esc[80];
-      json_escape(c.id, id_esc, sizeof id_esc);
-      json_escape(c.path, path_esc, sizeof path_esc);
-      json_escape(c.assignee, asg_esc, sizeof asg_esc);
-      snprintf(resp, sizeof resp,
-               "{\"schema\":\"grokium.contract_form.v1\",\"ok\":true,"
-               "\"id\":\"%s\",\"path\":\"%s\",\"status\":\"open\","
-               "\"assignee\":\"%s\",\"hold_flash\":1,"
-               "\"product_wire\":\"smx2\",\"wire\":\"smx2\","
-               "\"peer_http\":\"lab_ops_only\","
-               "\"peer_http_is_product_bus\":false,"
-               "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-               "\"share\":\"state_matrix_only\",\"observer\":\"NexusCore\"}",
-               id_esc, path_esc, asg_esc);
-    }
+    /* Shared form plate with smx-filter CLI (product bus remains SMX2). */
+    grokium_contract_form_json(&c, resp, sizeof resp);
     http_reply(cfd, 200, "application/json", resp);
     return;
   }
@@ -1157,36 +1128,22 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       return;
     }
     if (!body || body_n == 0) {
-      http_reply(cfd, 400, "application/json",
-                 "{\"schema\":\"grokium.contract_validate.v1\",\"ok\":false,"
-                 "\"error\":\"need_json_body\",\"product_wire\":\"smx2\","
-                 "\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                 "\"llm_is_commander\":false}");
+      grokium_contract_validate_err_json("need_json_body", resp, sizeof resp);
+      http_reply(cfd, 400, "application/json", resp);
       return;
     }
     cpath[0] = bits[0] = 0;
     json_get_str(body, body_n, "path", cpath, sizeof cpath);
     json_get_str(body, body_n, "bits", bits, sizeof bits);
     if (!cpath[0]) {
-      http_reply(cfd, 400, "application/json",
-                 "{\"schema\":\"grokium.contract_validate.v1\",\"ok\":false,"
-                 "\"error\":\"need_path\",\"product_wire\":\"smx2\","
-                 "\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                 "\"llm_is_commander\":false}");
+      grokium_contract_validate_err_json("need_path", resp, sizeof resp);
+      http_reply(cfd, 400, "application/json", resp);
       return;
     }
     if (grokium_contract_load(&c, cpath) != 0) {
-      http_reply(cfd, 404, "application/json",
-                 "{\"schema\":\"grokium.contract_validate.v1\",\"ok\":false,"
-                 "\"error\":\"contract_not_found\",\"product_wire\":\"smx2\","
-                 "\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                 "\"llm_is_commander\":false}");
+      grokium_contract_validate_err_json("contract_not_found", resp,
+                                         sizeof resp);
+      http_reply(cfd, 404, "application/json", resp);
       return;
     }
     smx_clear(&m, "validate");
@@ -1196,16 +1153,8 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       smx_set(&m, 0, 0, 0, 1);
     dig = algocube_digit(&m, c.id);
     rc = grokium_contract_validate(&c, &m, dig);
-    snprintf(resp, sizeof resp,
-             "{\"schema\":\"grokium.contract_validate.v1\",\"ok\":true,"
-             "\"complete\":%s,\"status\":%d,\"id\":\"%s\","
-             "\"path\":\"%s\",\"hold_flash\":1,"
-             "\"product_wire\":\"smx2\",\"wire\":\"smx2\","
-             "\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-             "\"share\":\"state_matrix_only\"}",
-             rc == 1 ? "true" : "false", (int)c.status, c.id, c.path);
+    /* Shared validate plate with smx-filter CLI. */
+    grokium_contract_validate_json(&c, rc, dig, m.bits_set, resp, sizeof resp);
     http_reply(cfd, 200, "application/json", resp);
     return;
   }

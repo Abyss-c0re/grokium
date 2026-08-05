@@ -668,9 +668,12 @@ static int selftest(void) {
     b = body_of(resp);
     if (!strstr(b, "\"ok\":true") || !strstr(b, "\"status\":\"open\"") ||
         !strstr(b, "\"schema\":\"grokium.contract_form.v1\"") ||
+        !strstr(b, "\"observer\":\"NexusCore\"") ||
+        !strstr(b, "\"wire\":\"smx2\"") ||
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_on_hot_path\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
         !strstr(b, "\"hold_flash\":1")) {
       fprintf(stderr, "selftest: contract form dual-wire fail: %.400s\n", b);

@@ -623,3 +623,85 @@ void grokium_manager_tick_json(int motivated, const char *dir, char *out,
            "\"llm_on_hot_path\":false,\"llm_is_commander\":false}",
            motivated < 0 ? 0 : motivated, dir_esc);
 }
+
+/* Shared dual-wire tails for contract lifecycle plates. */
+#define CONTRACT_DUAL_WIRE_TAIL                                            \
+  "\"product_wire\":\"smx2\",\"wire\":\"smx2\","                           \
+  "\"peer_http\":\"lab_ops_only\","                                        \
+  "\"peer_http_is_product_bus\":false,"                                    \
+  "\"hold_flash\":1,\"share\":\"state_matrix_only\","                      \
+  "\"llm_on_hot_path\":false,\"llm_is_commander\":false"
+
+void grokium_contract_form_err_json(const char *error, char *out, size_t cap) {
+  const char *err = error && error[0] ? error : "form_failed";
+  if (!out || cap < 64) return;
+  if (!strcmp(err, "need_assignee_and_task")) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.contract_form.v1\",\"ok\":false,"
+             "\"error\":\"need_assignee_and_task\"," CONTRACT_DUAL_WIRE_TAIL ","
+             "\"hint\":\"form --assignee ID --task TEXT\"}");
+    return;
+  }
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.contract_form.v1\",\"ok\":false,"
+           "\"error\":\"%s\"," CONTRACT_DUAL_WIRE_TAIL "}",
+           err);
+}
+
+void grokium_contract_form_json(const grokium_contract *c, char *out,
+                                size_t cap) {
+  char id_esc[96], path_esc[640], asg_esc[96];
+  if (!out || cap < 64) return;
+  if (!c) {
+    grokium_contract_form_err_json("form_failed", out, cap);
+    return;
+  }
+  path_escape(c->id, id_esc, sizeof id_esc);
+  path_escape(c->path, path_esc, sizeof path_esc);
+  path_escape(c->assignee, asg_esc, sizeof asg_esc);
+  /* Shared dual-wire plate: CLI form + POST /v1/contract/form. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.contract_form.v1\",\"ok\":true,"
+           "\"id\":\"%s\",\"path\":\"%s\",\"status\":\"open\","
+           "\"assignee\":\"%s\",\"observer\":\"NexusCore\","
+           CONTRACT_DUAL_WIRE_TAIL "}",
+           id_esc, path_esc, asg_esc);
+}
+
+void grokium_contract_validate_err_json(const char *error, char *out,
+                                        size_t cap) {
+  const char *err = error && error[0] ? error : "contract_not_found";
+  if (!out || cap < 64) return;
+  if (!strcmp(err, "need_path")) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.contract_validate.v1\",\"ok\":false,"
+             "\"error\":\"need_path\"," CONTRACT_DUAL_WIRE_TAIL ","
+             "\"hint\":\"validate PATH [--bits 01…]\"}");
+    return;
+  }
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.contract_validate.v1\",\"ok\":false,"
+           "\"error\":\"%s\"," CONTRACT_DUAL_WIRE_TAIL "}",
+           err);
+}
+
+void grokium_contract_validate_json(const grokium_contract *c, int rc,
+                                    int digit, unsigned bits_set, char *out,
+                                    size_t cap) {
+  char id_esc[96], path_esc[640];
+  if (!out || cap < 64) return;
+  if (!c) {
+    grokium_contract_validate_err_json("contract_not_found", out, cap);
+    return;
+  }
+  path_escape(c->id, id_esc, sizeof id_esc);
+  path_escape(c->path, path_esc, sizeof path_esc);
+  /* Shared dual-wire plate: CLI validate + POST /v1/contract/validate.
+   * ok=false only on hard error (rc < 0); incomplete is ok:true complete:false. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.contract_validate.v1\",\"ok\":%s,"
+           "\"complete\":%s,\"status\":%d,\"digit\":%d,\"bits_set\":%u,"
+           "\"id\":\"%s\",\"path\":\"%s\"," CONTRACT_DUAL_WIRE_TAIL "}",
+           rc >= 0 ? "true" : "false", rc == 1 ? "true" : "false",
+           (int)c->status, digit, bits_set, id_esc, path_esc);
+}
