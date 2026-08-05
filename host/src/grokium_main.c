@@ -246,10 +246,16 @@ static int cmd_law(int argc, char **argv) {
     return run_cubalc_program("law.cubalc", NULL);
   if (sub[0] && (!strcmp(sub, "help") || !strcmp(sub, "-h") ||
                  !strcmp(sub, "--help"))) {
-    fprintf(stderr,
-            "usage: grokium law [cubalc]\n"
-            "  pure-C Cube Standards plate (default)\n"
-            "  cubalc — optional CubalC board law program\n");
+    /* Machine help plate — dual-wire honesty (no free-text-only usage). */
+    printf("{\"schema\":\"grokium.law.v1\",\"ok\":false,"
+           "\"error\":\"need_run_or_cubalc\",\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"commander\":\"ed25519\",\"llm_is_commander\":false,"
+           "\"python\":0,\"host\":\"C\",\"product\":\"grokium\","
+           "\"not\":\"grok_model\","
+           "\"hint\":\"law [cubalc] · pure-C Cube Standards plate\"}\n");
     return 0;
   }
   printf("{\"schema\":\"grokium.law.v1\",\"ok\":true,"
@@ -272,10 +278,14 @@ static int cmd_status(int argc, char **argv) {
     return run_cubalc_program("board.cubalc", NULL);
   if (sub[0] && (!strcmp(sub, "help") || !strcmp(sub, "-h") ||
                  !strcmp(sub, "--help"))) {
-    fprintf(stderr,
-            "usage: grokium status [cubalc|board]\n"
-            "  pure-C dual-wire honesty plate (default)\n"
-            "  cubalc|board — optional CubalC board status\n");
+    /* Machine help plate — dual-wire honesty (no free-text-only usage). */
+    printf("{\"schema\":\"grokium.status.v1\",\"ok\":false,"
+           "\"error\":\"need_run_or_cubalc\",\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false,\"python\":0,\"host\":\"C\","
+           "\"hint\":\"status [cubalc|board] · pure-C dual-wire plate\"}\n");
     return 0;
   }
   if (gkx_status_plate_json(root, "host_cli", plate, sizeof plate) != 0) {
