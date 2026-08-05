@@ -1823,6 +1823,17 @@ static void do_command(const char *raw) {
     else if (rest[0] && strcmp(rest, "stop") == 0) {
       gkx_hub_stop();
       log_add("hub: stopped");
+    } else if (rest[0] && strcmp(rest, "status") != 0 &&
+               strcmp(rest, "show") != 0 && strcmp(rest, "help") != 0 &&
+               strcmp(rest, "?") != 0 && strcmp(rest, "compat") != 0) {
+      /* Machine need_subcmd — dual-wire honesty (no silent free-text miss). */
+      log_add("{\"schema\":\"grokium.hub.v1\",\"ok\":false,"
+              "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
+              "\"peer_http\":\"lab_ops_only\","
+              "\"peer_http_is_product_bus\":false,"
+              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+              "\"llm_is_commander\":false,"
+              "\"hint\":\"/hub [start|stop|status]\"}");
     }
     return;
   }
@@ -1886,7 +1897,17 @@ static void do_command(const char *raw) {
     }
     size_t raw_n = 0;
     unsigned char *raw = gkx_file_read_raw(path, &raw_n);
-    if (!raw) { log_add("cannot read file"); return; }
+    if (!raw) {
+      /* Machine file_unreadable plate — dual-wire (no free-text-only path). */
+      log_add("{\"schema\":\"grokium.attach.v1\",\"ok\":false,"
+              "\"error\":\"file_unreadable\",\"product_wire\":\"smx2\","
+              "\"peer_http\":\"lab_ops_only\","
+              "\"peer_http_is_product_bus\":false,"
+              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+              "\"llm_is_commander\":false,\"content\":\"meta_only\","
+              "\"hint\":\"/attach <readable-path>\"}");
+      return;
+    }
     const char *mime = gkx_mime_guess(path);
     char line[240];
     snprintf(line, sizeof line, "file %s (%zu bytes, %s)", path, raw_n, mime);
