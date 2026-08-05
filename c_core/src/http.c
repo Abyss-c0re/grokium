@@ -148,13 +148,13 @@ static void smx_sse_snapshot(int fd, const gk_consolidator *C) {
   if (!C) {
     http_sse_event(fd, "error",
                    "{\"ok\":false,\"error\":\"no_matrix\","
-                   "\"share\":\"state_matrix_only\","
+                   "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
                    "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
                    "\"peer_http_is_product_bus\":false,"
                    "\"llm_is_commander\":false}");
     http_sse_event(fd, "end",
                    "{\"ok\":false,\"mode\":\"snapshot\","
-                   "\"share\":\"state_matrix_only\","
+                   "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
                    "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
                    "\"peer_http_is_product_bus\":false,"
                    "\"llm_is_commander\":false}");
@@ -164,8 +164,8 @@ static void smx_sse_snapshot(int fd, const gk_consolidator *C) {
   http_sse_event(fd, "smx", payload);
   snprintf(end, sizeof end,
            "{\"ok\":true,\"mode\":\"snapshot\",\"seq\":%llu,"
-           "\"share\":\"state_matrix_only\",\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"llm_is_commander\":false}",
            (unsigned long long)C->matrix.seq);
@@ -1067,7 +1067,8 @@ static void sessions_search(const char *root, const char *q, char *out,
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"llm_is_commander\":false,"
-             "\"share\":\"state_matrix_only\",\"telemetry\":\"off\"}",
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"telemetry\":\"off\"}",
              q_esc, dir);
     return;
   }
@@ -1078,7 +1079,7 @@ static void sessions_search(const char *root, const char *q, char *out,
       "\"peer_http\":\"lab_ops_only\","
       "\"peer_http_is_product_bus\":false,"
       "\"llm_is_commander\":false,"
-      "\"share\":\"state_matrix_only\","
+      "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
       "\"telemetry\":\"off\",\"q\":\"%s\",\"import_dir\":\"%s\","
       "\"sessions\":[",
       q_esc, dir);
@@ -1160,7 +1161,7 @@ static int session_pickup(const char *root, const char *id, char *out,
                "\"peer_http\":\"lab_ops_only\","
                "\"peer_http_is_product_bus\":false,"
                "\"llm_is_commander\":false,"
-               "\"share\":\"state_matrix_only\","
+               "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
                "\"resume_available\":false}");
     return -1;
   }
@@ -1177,7 +1178,7 @@ static int session_pickup(const char *root, const char *id, char *out,
              "\"llm_is_commander\":false,"
              "\"resume_available\":false,"
              "\"hint\":\"import meta only; resume messages via host TUI\","
-             "\"share\":\"state_matrix_only\"}",
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
              id);
     return -1;
   }
@@ -1192,7 +1193,8 @@ static int session_pickup(const char *root, const char *id, char *out,
              "\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"llm_is_commander\":false,"
-             "\"share\":\"state_matrix_only\",\"resume_available\":false}",
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"resume_available\":false}",
              id);
     return -1;
   }
@@ -1203,7 +1205,7 @@ static int session_pickup(const char *root, const char *id, char *out,
            "\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"llm_is_commander\":false,"
-           "\"share\":\"state_matrix_only\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
            "\"telemetry\":\"off\",\"resume\":\"host_tui_pickup\","
            "\"resume_available\":%s,"
            "\"hint\":\"TUI /pickup loads host-local history only\","
