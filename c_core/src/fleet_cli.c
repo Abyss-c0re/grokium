@@ -232,9 +232,23 @@ static int fleet_selftest(void) {
       return 1;
     }
   }
+  /* CLI deploy + HTTP /v1/nanobot/deploy share fleet_deploy_json. */
+  {
+    char st[1024];
+    fleet_deploy_json(&F, path, st, sizeof st);
+    if (!plate_dual_wire_ok(st) ||
+        !strstr(st, "\"schema\":\"grokium.nanobot_deploy.v1\"") ||
+        !strstr(st, "\"ok\":true") || !strstr(st, "\"nb_manager\":true") ||
+        !strstr(st, "\"spawn\":\"host_responsibility\"") ||
+        !strstr(st, "\"wire\":\"smx2\"")) {
+      fprintf(stderr, "selftest: fleet_deploy_json dual-wire fail: %.250s\n",
+              st);
+      return 1;
+    }
+  }
   printf("FLEET_SELFTEST_OK n=%d alive=1 nb_manager=1 product_wire=smx2 "
          "peer_http=lab_ops_only bot_dual_wire=1 purpose=honest "
-         "status_plate=nanobot_status_v1\n",
+         "status_plate=nanobot_status_v1 deploy_plate=nanobot_deploy_v1\n",
          F.n);
   return 0;
 }
@@ -256,19 +270,14 @@ int main(int argc, char **argv) {
     return 0;
   }
   if (!strcmp(argv[1], "deploy")) {
+    char plate[1024];
     if (argc > 2) path = argv[2];
     fleet_default_roles(&F);
     fleet_deploy(&F);
     fleet_save(&F, path);
-    /* CLI ack: dual-wire honesty (on-disk plate already carries these). */
-    printf("{\"schema\":\"grokium.fleet_deploy.v1\",\"ok\":true,"
-           "\"deployed\":%d,\"path\":\"%s\",\"nb_manager\":true,"
-           "\"alive\":%d,\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false}\n",
-           F.n, path, fleet_status(&F));
+    /* Same dual-wire deploy plate as POST /v1/nanobot/deploy. */
+    fleet_deploy_json(&F, path, plate, sizeof plate);
+    printf("%s\n", plate);
     return 0;
   }
   if (!strcmp(argv[1], "save")) {

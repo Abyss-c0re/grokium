@@ -35,6 +35,12 @@ int  fleet_status(gk_fleet *F);
  * Probes PIDs first; pid/status/offline honest; meta_only bots list (no logs).
  */
 void fleet_status_json(gk_fleet *F, char *out, size_t cap);
+/*
+ * Dual-wire deploy ack plate (schema grokium.nanobot_deploy.v1).
+ * Call after fleet_deploy + fleet_save; path is JSON-escaped on the plate.
+ * Spawn remains host responsibility until fleet_spawn.
+ */
+void fleet_deploy_json(gk_fleet *F, const char *path, char *out, size_t cap);
 /* Host/hub records a spawned bot pid (or -1 to clear). */
 int  fleet_note_pid(gk_fleet *F, const char *bot_id, int pid);
 /* Fork/exec F->binary (--home/--port/--offline). Peer HTTP = lab_ops only. */

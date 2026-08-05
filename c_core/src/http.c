@@ -742,7 +742,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
   }
 
   if (!strcmp(path, "/v1/nanobot/deploy")) {
-    char plate[512], plate_esc[640];
+    char plate[512];
     if (strcmp(method, "POST") != 0) {
       http_reply_err(cfd, 405, "method");
       return;
@@ -754,18 +754,8 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     fleet_deploy(F);
     snprintf(plate, sizeof plate, "%s/home/FLEET.json", root);
     fleet_save(F, plate);
-    /* Deploy clears live pids; plate is honest offline until spawn. */
-    json_escape(plate, plate_esc, sizeof plate_esc);
-    snprintf(resp, sizeof resp,
-             "{\"schema\":\"grokium.nanobot_deploy.v1\",\"ok\":true,"
-             "\"deployed\":%d,\"path\":\"%s\","
-             "\"spawn\":\"host_responsibility\","
-             "\"product_wire\":\"smx2\",\"wire\":\"smx2\","
-             "\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"llm_is_commander\":false}",
-             F->n, plate_esc);
+    /* Shared deploy ack (homes only; spawn is host responsibility). */
+    fleet_deploy_json(F, plate, resp, sizeof resp);
     http_reply(cfd, 200, "application/json", resp);
     return;
   }

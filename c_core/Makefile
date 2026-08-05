@@ -214,7 +214,8 @@ test-fleet: $(BUILD)/grokium-fleet
 	D=$(BUILD)/fleet_ack_test; rm -rf $$D; mkdir -p $$D; \
 	P=$$D/FLEET.json; \
 	OUT=$$($(BUILD)/grokium-fleet deploy $$P); \
-	echo "$$OUT" | grep -q '"schema":"grokium.fleet_deploy.v1"'; \
+	echo "$$OUT" | grep -q '"schema":"grokium.nanobot_deploy.v1"'; \
+	echo "$$OUT" | grep -q '"spawn":"host_responsibility"'; \
 	echo "$$OUT" | grep -q '"product_wire":"smx2"'; \
 	echo "$$OUT" | grep -q '"peer_http_is_product_bus":false'; \
 	echo "$$OUT" | grep -q '"llm_is_commander":false'; \

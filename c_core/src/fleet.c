@@ -170,6 +170,55 @@ void fleet_status_json(gk_fleet *F, char *out, size_t cap) {
     snprintf(out + used, cap - used, "]}");
 }
 
+static void path_escape(const char *in, char *out, size_t cap) {
+  size_t o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in) return;
+  for (; *in && o + 2 < cap; in++) {
+    unsigned char c = (unsigned char)*in;
+    if (c == '"' || c == '\\') {
+      if (o + 3 >= cap) break;
+      out[o++] = '\\';
+      out[o++] = (char)c;
+    } else if (c < 0x20) {
+      continue;
+    } else {
+      out[o++] = (char)c;
+    }
+  }
+  out[o] = 0;
+}
+
+void fleet_deploy_json(gk_fleet *F, const char *path, char *out, size_t cap) {
+  char path_esc[640];
+  int alive;
+  if (!out || cap < 64) return;
+  if (!F) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.nanobot_deploy.v1\",\"ok\":false,"
+             "\"error\":\"no_fleet\",\"product_wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false}");
+    return;
+  }
+  alive = fleet_status(F);
+  path_escape(path ? path : "", path_esc, sizeof path_esc);
+  /* Deploy plate: homes only; process spawn is host/hub responsibility. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.nanobot_deploy.v1\",\"ok\":true,"
+           "\"deployed\":%d,\"path\":\"%s\",\"nb_manager\":true,"
+           "\"alive\":%d,\"spawn\":\"host_responsibility\","
+           "\"product_wire\":\"smx2\",\"wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false}",
+           F->n, path_esc, alive);
+}
+
 int fleet_note_pid(gk_fleet *F, const char *bot_id, int pid) {
   int i;
   if (!F || !bot_id) return -1;
