@@ -10,14 +10,9 @@
 #include <string.h>
 #include <time.h>
 
-/* Bare/help/unknown — dual-wire need_subcmd (no free-text usage). */
-static const char k_need_subcmd[] =
-    "{\"schema\":\"grokium.consolidator.v1\",\"ok\":false,"
-    "\"error\":\"need_subcmd\",\"share\":\"state_matrix_only\","
-    "\"hold_flash\":1,\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-    "\"hint\":\"selftest|ingest TEXT|ability [dir]|save [dir]\"}";
+/* Shared dual-wire need_subcmd (no free-text usage on the machine wire). */
+static const char k_cons_hint[] =
+    "selftest|ingest TEXT|ability [dir]|save [dir]";
 
 static int plate_dual_wire_ok(const char *p) {
   return p && strstr(p, "\"product_wire\":\"smx2\"") &&
@@ -26,6 +21,12 @@ static int plate_dual_wire_ok(const char *p) {
          strstr(p, "\"llm_is_commander\":false") &&
          strstr(p, "\"hold_flash\":1") &&
          strstr(p, "\"share\":\"state_matrix_only\"");
+}
+
+static void emit_need_subcmd(void) {
+  char plate[512];
+  grokium_need_subcmd_json("consolidator", k_cons_hint, plate, sizeof plate);
+  printf("%s\n", plate);
 }
 
 /* External ingest path: prose / hold_flash=0 / non-SMX denied (law). */
@@ -51,10 +52,15 @@ int main(int argc, char **argv) {
   char den[512];
   const char *dir = "data/knowledge";
   double now = (double)time(NULL);
-  if (!plate_dual_wire_ok(k_need_subcmd) ||
-      !strstr(k_need_subcmd, "\"error\":\"need_subcmd\"")) {
-    fprintf(stderr, "grokium-consolidate: deny plate dual-wire fail\n");
-    return 1;
+  {
+    char need[512];
+    grokium_need_subcmd_json("consolidator", k_cons_hint, need, sizeof need);
+    if (!plate_dual_wire_ok(need) ||
+        !strstr(need, "\"error\":\"need_subcmd\"") ||
+        !strstr(need, "\"schema\":\"grokium.consolidator.v1\"")) {
+      fprintf(stderr, "grokium-consolidate: deny plate dual-wire fail\n");
+      return 1;
+    }
   }
   gk_coord_err_json("need_plate", den, sizeof den);
   if (!plate_dual_wire_ok(den) ||
@@ -72,7 +78,7 @@ int main(int argc, char **argv) {
   }
   if (argc < 2 || !strcmp(argv[1], "help") || !strcmp(argv[1], "-h") ||
       !strcmp(argv[1], "--help")) {
-    printf("%s\n", k_need_subcmd);
+    emit_need_subcmd();
     return 2;
   }
   gk_init(&C, "grokium-core");
@@ -113,10 +119,15 @@ int main(int argc, char **argv) {
       return 1;
     }
     /* need_subcmd dual-wire (coord deny plates checked at main entry). */
-    if (!strstr(k_need_subcmd, "\"error\":\"need_subcmd\"") ||
-        !plate_dual_wire_ok(k_need_subcmd)) {
-      fprintf(stderr, "selftest: need_subcmd dual-wire fail\n");
-      return 1;
+    {
+      char need[512];
+      grokium_need_subcmd_json("consolidator", k_cons_hint, need, sizeof need);
+      if (!strstr(need, "\"error\":\"need_subcmd\"") ||
+          !strstr(need, "\"schema\":\"grokium.consolidator.v1\"") ||
+          !plate_dual_wire_ok(need)) {
+        fprintf(stderr, "selftest: need_subcmd dual-wire fail\n");
+        return 1;
+      }
     }
     /* prose must not enter lattice */
     if (ingest_external(&C, &L, "bad", prose, now) >= 0 || C.n_items != 2) {
@@ -335,6 +346,6 @@ int main(int argc, char **argv) {
     return 0;
   }
   /* Unknown subcmd — dual-wire need_subcmd (no free-text usage). */
-  printf("%s\n", k_need_subcmd);
+  emit_need_subcmd();
   return 2;
 }

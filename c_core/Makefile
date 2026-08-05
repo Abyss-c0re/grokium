@@ -196,7 +196,16 @@ test-filter: $(BIN_FILTER)
 	echo SMX_FILTER_OK
 
 test-consolidate: $(BUILD)/grokium-consolidate
-	@$(BUILD)/grokium-consolidate selftest
+	@set -e; \
+	H=$$($(BUILD)/grokium-consolidate help || true); \
+	echo "$$H" | grep -q '"schema":"grokium.consolidator.v1"'; \
+	echo "$$H" | grep -q '"error":"need_subcmd"'; \
+	echo "$$H" | grep -q '"product_wire":"smx2"'; \
+	echo "$$H" | grep -q '"peer_http_is_product_bus":false'; \
+	echo "$$H" | grep -q '"llm_is_commander":false'; \
+	echo "$$H" | grep -q '"hold_flash":1'; \
+	echo "$$H" | grep -q '"share":"state_matrix_only"'; \
+	$(BUILD)/grokium-consolidate selftest
 
 test-serve: $(BUILD)/grokium-serve
 	@$(BUILD)/grokium-serve selftest
