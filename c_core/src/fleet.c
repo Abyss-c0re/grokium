@@ -370,6 +370,33 @@ void fleet_note_pid_json(gk_fleet *F, const char *id, const char *path,
   fleet_note_pid_err_json("unknown_bot", out, cap);
 }
 
+void fleet_stop_err_json(const char *error, char *out, size_t cap) {
+  const char *err = error && error[0] ? error : "no_fleet";
+  if (!out || cap < 64) return;
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.nanobot_stop.v1\",\"ok\":false,"
+           "\"error\":\"%s\"," FLEET_DUAL_WIRE_TAIL "}",
+           err);
+}
+
+void fleet_stop_json(gk_fleet *F, const char *path, char *out, size_t cap) {
+  char path_esc[640];
+  int alive;
+  if (!out || cap < 64) return;
+  if (!F) {
+    fleet_stop_err_json("no_fleet", out, cap);
+    return;
+  }
+  alive = fleet_status(F);
+  path_escape(path ? path : "", path_esc, sizeof path_esc);
+  /* After stop-all: plate records stopped + honest alive (should be 0). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.nanobot_stop.v1\",\"ok\":true,"
+           "\"stopped\":true,\"n\":%d,\"alive\":%d,\"path\":\"%s\","
+           "\"nb_manager\":true," FLEET_DUAL_WIRE_TAIL "}",
+           F->n, alive, path_esc);
+}
+
 int fleet_note_pid(gk_fleet *F, const char *bot_id, int pid) {
   int i;
   if (!F || !bot_id) return -1;

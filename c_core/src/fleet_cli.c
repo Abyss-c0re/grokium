@@ -307,12 +307,25 @@ static int fleet_selftest(void) {
       fprintf(stderr, "selftest: fleet_note_pid_json dead fail: %.250s\n", st);
       return 1;
     }
+    /* stop-all plate: dual-wire + honest alive after clear.
+     * Drop noted self-pid first so fleet_stop_all does not SIGTERM us. */
+    for (i = 0; i < F.n; i++)
+      (void)fleet_note_pid(&F, F.bots[i].id, -1);
+    fleet_stop_all(&F);
+    fleet_stop_json(&F, path, st, sizeof st);
+    if (!plate_dual_wire_ok(st) ||
+        !strstr(st, "\"schema\":\"grokium.nanobot_stop.v1\"") ||
+        !strstr(st, "\"ok\":true") || !strstr(st, "\"stopped\":true") ||
+        !strstr(st, "\"alive\":0") || !strstr(st, "\"nb_manager\":true")) {
+      fprintf(stderr, "selftest: fleet_stop_json dual-wire fail: %.250s\n", st);
+      return 1;
+    }
   }
-  printf("FLEET_SELFTEST_OK n=%d alive=1 nb_manager=1 product_wire=smx2 "
+  printf("FLEET_SELFTEST_OK n=%d alive=0 nb_manager=1 product_wire=smx2 "
          "peer_http=lab_ops_only bot_dual_wire=1 purpose=honest "
          "status_plate=nanobot_status_v1 deploy_plate=nanobot_deploy_v1 "
          "spawn_plate=nanobot_spawn_v1 separate_plate=nanobot_separate_v1 "
-         "note_pid_plate=nanobot_note_pid_v1\n",
+         "note_pid_plate=nanobot_note_pid_v1 stop_plate=nanobot_stop_v1\n",
          F.n);
   return 0;
 }
@@ -451,17 +464,14 @@ int main(int argc, char **argv) {
     return 0;
   }
   if (!strcmp(argv[1], "stop-all")) {
+    char plate[1024];
     if (argc > 2) path = argv[2];
     fleet_load(&F, path);
     fleet_stop_all(&F);
     fleet_save(&F, path);
-    printf("{\"schema\":\"grokium.fleet_stop.v1\",\"ok\":true,"
-           "\"stopped\":true,\"n\":%d,\"path\":\"%s\",\"alive\":0,"
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false}\n",
-           F.n, path);
+    /* Same dual-wire plate as POST /v1/nanobot/stop-all. */
+    fleet_stop_json(&F, path, plate, sizeof plate);
+    printf("%s\n", plate);
     return 0;
   }
   usage();

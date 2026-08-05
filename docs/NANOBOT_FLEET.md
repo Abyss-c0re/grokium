@@ -40,6 +40,8 @@ CLI `status` and `GET /v1/nanobot/status` share `grokium.nanobot_status.v1`
 CLI `note-pid` and `POST /v1/nanobot/note-pid` share
 `grokium.nanobot_note_pid.v1` (`fleet_note_pid_json`: honest pid/running/status;
 dead pids → `null` + separated).
+CLI `stop-all` and `POST /v1/nanobot/stop-all` share `grokium.nanobot_stop.v1`
+(`fleet_stop_json`: stopped + re-probed alive).
 
 `make -C c_core test-fleet` / `grokium-fleet selftest` checks defaults, note-pid
 live vs dead, reload, alive count, and dual-wire plate fields.
@@ -58,8 +60,9 @@ live vs dead, reload, alive count, and dual-wire plate fields.
 | `POST /v1/nanobot/spawn` | body = id, `{"id":…}`, or empty = all |
 | `POST /v1/nanobot/separate` | SIGTERM one bot; body = id or `{"id":…}` |
 | `POST /v1/nanobot/note-pid` | body = `ID PID` or `{"id","pid"}`; host/hub record |
+| `POST /v1/nanobot/stop-all` | SIGTERM all live bots; honest `alive` after clear |
 
-Spawn/deploy/separate/note-pid replies carry the same dual-wire honesty keys as status.
+Spawn/deploy/separate/note-pid/stop-all replies carry the same dual-wire honesty keys as status.
 
 | Plane | Protocol | Role |
 |-------|----------|------|

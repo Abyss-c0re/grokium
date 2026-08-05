@@ -944,6 +944,26 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     return;
   }
 
+  /* SIGTERM all live bots; honest alive count after clear. */
+  if (!strcmp(path, "/v1/nanobot/stop-all")) {
+    char plate[512];
+    if (strcmp(method, "POST") != 0) {
+      http_reply_err(cfd, 405, "method");
+      return;
+    }
+    if (!F) {
+      fleet_stop_err_json("no_fleet", resp, sizeof resp);
+      http_reply(cfd, 500, "application/json", resp);
+      return;
+    }
+    fleet_stop_all(F);
+    snprintf(plate, sizeof plate, "%s/home/FLEET.json", root);
+    fleet_save(F, plate);
+    fleet_stop_json(F, plate, resp, sizeof resp);
+    http_reply(cfd, 200, "application/json", resp);
+    return;
+  }
+
   if (!strcmp(path, "/v1/matrix/latest") || !strcmp(path, "/v1/stream/smx/latest")) {
     if (strcmp(method, "GET") != 0) {
       http_reply_err(cfd, 405, "method");

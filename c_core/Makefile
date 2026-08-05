@@ -236,7 +236,9 @@ test-fleet: $(BUILD)/grokium-fleet
 	echo "$$OUT" | grep -q '"status":"separated"'; \
 	echo "$$OUT" | grep -q '"llm_is_commander":false'; \
 	OUT=$$($(BUILD)/grokium-fleet stop-all $$P); \
-	echo "$$OUT" | grep -q '"schema":"grokium.fleet_stop.v1"'; \
+	echo "$$OUT" | grep -q '"schema":"grokium.nanobot_stop.v1"'; \
+	echo "$$OUT" | grep -q '"stopped":true'; \
+	echo "$$OUT" | grep -q '"alive":0'; \
 	echo "$$OUT" | grep -q '"peer_http_is_product_bus":false'; \
 	echo FLEET_ACK_DUAL_WIRE_OK
 
