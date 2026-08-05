@@ -429,7 +429,8 @@ static int cmd_session_pickup(const char *id) {
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"llm_is_commander\":false,"
-           "\"share\":\"state_matrix_only\",\"resume_available\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"resume_available\":false,"
            "\"hint\":\"import meta only; TUI /pickup resumes host-local\"}\n",
            id);
     return 1;
@@ -451,7 +452,7 @@ static int cmd_session_pickup(const char *id) {
          "\"peer_http\":\"lab_ops_only\","
          "\"peer_http_is_product_bus\":false,"
          "\"llm_is_commander\":false,"
-         "\"share\":\"state_matrix_only\","
+         "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
          "\"telemetry\":\"off\",\"resume\":\"host_tui\","
          "\"resume_available\":%s,\"resume_hist\":\"%s\","
          "\"hint\":\"TUI /pickup loads last turns host-local only\","
@@ -503,7 +504,8 @@ static int cmd_sessions(int argc, char **argv) {
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"llm_is_commander\":false,"
-           "\"share\":\"state_matrix_only\",\"telemetry\":\"off\"}\n",
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"telemetry\":\"off\"}\n",
            q_esc, root);
     return 0;
   }
@@ -512,7 +514,7 @@ static int cmd_sessions(int argc, char **argv) {
          "\"peer_http\":\"lab_ops_only\","
          "\"peer_http_is_product_bus\":false,"
          "\"llm_is_commander\":false,"
-         "\"share\":\"state_matrix_only\","
+         "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
          "\"telemetry\":\"off\",\"q\":\"%s\",\"import_dir\":\"%s\","
          "\"sessions\":[",
          q_esc, dir);
