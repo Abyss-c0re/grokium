@@ -878,7 +878,10 @@ static void json_law(const grokium_law *L, char *out, size_t cap) {
 
 static void json_status(const grokium_law *L, const gk_consolidator *C,
                         const gk_fleet *F, int alive, char *out, size_t cap) {
+  char grade_tok[32];
   /* Match host gkx_status_plate_json dual-wire honesty (Commander ≠ model). */
+  machine_token(C ? C->grade : "EMPTY", grade_tok, sizeof grade_tok);
+  if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
   snprintf(out, cap,
            "{\"schema\":\"grokium.status.v1\","
            "\"ok\":true,\"product\":\"grokium\","
@@ -893,7 +896,7 @@ static void json_status(const grokium_law *L, const gk_consolidator *C,
            "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
            "\"commander\":\"ed25519\",\"python\":0,\"host\":\"C\"}",
            L ? L->hold_flash : 1, F ? F->n : 0, alive,
-           C ? C->matrix.bits_set : 0, C ? C->grade : "EMPTY");
+           C ? C->matrix.bits_set : 0, grade_tok);
 }
 
 static void json_fleet(gk_fleet *F, char *out, size_t cap) {
@@ -981,7 +984,7 @@ static void json_cube_status(const gk_consolidator *C, const grokium_law *L,
   char hex[65];
   uint8_t bp[10];
   char bp_json[80];
-  char cpath[400], mpath[400];
+  char cpath[400], mpath[400], cpath_esc[512], mpath_esc[512], grade_tok[32];
   int dig = 0, ncont, nmat, i;
   size_t u = 0;
 
@@ -1006,6 +1009,11 @@ static void json_cube_status(const gk_consolidator *C, const grokium_law *L,
   snprintf(mpath, sizeof mpath, "%s/matrix", root && root[0] ? root : "data");
   ncont = count_dir_entries(cpath);
   nmat = count_dir_entries(mpath);
+  /* Escape paths/grade so a hostile data_root cannot break the plate. */
+  json_escape(cpath, cpath_esc, sizeof cpath_esc);
+  json_escape(mpath, mpath_esc, sizeof mpath_esc);
+  machine_token(C ? C->grade : "EMPTY", grade_tok, sizeof grade_tok);
+  if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
 
   snprintf(out, cap,
            "{\"schema\":\"grokium.cube_status.v1\","
@@ -1022,10 +1030,9 @@ static void json_cube_status(const gk_consolidator *C, const grokium_law *L,
            "\"matrix_path\":\"%s\",\"matrix_files_n\":%d,"
            "\"llm_is_commander\":false,\"commander_is_model\":false,"
            "\"llm_on_hot_path\":false}",
-           L ? L->hold_flash : 1, C ? C->matrix.bits_set : 0,
-           C ? C->grade : "EMPTY",
+           L ? L->hold_flash : 1, C ? C->matrix.bits_set : 0, grade_tok,
            (unsigned long long)(C ? C->matrix.seq : 0), hex, dig, bp_json,
-           cpath, ncont, mpath, nmat);
+           cpath_esc, ncont, mpath_esc, nmat);
 }
 
 static int contains_ci(const char *hay, const char *needle) {
@@ -1424,7 +1431,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
   }
 
   if (!strcmp(path, "/v1/nanobot/deploy")) {
-    char plate[512];
+    char plate[512], plate_esc[640];
     if (strcmp(method, "POST") != 0) {
       http_reply_err(cfd, 405, "method");
       return;
@@ -1437,6 +1444,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     snprintf(plate, sizeof plate, "%s/home/FLEET.json", root);
     fleet_save(F, plate);
     /* Deploy clears live pids; plate is honest offline until spawn. */
+    json_escape(plate, plate_esc, sizeof plate_esc);
     snprintf(resp, sizeof resp,
              "{\"schema\":\"grokium.nanobot_deploy.v1\",\"ok\":true,"
              "\"deployed\":%d,\"path\":\"%s\","
@@ -1446,15 +1454,14 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
              "\"peer_http_is_product_bus\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
              "\"llm_is_commander\":false}",
-             F->n, plate);
+             F->n, plate_esc);
     http_reply(cfd, 200, "application/json", resp);
     return;
   }
 
   if (!strcmp(path, "/v1/nanobot/separate") ||
       !strcmp(path, "/v1/nanobot/spawn")) {
-    char plate[512];
-    char id[64];
+    char plate[512], plate_esc[640], id[64], id_raw[64], id_tok[64];
     const char *src;
     size_t i, j;
     int do_spawn = !strcmp(path, "/v1/nanobot/spawn");
@@ -1476,8 +1483,8 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       http_reply(cfd, 500, "application/json", resp);
       return;
     }
-    /* body: raw bot id, empty=spawn-all, or {"id":"nb-…"} */
-    id[0] = 0;
+    /* body: raw bot id, empty=spawn-all, or {"id":"nb-…"} — token only. */
+    id_raw[0] = id[0] = 0;
     src = body && body_n ? body : "";
     if (src[0] == '{') {
       const char *k = strstr(src, "\"id\"");
@@ -1485,17 +1492,29 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
         k = strchr(k + 4, '"');
         if (k) {
           k++;
-          for (j = 0; j + 1 < sizeof id && k[j] && k[j] != '"'; j++)
-            id[j] = k[j];
-          id[j] = 0;
+          for (j = 0; j + 1 < sizeof id_raw && k[j] && k[j] != '"'; j++)
+            id_raw[j] = k[j];
+          id_raw[j] = 0;
         }
       }
     } else {
-      for (i = 0, j = 0; i < body_n && j + 1 < sizeof id; i++) {
+      for (i = 0, j = 0; i < body_n && j + 1 < sizeof id_raw; i++) {
         if (src[i] == '\n' || src[i] == '\r' || src[i] == ' ') continue;
-        id[j++] = src[i];
+        id_raw[j++] = src[i];
       }
-      id[j] = 0;
+      id_raw[j] = 0;
+    }
+    /* Bot ids are machine tokens only (alnum/_/-); drop inject chars. */
+    machine_token(id_raw, id_tok, sizeof id_tok);
+    {
+      size_t o = 0;
+      for (i = 0; id_tok[i] && o + 1 < sizeof id; i++) {
+        unsigned char c = (unsigned char)id_tok[i];
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9') || c == '_' || c == '-')
+          id[o++] = (char)c;
+      }
+      id[o] = 0;
     }
     if (do_spawn) {
       int n;
@@ -1527,6 +1546,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       }
       snprintf(plate, sizeof plate, "%s/home/FLEET.json", root);
       fleet_save(F, plate);
+      json_escape(plate, plate_esc, sizeof plate_esc);
       /* Peer HTTP on bot ports is lab/ops; product talk stays SMX2. */
       snprintf(resp, sizeof resp,
                "{\"schema\":\"grokium.nanobot_spawn.v1\",\"ok\":true,"
@@ -1536,7 +1556,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
                "\"peer_http_is_product_bus\":false,"
                "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
                "\"llm_is_commander\":false}",
-               n, id[0] ? id : "*", fleet_status(F), plate);
+               n, id[0] ? id : "*", fleet_status(F), plate_esc);
       http_reply(cfd, 200, "application/json", resp);
       return;
     }
@@ -1563,6 +1583,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     }
     snprintf(plate, sizeof plate, "%s/home/FLEET.json", root);
     fleet_save(F, plate);
+    json_escape(plate, plate_esc, sizeof plate_esc);
     snprintf(resp, sizeof resp,
              "{\"schema\":\"grokium.nanobot_separate.v1\",\"ok\":true,"
              "\"id\":\"%s\",\"status\":\"separated\","
@@ -1571,7 +1592,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
              "\"peer_http_is_product_bus\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
              "\"llm_is_commander\":false}",
-             id, plate);
+             id, plate_esc);
     http_reply(cfd, 200, "application/json", resp);
     return;
   }
@@ -1717,16 +1738,22 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       return;
     }
     /* Lab/ops contract form plate; product bus remains SMX2. */
-    snprintf(resp, sizeof resp,
-             "{\"schema\":\"grokium.contract_form.v1\",\"ok\":true,"
-             "\"id\":\"%s\",\"path\":\"%s\",\"status\":\"open\","
-             "\"assignee\":\"%s\",\"hold_flash\":1,"
-             "\"product_wire\":\"smx2\",\"wire\":\"smx2\","
-             "\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-             "\"share\":\"state_matrix_only\",\"observer\":\"NexusCore\"}",
-             c.id, c.path, c.assignee);
+    {
+      char id_esc[80], path_esc[640], asg_esc[80];
+      json_escape(c.id, id_esc, sizeof id_esc);
+      json_escape(c.path, path_esc, sizeof path_esc);
+      json_escape(c.assignee, asg_esc, sizeof asg_esc);
+      snprintf(resp, sizeof resp,
+               "{\"schema\":\"grokium.contract_form.v1\",\"ok\":true,"
+               "\"id\":\"%s\",\"path\":\"%s\",\"status\":\"open\","
+               "\"assignee\":\"%s\",\"hold_flash\":1,"
+               "\"product_wire\":\"smx2\",\"wire\":\"smx2\","
+               "\"peer_http\":\"lab_ops_only\","
+               "\"peer_http_is_product_bus\":false,"
+               "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+               "\"share\":\"state_matrix_only\",\"observer\":\"NexusCore\"}",
+               id_esc, path_esc, asg_esc);
+    }
     http_reply(cfd, 200, "application/json", resp);
     return;
   }
@@ -1795,7 +1822,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
   }
 
   if (!strcmp(path, "/v1/manager/tick") || !strcmp(path, "/v1/contract/manager-tick")) {
-    char cdir[400];
+    char cdir[400], cdir_esc[512];
     int n;
     if (strcmp(method, "POST") != 0 && strcmp(method, "GET") != 0) {
       http_reply_err(cfd, 405, "method");
@@ -1804,6 +1831,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     snprintf(cdir, sizeof cdir, "%s/contracts", root);
     n = grokium_manager_motivate_dir(cdir);
     /* Manager motivates incomplete work; HTTP is lab/ops only. */
+    json_escape(cdir, cdir_esc, sizeof cdir_esc);
     snprintf(resp, sizeof resp,
              "{\"schema\":\"grokium.manager_tick.v1\",\"ok\":true,"
              "\"motivated\":%d,\"observer\":\"NexusCore\","
@@ -1812,7 +1840,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
              "\"peer_http_is_product_bus\":false,"
              "\"hold_flash\":1,\"share\":\"state_matrix_only\","
              "\"llm_on_hot_path\":false,\"llm_is_commander\":false}",
-             n, cdir);
+             n, cdir_esc);
     http_reply(cfd, 200, "application/json", resp);
     return;
   }
