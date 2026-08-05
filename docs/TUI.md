@@ -34,7 +34,8 @@
 
 Product bus remains **SMX2**; peer HTTP = lab/ops only; Commander ≠ model; share = state_matrix_only.  
 Machine dual-wire plates from pure-C tools (`"schema":"grokium.*"`) surface in
-the TUI log; free-form JSON dumps stay hidden unless `/debug` is on.  
+the TUI log via `gkx_log_block_keep_line` / `make -C host test-plate-line`;
+free-form JSON dumps stay hidden unless `/debug` is on.  
 Session resume loads user/assistant turns into the local TUI and seeds nanobot
 recent memory (host-local) so the next agent turns have context — never the SMX
 product bus.

@@ -9,6 +9,7 @@
 #include "grokium_session.h"
 #include "grokium_status.h"
 #include "grokium_law.h"
+#include "grokium_plate.h"
 #include "grokium_smx_filter.h"
 #include "grokium_consolidator.h"
 #include "util.h"
@@ -179,20 +180,14 @@ static void log_add(const char *line) {
   blk_append_str(ix, line);
 }
 
-/* Dual-wire machine plates from c_core tools stay visible (not chat dumps). */
-static int is_grokium_plate_line(const char *ln) {
-  return ln && ln[0] == '{' && strstr(ln, "\"schema\":\"grokium.");
-}
-
 static void log_add_block(const char *text) {
   if (!text || !text[0]) return;
   char *dup = strdup(text);
   if (!dup) return;
   char *save = NULL;
   for (char *ln = strtok_r(dup, "\n", &save); ln; ln = strtok_r(NULL, "\n", &save)) {
-    if (!ln[0]) continue;
-    /* Suppress free-form JSON dumps; keep dual-wire honesty plates. */
-    if (!debug_mode && ln[0] == '{' && !is_grokium_plate_line(ln)) continue;
+    /* Shared pure-C filter: dual-wire grokium.* plates keep; free JSON drops. */
+    if (!gkx_log_block_keep_line(ln, debug_mode)) continue;
     log_add(ln);
   }
   free(dup);
