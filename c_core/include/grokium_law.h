@@ -43,4 +43,12 @@ void grokium_license_json(char *out, size_t cap);
  */
 void grokium_need_subcmd_json(const char *schema_leaf, const char *hint,
                               char *out, size_t cap);
+
+/*
+ * Dual-wire Commander deny plate (Commander ≠ model · Ed25519 residual).
+ * schema_leaf → "schema":"grokium.<leaf>.v1" (default "commander").
+ * error/hint are machine-sanitized. Host CLI + grokium-commander share this.
+ */
+void grokium_commander_deny_json(const char *schema_leaf, const char *error,
+                                 const char *hint, char *out, size_t cap);
 #endif

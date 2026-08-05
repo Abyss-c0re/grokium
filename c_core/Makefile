@@ -26,8 +26,9 @@ all: $(BIN_CMD) $(BIN_FILTER) $(BUILD)/grokium-fleet $(BUILD)/grokium-consolidat
 $(BUILD):
 	mkdir -p $(BUILD)
 
-$(BIN_CMD): src/commander.c src/commander_cli.c src/sha256.c | $(BUILD)
-	$(CC) $(CFLAGS) -o $@ src/commander_cli.c src/commander.c src/sha256.c $(LDFLAGS)
+$(BIN_CMD): src/commander.c src/commander_cli.c src/law.c src/sha256.c | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ src/commander_cli.c src/commander.c src/law.c \
+		src/sha256.c $(LDFLAGS)
 
 $(BIN_FILTER): $(FILTER_SRC) | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ $(FILTER_SRC)
@@ -59,6 +60,15 @@ clean:
 
 test-commander: $(BIN_CMD)
 	@set -e; \
+	H=$$($(BIN_CMD) help || true); \
+	echo "$$H" | grep -q '"schema":"grokium.commander.v1"'; \
+	echo "$$H" | grep -q '"error":"need_subcmd"'; \
+	echo "$$H" | grep -q '"commander":"ed25519"'; \
+	echo "$$H" | grep -q '"not":"grok_model"'; \
+	echo "$$H" | grep -q '"commander_is_model":false'; \
+	echo "$$H" | grep -q '"llm_is_commander":false'; \
+	echo "$$H" | grep -q '"product_wire":"smx2"'; \
+	echo "$$H" | grep -q '"peer_http_is_product_bus":false'; \
 	D=$(BUILD)/law_test; rm -rf $$D; mkdir -p $$D; \
 	K=$$($(BIN_CMD) keygen --law-dir $$D); \
 	echo "$$K" | grep -q '"product_wire":"smx2"'; \

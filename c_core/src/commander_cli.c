@@ -1,57 +1,22 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* grokium-commander — keygen / sign / verify / install-law */
 #include "grokium_commander.h"
+#include "grokium_law.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/* Dual-wire deny plates — no free-text usage on the machine wire.
- * Commander is Ed25519 law identity only; LLM is never commander. */
-static const char k_need_subcmd[] =
-    "{\"schema\":\"grokium.commander.v1\",\"ok\":false,"
-    "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false,\"commander_is_model\":false,"
-    "\"commander\":\"ed25519\",\"not\":\"grok_model\","
-    "\"hint\":\"keygen|show|sign|verify|install-law --law-dir DIR\"}";
-
-static const char k_need_law_dir[] =
-    "{\"schema\":\"grokium.commander.v1\",\"ok\":false,"
-    "\"error\":\"need_law_dir\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false,\"commander_is_model\":false,"
-    "\"commander\":\"ed25519\",\"not\":\"grok_model\","
-    "\"hint\":\"pass --law-dir DIR (data/law)\"}";
-
-static const char k_need_sign_args[] =
-    "{\"schema\":\"grokium.commander.v1\",\"ok\":false,"
-    "\"error\":\"need_sign_args\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false,\"commander_is_model\":false,"
-    "\"commander\":\"ed25519\",\"not\":\"grok_model\","
-    "\"hint\":\"sign --law-dir DIR --device ID --action ACT\"}";
-
-static const char k_need_verify_args[] =
-    "{\"schema\":\"grokium.commander_verify.v1\",\"ok\":false,"
-    "\"error\":\"need_verify_args\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false,\"commander_is_model\":false,"
-    "\"commander\":\"ed25519\",\"not\":\"grok_model\","
-    "\"hint\":\"verify --law-dir DIR|--pk FILE --device ID --action ACT "
-    "--nonce H --ts N --sig H\"}";
-
-static const char k_need_install_args[] =
-    "{\"schema\":\"grokium.commander.v1\",\"ok\":false,"
-    "\"error\":\"need_install_args\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false,\"commander_is_model\":false,"
-    "\"commander\":\"ed25519\",\"not\":\"grok_model\","
-    "\"hint\":\"install-law --law-dir DIR --home NANOBOT_HOME\"}";
+/* Dual-wire Commander deny plates — shared builder (Commander ≠ model). */
+static const char k_hint_subcmd[] =
+    "keygen|show|sign|verify|install-law --law-dir DIR";
+static const char k_hint_law_dir[] = "pass --law-dir DIR (data/law)";
+static const char k_hint_sign[] =
+    "sign --law-dir DIR --device ID --action ACT";
+static const char k_hint_verify[] =
+    "verify --law-dir DIR|--pk FILE --device ID --action ACT "
+    "--nonce H --ts N --sig H";
+static const char k_hint_install[] =
+    "install-law --law-dir DIR --home NANOBOT_HOME";
 
 static int plate_dual_wire_ok(const char *p) {
   return p && strstr(p, "\"product_wire\":\"smx2\"") &&
@@ -59,10 +24,21 @@ static int plate_dual_wire_ok(const char *p) {
          strstr(p, "\"peer_http_is_product_bus\":false") &&
          strstr(p, "\"llm_is_commander\":false") &&
          strstr(p, "\"hold_flash\":1") &&
-         strstr(p, "\"share\":\"state_matrix_only\"");
+         strstr(p, "\"share\":\"state_matrix_only\"") &&
+         strstr(p, "\"commander\":\"ed25519\"") &&
+         strstr(p, "\"not\":\"grok_model\"") &&
+         strstr(p, "\"commander_is_model\":false");
 }
 
-static void usage(void) { printf("%s\n", k_need_subcmd); }
+static void emit_deny(const char *leaf, const char *error, const char *hint) {
+  char plate[640];
+  grokium_commander_deny_json(leaf, error, hint, plate, sizeof plate);
+  printf("%s\n", plate);
+}
+
+static void usage(void) {
+  emit_deny("commander", "need_subcmd", k_hint_subcmd);
+}
 
 static int read_all(const char *path, unsigned char **out, size_t *n) {
   FILE *f = (!path || !strcmp(path, "-")) ? stdin : fopen(path, "rb");
@@ -93,15 +69,29 @@ int main(int argc, char **argv) {
   int64_t ts = 0;
   int i;
   gk_commander C;
+  char plate[640];
 
-  /* Static plate dual-wire self-check (fail-closed before any crypto). */
-  if (!plate_dual_wire_ok(k_need_subcmd) || !plate_dual_wire_ok(k_need_law_dir) ||
-      !plate_dual_wire_ok(k_need_sign_args) ||
-      !plate_dual_wire_ok(k_need_verify_args) ||
-      !plate_dual_wire_ok(k_need_install_args) ||
-      !strstr(k_need_subcmd, "\"commander\":\"ed25519\"") ||
-      !strstr(k_need_subcmd, "\"not\":\"grok_model\"")) {
+  /* Shared plate dual-wire self-check (fail-closed before any crypto). */
+  grokium_commander_deny_json("commander", "need_subcmd", k_hint_subcmd, plate,
+                              sizeof plate);
+  if (!plate_dual_wire_ok(plate) ||
+      !strstr(plate, "\"error\":\"need_subcmd\"")) {
     fprintf(stderr, "grokium-commander: deny plate dual-wire fail\n");
+    return 1;
+  }
+  grokium_commander_deny_json("commander", "need_law_dir", k_hint_law_dir,
+                              plate, sizeof plate);
+  if (!plate_dual_wire_ok(plate) ||
+      !strstr(plate, "\"error\":\"need_law_dir\"")) {
+    fprintf(stderr, "grokium-commander: need_law_dir dual-wire fail\n");
+    return 1;
+  }
+  grokium_commander_deny_json("commander_verify", "need_verify_args",
+                              k_hint_verify, plate, sizeof plate);
+  if (!plate_dual_wire_ok(plate) ||
+      !strstr(plate, "\"schema\":\"grokium.commander_verify.v1\"") ||
+      !strstr(plate, "\"error\":\"need_verify_args\"")) {
+    fprintf(stderr, "grokium-commander: need_verify_args dual-wire fail\n");
     return 1;
   }
 
@@ -126,7 +116,10 @@ int main(int argc, char **argv) {
   }
 
   if (!strcmp(cmd, "keygen")) {
-    if (!law_dir) { printf("%s\n", k_need_law_dir); return 2; }
+    if (!law_dir) {
+      emit_deny("commander", "need_law_dir", k_hint_law_dir);
+      return 2;
+    }
     if (gk_commander_generate(&C) != 0) { fprintf(stderr, "keygen failed\n"); return 1; }
     if (gk_commander_save(&C, law_dir) != 0) { fprintf(stderr, "save failed\n"); return 1; }
     printf("{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
@@ -141,7 +134,10 @@ int main(int argc, char **argv) {
   }
 
   if (!strcmp(cmd, "show")) {
-    if (!law_dir) { printf("%s\n", k_need_law_dir); return 2; }
+    if (!law_dir) {
+      emit_deny("commander", "need_law_dir", k_hint_law_dir);
+      return 2;
+    }
     if (gk_commander_load(&C, law_dir) != 0) { fprintf(stderr, "load failed\n"); return 1; }
     printf("{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
            "\"product\":\"grokium\",\"not\":\"grok_model\","
@@ -159,7 +155,7 @@ int main(int argc, char **argv) {
     char nonce_hex[65], sig_hex[129], env[2048];
     unsigned char *body = NULL; size_t blen = 0;
     if (!law_dir || !device || !action) {
-      printf("%s\n", k_need_sign_args);
+      emit_deny("commander", "need_sign_args", k_hint_sign);
       return 2;
     }
     if (gk_commander_load(&C, law_dir) != 0 || !C.has_sk) {
@@ -180,7 +176,7 @@ int main(int argc, char **argv) {
     unsigned char *body = NULL; size_t blen = 0;
     int ok;
     if ((!law_dir && !pk) || !device || !action || !nonce || !sig || !ts) {
-      printf("%s\n", k_need_verify_args);
+      emit_deny("commander_verify", "need_verify_args", k_hint_verify);
       return 2;
     }
     if (law_dir) {
@@ -203,7 +199,7 @@ int main(int argc, char **argv) {
 
   if (!strcmp(cmd, "install-law")) {
     if (!law_dir || !home) {
-      printf("%s\n", k_need_install_args);
+      emit_deny("commander", "need_install_args", k_hint_install);
       return 2;
     }
     if (gk_commander_load(&C, law_dir) != 0) { fprintf(stderr, "load failed\n"); return 1; }

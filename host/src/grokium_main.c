@@ -689,16 +689,13 @@ int main(int argc, char **argv) {
     if (ai + 1 >= argc ||
         !strcmp(argv[ai + 1], "help") || !strcmp(argv[ai + 1], "-h") ||
         !strcmp(argv[ai + 1], "--help")) {
-      /* Machine need_subcmd plate — dual-wire honesty (Commander ≠ model). */
-      printf("{\"schema\":\"grokium.commander.v1\",\"ok\":false,"
-             "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-             "\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"llm_is_commander\":false,\"commander_is_model\":false,"
-             "\"commander\":\"ed25519\",\"not\":\"grok_model\","
-             "\"hint\":\"keygen|show|sign|verify|install-law --law-dir "
-             "DIR\"}\n");
+      char plate[640];
+      /* Shared Commander ≠ model deny (same as grokium-commander help). */
+      grokium_commander_deny_json(
+          "commander", "need_subcmd",
+          "keygen|show|sign|verify|install-law --law-dir DIR", plate,
+          sizeof plate);
+      printf("%s\n", plate);
       return 2;
     }
     return run_c_core("grokium-commander", argc - ai - 1, argv + ai + 1);

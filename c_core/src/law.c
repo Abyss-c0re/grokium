@@ -133,3 +133,41 @@ void grokium_need_subcmd_json(const char *schema_leaf, const char *hint,
              leaf);
   }
 }
+
+void grokium_commander_deny_json(const char *schema_leaf, const char *error,
+                                 const char *hint, char *out, size_t cap) {
+  char leaf[56], err[56], hint_tok[160];
+  if (!out || cap < 64) return;
+  leaf_token(schema_leaf, leaf, sizeof leaf);
+  if (!leaf[0]) snprintf(leaf, sizeof leaf, "commander");
+  leaf_token(error, err, sizeof err);
+  if (!err[0]) snprintf(err, sizeof err, "need_subcmd");
+  if (hint && hint[0]) {
+    hint_token(hint, hint_tok, sizeof hint_tok);
+  } else {
+    hint_tok[0] = 0;
+  }
+  /* Commander = Ed25519 residual only; LLM is never commander. */
+  if (hint_tok[0]) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.%s.v1\",\"ok\":false,"
+             "\"error\":\"%s\",\"product_wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false,\"commander_is_model\":false,"
+             "\"commander\":\"ed25519\",\"not\":\"grok_model\","
+             "\"hint\":\"%s\"}",
+             leaf, err, hint_tok);
+  } else {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.%s.v1\",\"ok\":false,"
+             "\"error\":\"%s\",\"product_wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false,\"commander_is_model\":false,"
+             "\"commander\":\"ed25519\",\"not\":\"grok_model\"}",
+             leaf, err);
+  }
+}
