@@ -34,4 +34,13 @@ void grokium_law_json(const grokium_law *L, char *out, size_t cap);
  * GET /v1/license, host CLI/TUI, and serve CLI share this plate.
  */
 void grokium_license_json(char *out, size_t cap);
+
+/*
+ * Dual-wire need_subcmd deny plate.
+ * schema_leaf → "schema":"grokium.<leaf>.v1" (sanitized machine token).
+ * Optional hint is machine-sanitized (no JSON inject). NULL leaf → "command".
+ * Host contract/hub/… help surfaces share this builder.
+ */
+void grokium_need_subcmd_json(const char *schema_leaf, const char *hint,
+                              char *out, size_t cap);
 #endif

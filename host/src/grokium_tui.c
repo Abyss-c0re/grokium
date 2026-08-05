@@ -1241,14 +1241,11 @@ static void cmd_contract(const char *arg) {
   const char *p = arg ? arg : "";
   while (*p == ' ') p++;
   if (!p[0] || !strcmp(p, "help") || !strcmp(p, "?")) {
-    /* Machine need_subcmd plate (dual-wire; no free-text-only usage). */
-    log_add("{\"schema\":\"grokium.contract.v1\",\"ok\":false,"
-            "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-            "\"peer_http\":\"lab_ops_only\","
-            "\"peer_http_is_product_bus\":false,"
-            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-            "\"llm_is_commander\":false,"
-            "\"hint\":\"form|validate|manager-tick\"}");
+    char plate[512];
+    /* Shared dual-wire need_subcmd (host CLI contract same builder). */
+    grokium_need_subcmd_json("contract", "form|validate|manager-tick", plate,
+                             sizeof plate);
+    log_add(plate);
     return;
   }
   if (!strncmp(p, "manager", 7) || !strcmp(p, "tick") ||
@@ -1313,13 +1310,10 @@ static void cmd_contract(const char *arg) {
   }
   av[n] = NULL;
   if (n < 1) {
-    log_add("{\"schema\":\"grokium.contract.v1\",\"ok\":false,"
-            "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-            "\"peer_http\":\"lab_ops_only\","
-            "\"peer_http_is_product_bus\":false,"
-            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-            "\"llm_is_commander\":false,"
-            "\"hint\":\"form|validate|manager-tick\"}");
+    char plate[512];
+    grokium_need_subcmd_json("contract", "form|validate|manager-tick", plate,
+                             sizeof plate);
+    log_add(plate);
     return;
   }
   log_add("--- contract (pure-C SMX filter · external cells) ---");

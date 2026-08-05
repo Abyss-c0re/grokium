@@ -61,3 +61,75 @@ void grokium_license_json(char *out, size_t cap) {
            "\"peer_http_is_product_bus\":false,"
            "\"telemetry\":\"off\",\"python\":0}");
 }
+
+/* Machine token for schema leaf / short fields (no free-text inject). */
+static void leaf_token(const char *in, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in || !in[0]) return;
+  for (i = 0; in[i] && o + 1 < cap && o < 48; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9') || c == '_' || c == '-')
+      out[o++] = (char)c;
+  }
+  out[o] = 0;
+}
+
+/* Hint field: allow common CLI punctuation; map JSON metacharacters. */
+static void hint_token(const char *in, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in || !in[0]) return;
+  for (i = 0; in[i] && o + 1 < cap && o < 120; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.' ||
+        c == '/' || c == ' ' || c == '|' || c == '[' || c == ']' ||
+        c == '<' || c == '>' || c == ':' || c == '=' || c == '?' ||
+        c == '!' || c == '+' || c == '*' || c == '#' || c == '@' ||
+        c == '(' || c == ')' || c == ';') {
+      out[o++] = (char)c;
+    } else if (c == '"' || c == '\\') {
+      out[o++] = '_';
+    } else if (c == '\t') {
+      out[o++] = ' ';
+    }
+  }
+  out[o] = 0;
+}
+
+void grokium_need_subcmd_json(const char *schema_leaf, const char *hint,
+                              char *out, size_t cap) {
+  char leaf[56], hint_tok[160];
+  if (!out || cap < 64) return;
+  leaf_token(schema_leaf, leaf, sizeof leaf);
+  if (!leaf[0]) snprintf(leaf, sizeof leaf, "command");
+  if (hint && hint[0]) {
+    hint_token(hint, hint_tok, sizeof hint_tok);
+  } else {
+    hint_tok[0] = 0;
+  }
+  /* Shared dual-wire need_subcmd: host contract/hub/… help surfaces. */
+  if (hint_tok[0]) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.%s.v1\",\"ok\":false,"
+             "\"error\":\"need_subcmd\","
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false,\"hint\":\"%s\"}",
+             leaf, hint_tok);
+  } else {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.%s.v1\",\"ok\":false,"
+             "\"error\":\"need_subcmd\","
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false}",
+             leaf);
+  }
+}

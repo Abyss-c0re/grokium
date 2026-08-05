@@ -660,14 +660,11 @@ int main(int argc, char **argv) {
   }
   if (strcmp(cmd, "contract") == 0) {
     if (ai + 1 >= argc) {
-      /* Machine need_subcmd plate (match filter dual-wire honesty). */
-      printf("{\"schema\":\"grokium.contract.v1\",\"ok\":false,"
-             "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-             "\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"llm_is_commander\":false,"
-             "\"hint\":\"form|validate|manager-tick\"}\n");
+      char plate[512];
+      /* Shared dual-wire need_subcmd (TUI /contract help same builder). */
+      grokium_need_subcmd_json("contract", "form|validate|manager-tick", plate,
+                               sizeof plate);
+      printf("%s\n", plate);
       return 2;
     }
     return run_c_core("grokium-smx-filter", argc - ai - 1, argv + ai + 1);

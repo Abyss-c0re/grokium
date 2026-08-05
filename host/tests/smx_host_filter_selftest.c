@@ -99,9 +99,28 @@ int main(void) {
         !strstr(plate, "\"python\":0") ||
         !strstr(plate, "\"telemetry\":\"off\""))
       return fail("license dual-wire plate fail");
+    /* Shared contract need_subcmd (host CLI/TUI /contract help). */
+    grokium_need_subcmd_json("contract", "form|validate|manager-tick", plate,
+                             sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.contract.v1\"") ||
+        !strstr(plate, "\"ok\":false") ||
+        !strstr(plate, "\"error\":\"need_subcmd\"") ||
+        !strstr(plate, "\"hint\":\"form|validate|manager-tick\"") ||
+        !strstr(plate, "\"product_wire\":\"smx2\"") ||
+        !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+        !strstr(plate, "\"llm_is_commander\":false") ||
+        !strstr(plate, "\"hold_flash\":1") ||
+        !strstr(plate, "\"share\":\"state_matrix_only\""))
+      return fail("contract need_subcmd dual-wire plate fail");
+    /* Injected leaf/hint must not break JSON dual-wire shape. */
+    grokium_need_subcmd_json("x\",\"evil\":true", "a\"b", plate, sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.xeviltrue.v1\"") ||
+        strstr(plate, "\"evil\"") || !strstr(plate, "\"error\":\"need_subcmd\""))
+      return fail("need_subcmd leaf/hint sanitize fail");
   }
 
   printf("HOST_SMX_FILTER_OK external=strict hold_flash=1 dual_wire=gate "
-         "allow_plate=1 instinct_plate=1 manager_help_plate=1 license_plate=1\n");
+         "allow_plate=1 instinct_plate=1 manager_help_plate=1 license_plate=1 "
+         "need_subcmd=1\n");
   return 0;
 }
