@@ -6,25 +6,16 @@
 #include <string.h>
 #include <unistd.h>
 
-static void usage(void) {
-  fprintf(stderr,
-          "grokium-fleet defaults|deploy|save [path]|status [path]|"
-          "spawn ID [path]|spawn-all [path]|"
-          "note-pid ID PID [path]|separate ID [path]|stop-all [path]|"
-          "selftest\n"
-          "  defaults  — print roles including nb-manager\n"
-          "  deploy    — mkdir homes; clear live pids on plate\n"
-          "  save      — write honest FLEET.json (loads plate first)\n"
-          "  status    — load plate, kill(0) probe, rewrite honest plate\n"
-          "  spawn     — fork/exec NANOBOT_BIN (peer HTTP = lab_ops)\n"
-          "  spawn-all — spawn every role\n"
-          "  note-pid  — record spawn pid; preserves other bots\n"
-          "  separate  — SIGTERM bot if live; mark separated\n"
-          "  stop-all  — SIGTERM all live bots\n"
-          "  selftest  — pure-C pid/status honesty (no spawn)\n");
-}
-
 /* Dual-wire deny plates — no free-text usage on machine wire. */
+static const char k_need_subcmd[] =
+    "{\"schema\":\"grokium.fleet.v1\",\"ok\":false,"
+    "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
+    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
+    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+    "\"llm_is_commander\":false,"
+    "\"hint\":\"defaults|deploy|save|status|spawn|spawn-all|note-pid|"
+    "separate|stop-all|selftest\"}";
+
 static const char k_need_bot_id[] =
     "{\"schema\":\"grokium.fleet_spawn.v1\",\"ok\":false,"
     "\"error\":\"need_bot_id\",\"product_wire\":\"smx2\","
@@ -70,6 +61,8 @@ static int plate_dual_wire_ok(const char *p) {
          strstr(p, "\"hold_flash\":1") &&
          strstr(p, "\"share\":\"state_matrix_only\"");
 }
+
+static void usage(void) { printf("%s\n", k_need_subcmd); }
 
 /* Pure-C plate honesty: defaults, note-pid, dead-pid clear, dual-wire fields. */
 static int fleet_selftest(void) {
@@ -129,8 +122,10 @@ static int fleet_selftest(void) {
       return 1;
     }
   }
-  /* Deny plates dual-wire (spawn/note/separate missing args). */
-  if (!strstr(k_need_bot_id, "\"error\":\"need_bot_id\"") ||
+  /* Deny plates dual-wire (usage/spawn/note/separate missing args). */
+  if (!strstr(k_need_subcmd, "\"error\":\"need_subcmd\"") ||
+      !plate_dual_wire_ok(k_need_subcmd) ||
+      !strstr(k_need_bot_id, "\"error\":\"need_bot_id\"") ||
       !plate_dual_wire_ok(k_need_bot_id) || !plate_dual_wire_ok(k_spawn_failed) ||
       !plate_dual_wire_ok(k_need_note_args) ||
       !plate_dual_wire_ok(k_need_separate_id) ||
@@ -230,7 +225,8 @@ static int fleet_selftest(void) {
 int main(int argc, char **argv) {
   gk_fleet F;
   const char *path = "data/home/FLEET.json";
-  if (argc < 2) {
+  if (argc < 2 || !strcmp(argv[1], "help") || !strcmp(argv[1], "-h") ||
+      !strcmp(argv[1], "--help")) {
     usage();
     return 2;
   }

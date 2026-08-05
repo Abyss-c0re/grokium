@@ -10,18 +10,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void usage(void) {
-  fprintf(stderr,
-          "grokium-smx-filter — Hive Mind filter / contracts\n"
-          "  form --assignee ID --task TEXT [--digit N] [--min-set N] [--smx-sha HEX]\n"
-          "  validate PATH [--bits 01...] [--bits-file F]\n"
-          "  manager-tick [DIR]\n"
-          "  allow-check STRING\n"
-          "  instinct\n"
-          "  heartbeat-ack\n");
-}
-
 /* Dual-wire deny plates — no free-text prose on the machine wire. */
+static const char k_need_subcmd[] =
+    "{\"schema\":\"grokium.smx_filter.v1\",\"ok\":false,"
+    "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
+    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
+    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+    "\"llm_is_commander\":false,"
+    "\"hint\":\"form|validate|manager-tick|allow-check|instinct|"
+    "heartbeat-ack\"}";
+
 static const char k_need_form_args[] =
     "{\"schema\":\"grokium.contract_form.v1\",\"ok\":false,"
     "\"error\":\"need_assignee_and_task\",\"product_wire\":\"smx2\","
@@ -52,8 +50,32 @@ static const char k_contract_not_found[] =
     "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
     "\"llm_is_commander\":false}";
 
+static int plate_dual_wire_ok(const char *p) {
+  return p && strstr(p, "\"product_wire\":\"smx2\"") &&
+         strstr(p, "\"peer_http\":\"lab_ops_only\"") &&
+         strstr(p, "\"peer_http_is_product_bus\":false") &&
+         strstr(p, "\"llm_is_commander\":false") &&
+         strstr(p, "\"hold_flash\":1") &&
+         strstr(p, "\"share\":\"state_matrix_only\"");
+}
+
+static void usage(void) { printf("%s\n", k_need_subcmd); }
+
 int main(int argc, char **argv) {
-  if (argc < 2) { usage(); return 2; }
+  if (!plate_dual_wire_ok(k_need_subcmd) ||
+      !plate_dual_wire_ok(k_need_form_args) ||
+      !plate_dual_wire_ok(k_need_path) ||
+      !plate_dual_wire_ok(k_form_failed) ||
+      !plate_dual_wire_ok(k_contract_not_found) ||
+      !strstr(k_need_subcmd, "\"error\":\"need_subcmd\"")) {
+    fprintf(stderr, "grokium-smx-filter: deny plate dual-wire fail\n");
+    return 1;
+  }
+  if (argc < 2 || !strcmp(argv[1], "help") || !strcmp(argv[1], "-h") ||
+      !strcmp(argv[1], "--help")) {
+    usage();
+    return 2;
+  }
 
   if (!strcmp(argv[1], "instinct")) {
     printf("%s\n", grokium_hive_instinct_creed());
