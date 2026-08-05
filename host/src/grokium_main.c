@@ -9,6 +9,7 @@
 #include "grokium_status.h"
 #include "grokium_law.h"
 #include "grokium_llama.h"
+#include "grokium_consolidator.h"
 #include "grokium_smx_filter.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -626,18 +627,13 @@ int main(int argc, char **argv) {
       strcmp(cmd, "smx-ingest") == 0) {
     int i = ai + 1;
     char *av[3];
-    char plate[4096];
+    char plate[4096], deny[512];
     size_t o = 0;
     grokium_law L;
     if (i >= argc) {
-      /* Machine need_plate (match consolidator / loopback coord honesty). */
-      printf("{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
-             "\"error\":\"need_plate\",\"content\":\"meta_only\","
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-             "\"hint\":\"pass NEXUS_COORD or SMX 01-bits plate\"}\n");
+      /* Shared need_plate with POST /v1/coord · TUI /coord · consolidate CLI. */
+      gk_coord_err_json("need_plate", deny, sizeof deny);
+      printf("%s\n", deny);
       return 2;
     }
     plate[0] = 0;
@@ -652,12 +648,9 @@ int main(int argc, char **argv) {
     /* Host-local sanitize gate — deny prose before consolidate exec. */
     grokium_law_default(&L);
     if (!grokium_smx_filter_allow_frame(&L, (const uint8_t *)plate, o, 1)) {
-      printf("{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
-             "\"error\":\"smx_filter_deny\",\"content\":\"meta_only\","
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"llm_on_hot_path\":false,\"llm_is_commander\":false}\n");
+      /* Shared smx_filter_deny dual-wire plate (same as TUI / HTTP). */
+      gk_coord_err_json("smx_filter_deny", deny, sizeof deny);
+      printf("%s\n", deny);
       return 1;
     }
     av[0] = "ingest";
