@@ -67,6 +67,14 @@ int main(void) {
       !strstr(plate, "\"q\":\"q\\\"x\"") || !plate_dual_wire(plate))
     return fail("list empty plate");
 
+  /* import_dir quote inject must be JSON-escaped on the plate. */
+  if (gk_session_list_empty_json("", "data/im\"port", "no_import_dir", plate,
+                                 sizeof plate) != 0)
+    return fail("list empty dir inject");
+  if (!strstr(plate, "\"import_dir\":\"data/im\\\"port\"") ||
+      strstr(plate, "im\"port") || !plate_dual_wire(plate))
+    return fail("import_dir not escaped");
+
   printf("C_CORE_SESSION_PLATE_OK dual_wire=honest id_safe=ok meta_only=1\n");
   return 0;
 }

@@ -1080,7 +1080,7 @@ static int session_compact_from_meta(const char *meta, size_t n, char *out,
  */
 static void sessions_search(const char *root, const char *q, char *out,
                             size_t cap) {
-  char dir[400], path[480], meta[2048], entry[320], q_esc[128];
+  char dir[400], path[480], meta[2048], entry[320], q_esc[128], dir_esc[512];
   DIR *d;
   struct dirent *e;
   int matched = 0, scanned = 0, total_meta = 0;
@@ -1095,6 +1095,8 @@ static void sessions_search(const char *root, const char *q, char *out,
     (void)gk_session_list_empty_json(q, dir, "no_import_dir", out, cap);
     return;
   }
+  /* Match empty-list helper: escape import_dir (root may carry inject chars). */
+  json_escape(dir, dir_esc, sizeof dir_esc);
   used = (size_t)snprintf(
       out, cap,
       "{\"schema\":\"grokium.sessions.v1\",\"ok\":true,"
@@ -1105,7 +1107,7 @@ static void sessions_search(const char *root, const char *q, char *out,
       "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
       "\"telemetry\":\"off\",\"q\":\"%s\",\"import_dir\":\"%s\","
       "\"sessions\":[",
-      q_esc, dir);
+      q_esc, dir_esc);
 
   while ((e = readdir(d)) != NULL && matched < GK_SESSIONS_MAX &&
          scanned < GK_SESSIONS_SCAN) {

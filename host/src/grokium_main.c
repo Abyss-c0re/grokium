@@ -508,7 +508,7 @@ static int cmd_session_pickup(const char *id) {
 static int cmd_sessions(int argc, char **argv) {
   char dir[PATH_MAX], path[PATH_MAX], meta[2048];
   char id[96], title[96], updated[48], model[96];
-  char te[128], q_esc[128];
+  char te[128], ue[96], me[128], q_esc[128], dir_esc[PATH_MAX + 32];
   const char *q = "";
   DIR *d;
   struct dirent *e;
@@ -555,6 +555,8 @@ static int cmd_sessions(int argc, char **argv) {
       printf("%s\n", plate);
     return 0;
   }
+  /* Match empty-list helper: escape import_dir (root may carry inject chars). */
+  json_escape(dir, dir_esc, sizeof dir_esc);
   printf("{\"schema\":\"grokium.sessions.v1\",\"ok\":true,"
          "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
          "\"peer_http\":\"lab_ops_only\","
@@ -563,7 +565,7 @@ static int cmd_sessions(int argc, char **argv) {
          "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
          "\"telemetry\":\"off\",\"q\":\"%s\",\"import_dir\":\"%s\","
          "\"sessions\":[",
-         q_esc, dir);
+         q_esc, dir_esc);
   while ((e = readdir(d)) != NULL && matched < 24 && scanned < 800) {
     size_t len = strlen(e->d_name);
     if (len < 11 || strcmp(e->d_name + len - 10, ".meta.json") != 0)
@@ -590,9 +592,11 @@ static int cmd_sessions(int argc, char **argv) {
     if (!gk_session_id_safe(id)) continue;
     if (!title[0]) snprintf(title, sizeof title, "%s", id);
     json_escape(title, te, sizeof te);
+    json_escape(updated, ue, sizeof ue);
+    json_escape(model, me, sizeof me);
     printf("%s{\"id\":\"%s\",\"title\":\"%s\",\"updated_at\":\"%s\","
            "\"model\":\"%s\"}",
-           first ? "" : ",", id, te, updated, model);
+           first ? "" : ",", id, te, ue, me);
     first = 0;
     matched++;
   }

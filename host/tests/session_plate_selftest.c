@@ -91,6 +91,14 @@ int main(void) {
     return 1;
   }
 
+  /* import_dir quote inject must be JSON-escaped on the plate. */
+  if (gk_session_list_empty_json("", "data/im\"port", "no_import_dir", plate,
+                                  sizeof plate) != 0)
+    return fail("list empty dir inject");
+  if (!strstr(plate, "\"import_dir\":\"data/im\\\"port\"") ||
+      strstr(plate, "im\"port") || !plate_dual_wire(plate))
+    return fail("import_dir not escaped");
+
   if (gk_session_list_empty_json("", "data/import", NULL, plate,
                                   sizeof plate) != 0)
     return fail("list empty no err");
