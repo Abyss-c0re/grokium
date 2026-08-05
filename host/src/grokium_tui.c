@@ -1189,12 +1189,19 @@ static void cmd_mode(const char *arg) {
   char line[200];
   const char *a = arg ? arg : "";
   while (*a == ' ') a++;
-  if (!a[0] || !strcmp(a, "show") || !strcmp(a, "?")) {
+  if (!a[0] || !strcmp(a, "show") || !strcmp(a, "?") || !strcmp(a, "help")) {
     snprintf(line, sizeof line, "mode> %s · tools=%d · resume=meta_only (/pickup)",
              cfg.agent_tools ? "agent" : "chat", cfg.agent_tools);
     log_add(line);
-    log_add("  usage: /mode chat|agent|resume");
-    log_add("  resume full messages = host/nanobot path (not SMX product bus)");
+    /* Machine help plate — dual-wire honesty (resume is host-local, not SMX). */
+    log_add("{\"schema\":\"grokium.mode.v1\",\"ok\":false,"
+            "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
+            "\"peer_http\":\"lab_ops_only\","
+            "\"peer_http_is_product_bus\":false,"
+            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+            "\"llm_is_commander\":false,"
+            "\"resume\":\"host_local_not_smx\","
+            "\"hint\":\"/mode chat|agent|resume|show\"}");
     return;
   }
   if (!strcmp(a, "chat")) {
@@ -1215,7 +1222,14 @@ static void cmd_mode(const char *arg) {
     log_add("  /sessions [q] then /pickup <id> · share=state_matrix_only");
     return;
   }
-  log_add("usage: /mode chat|agent|resume|show");
+  /* Unknown mode — dual-wire need_subcmd (no free-text-only usage). */
+  log_add("{\"schema\":\"grokium.mode.v1\",\"ok\":false,"
+          "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
+          "\"peer_http\":\"lab_ops_only\","
+          "\"peer_http_is_product_bus\":false,"
+          "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+          "\"llm_is_commander\":false,"
+          "\"hint\":\"/mode chat|agent|resume|show\"}");
 }
 
 /* Hive Mind manager — motivate incomplete external contracts (SMX2). */
@@ -1711,8 +1725,16 @@ static void do_command(const char *raw) {
       snprintf(cfg.active_model, sizeof cfg.active_model, "%s", cfg.grok_model);
       gkx_config_save_prefs(&cfg, state_dir);
       log_add("backend=grok");
-    } else
-      log_add("usage: /backend local|grok");
+    } else {
+      /* Machine need_backend plate — dual-wire honesty (LLM ≠ commander). */
+      log_add("{\"schema\":\"grokium.backend.v1\",\"ok\":false,"
+              "\"error\":\"need_backend\",\"product_wire\":\"smx2\","
+              "\"peer_http\":\"lab_ops_only\","
+              "\"peer_http_is_product_bus\":false,"
+              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+              "\"llm_is_commander\":false,"
+              "\"hint\":\"/backend local|grok\"}");
+    }
     return;
   }
   if (strcmp(cmd, "model") == 0 || strcmp(cmd, "m") == 0) {
@@ -1812,11 +1834,27 @@ static void do_command(const char *raw) {
     return;
   }
   if (strcmp(cmd, "attach") == 0 || strcmp(cmd, "file") == 0 || strcmp(cmd, "open") == 0) {
-    if (!rest[0]) { log_add("usage: /attach <path> [prompt for vision]"); return; }
+    if (!rest[0]) {
+      /* Machine need_path plate — dual-wire honesty (no free-text-only usage). */
+      log_add("{\"schema\":\"grokium.attach.v1\",\"ok\":false,"
+              "\"error\":\"need_path\",\"product_wire\":\"smx2\","
+              "\"peer_http\":\"lab_ops_only\","
+              "\"peer_http_is_product_bus\":false,"
+              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+              "\"llm_is_commander\":false,"
+              "\"hint\":\"/attach <path> [prompt for vision]\"}");
+      return;
+    }
     char path[PATH_MAX], prompt[IN_MAX];
     prompt[0] = 0;
     if (sscanf(rest, "%511s %799[^\n]", path, prompt) < 1) {
-      log_add("usage: /attach <path>");
+      log_add("{\"schema\":\"grokium.attach.v1\",\"ok\":false,"
+              "\"error\":\"need_path\",\"product_wire\":\"smx2\","
+              "\"peer_http\":\"lab_ops_only\","
+              "\"peer_http_is_product_bus\":false,"
+              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+              "\"llm_is_commander\":false,"
+              "\"hint\":\"/attach <path>\"}");
       return;
     }
     size_t raw_n = 0;
