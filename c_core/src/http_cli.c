@@ -546,7 +546,8 @@ static int selftest(void) {
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
-        !strstr(b, "\"share\":\"state_matrix_only\"")) {
+        !strstr(b, "\"share\":\"state_matrix_only\"") ||
+        !strstr(b, "\"hold_flash\":1")) {
       fprintf(stderr, "selftest: llama probe dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -572,7 +573,11 @@ static int selftest(void) {
   else {
     b = body_of(resp);
     if (!strstr(b, "llm_is_commander\":false") ||
-        !strstr(b, "\"share\":\"state_matrix_only\"")) {
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"share\":\"state_matrix_only\"") ||
+        !strstr(b, "\"hold_flash\":1")) {
       fprintf(stderr, "selftest: chat honesty fail: %.400s\n", resp);
       fails++;
     }

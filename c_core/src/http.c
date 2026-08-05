@@ -435,7 +435,7 @@ int grokium_llama_probe(char *json_out, size_t cap) {
              "\"commander_is_model\":false,\"product_wire\":\"smx2\","
              "\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\"}",
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
              base);
     return 0;
   }
@@ -511,7 +511,7 @@ done:
              "\"commander_is_model\":false,\"product_wire\":\"smx2\","
              "\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\"}",
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
              port, path, err ? err : "down");
     return 0;
   }
@@ -522,7 +522,7 @@ done:
            "\"commander_is_model\":false,\"product_wire\":\"smx2\","
            "\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\"}",
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
            code, port, path, model_snip[0] ? model_snip : "");
   return 0;
 }
@@ -655,7 +655,7 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\"}");
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
     return 0;
   }
 
@@ -669,7 +669,7 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\"}");
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
     return 0;
   }
   (void)path_models;
@@ -679,7 +679,7 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\"}");
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
     return 0;
   }
 
@@ -696,7 +696,7 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\"}");
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
     return 0;
   }
 
@@ -761,7 +761,8 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
              "\"commander_is_model\":false,\"product_wire\":\"smx2\","
              "\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"local_first\":true}",
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"local_first\":true}",
              code);
     return 0;
   }
@@ -772,7 +773,7 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
            "\"commander_is_model\":false,\"product_wire\":\"smx2\","
            "\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
            "\"local_first\":true,\"telemetry\":\"off\"}",
            code, content_esc);
   return 0;
@@ -785,7 +786,7 @@ fail:
            "\"llm_is_commander\":false,\"commander_is_model\":false,"
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
            "\"local_first\":true}",
            err ? err : "down", port);
   return 0;
