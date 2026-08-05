@@ -21,6 +21,37 @@ static void usage(void) {
           "  heartbeat-ack\n");
 }
 
+/* Dual-wire deny plates — no free-text prose on the machine wire. */
+static const char k_need_form_args[] =
+    "{\"schema\":\"grokium.contract_form.v1\",\"ok\":false,"
+    "\"error\":\"need_assignee_and_task\",\"product_wire\":\"smx2\","
+    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
+    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+    "\"llm_is_commander\":false,"
+    "\"hint\":\"form --assignee ID --task TEXT\"}";
+
+static const char k_form_failed[] =
+    "{\"schema\":\"grokium.contract_form.v1\",\"ok\":false,"
+    "\"error\":\"form_failed\",\"product_wire\":\"smx2\","
+    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
+    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+    "\"llm_is_commander\":false}";
+
+static const char k_need_path[] =
+    "{\"schema\":\"grokium.contract_validate.v1\",\"ok\":false,"
+    "\"error\":\"need_path\",\"product_wire\":\"smx2\","
+    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
+    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+    "\"llm_is_commander\":false,"
+    "\"hint\":\"validate PATH [--bits 01…]\"}";
+
+static const char k_contract_not_found[] =
+    "{\"schema\":\"grokium.contract_validate.v1\",\"ok\":false,"
+    "\"error\":\"contract_not_found\",\"product_wire\":\"smx2\","
+    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
+    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+    "\"llm_is_commander\":false}";
+
 int main(int argc, char **argv) {
   if (argc < 2) { usage(); return 2; }
 
@@ -90,12 +121,12 @@ int main(int argc, char **argv) {
         sha = argv[++i];
     }
     if (!assignee || !task) {
-      fprintf(stderr, "form needs --assignee and --task\n");
+      printf("%s\n", k_need_form_args);
       return 2;
     }
     if (grokium_contract_form(&c, NULL, assignee, task, digit, min_set, sha) !=
         0) {
-      fprintf(stderr, "form failed\n");
+      printf("%s\n", k_form_failed);
       return 1;
     }
     printf("{\"schema\":\"grokium.contract_form.v1\",\"ok\":true,"
@@ -117,7 +148,7 @@ int main(int argc, char **argv) {
     const char *bits = NULL;
     int i, rc, dig;
     if (!path) {
-      usage();
+      printf("%s\n", k_need_path);
       return 2;
     }
     for (i = 3; i < argc; i++) {
@@ -127,7 +158,7 @@ int main(int argc, char **argv) {
         FILE *f = fopen(argv[++i], "r");
         static char buf[600];
         if (!f) {
-          perror("bits-file");
+          printf("%s\n", k_contract_not_found);
           return 1;
         }
         if (!fgets(buf, sizeof buf, f)) buf[0] = 0;
@@ -136,7 +167,7 @@ int main(int argc, char **argv) {
       }
     }
     if (grokium_contract_load(&c, path) != 0) {
-      fprintf(stderr, "load failed\n");
+      printf("%s\n", k_contract_not_found);
       return 1;
     }
     smx_clear(&m, "result");

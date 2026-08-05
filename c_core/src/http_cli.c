@@ -502,6 +502,58 @@ static int selftest(void) {
       fails++;
     }
   }
+  /* Empty form body → schema-scoped need_json_body dual-wire */
+  if (http_post("127.0.0.1", port, "/v1/contract/form", "", resp, sizeof resp) <
+      0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "400") && !strstr(b, "need_json_body")) ||
+        !strstr(b, "\"schema\":\"grokium.contract_form.v1\"") ||
+        !strstr(b, "\"error\":\"need_json_body\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"hold_flash\":1") ||
+        strstr(b, "\"schema\":\"grokium.error.v1\"")) {
+      fprintf(stderr, "selftest: contract form need_json dual-wire fail: %.400s\n",
+              b);
+      fails++;
+    }
+  }
+  /* Missing assignee/task → need_assignee_and_task dual-wire */
+  if (http_post("127.0.0.1", port, "/v1/contract/form", "{\"task\":\"only\"}",
+                resp, sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "400") && !strstr(b, "need_assignee_and_task")) ||
+        !strstr(b, "\"schema\":\"grokium.contract_form.v1\"") ||
+        !strstr(b, "\"error\":\"need_assignee_and_task\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"hold_flash\":1")) {
+      fprintf(stderr,
+              "selftest: contract form need_args dual-wire fail: %.400s\n", b);
+      fails++;
+    }
+  }
+  /* validate missing path → need_path dual-wire */
+  if (http_post("127.0.0.1", port, "/v1/contract/validate", "{}", resp,
+                sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "400") && !strstr(b, "need_path")) ||
+        !strstr(b, "\"schema\":\"grokium.contract_validate.v1\"") ||
+        !strstr(b, "\"error\":\"need_path\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"hold_flash\":1")) {
+      fprintf(stderr, "selftest: contract validate need_path fail: %.400s\n",
+              b);
+      fails++;
+    }
+  }
   if (http_post("127.0.0.1", port, "/v1/contract/form",
                 "{\"assignee\":\"nb-worker-1\",\"task\":\"map tool loop\","
                 "\"min_set\":1}",

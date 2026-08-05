@@ -1685,7 +1685,14 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       return;
     }
     if (!body || body_n == 0) {
-      http_reply_err(cfd, 400, "need_json_body");
+      /* Schema-scoped dual-wire (match CLI contract form deny). */
+      http_reply(cfd, 400, "application/json",
+                 "{\"schema\":\"grokium.contract_form.v1\",\"ok\":false,"
+                 "\"error\":\"need_json_body\",\"product_wire\":\"smx2\","
+                 "\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false,"
+                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                 "\"llm_is_commander\":false}");
       return;
     }
     assignee[0] = task[0] = sha[0] = 0;
@@ -1696,13 +1703,25 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     digit = json_get_int(body, body_n, "digit", -1);
     min_set = json_get_int(body, body_n, "min_set", 0);
     if (!assignee[0] || !task[0]) {
-      http_reply_err(cfd, 400, "need_assignee_and_task");
+      http_reply(cfd, 400, "application/json",
+                 "{\"schema\":\"grokium.contract_form.v1\",\"ok\":false,"
+                 "\"error\":\"need_assignee_and_task\","
+                 "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false,"
+                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                 "\"llm_is_commander\":false}");
       return;
     }
     snprintf(cdir, sizeof cdir, "%s/contracts", root);
     if (grokium_contract_form(&c, cdir, assignee, task, digit, min_set,
                               sha[0] ? sha : NULL) != 0) {
-      http_reply_err(cfd, 500, "form_failed");
+      http_reply(cfd, 500, "application/json",
+                 "{\"schema\":\"grokium.contract_form.v1\",\"ok\":false,"
+                 "\"error\":\"form_failed\",\"product_wire\":\"smx2\","
+                 "\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false,"
+                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                 "\"llm_is_commander\":false}");
       return;
     }
     /* Lab/ops contract form plate; product bus remains SMX2. */
@@ -1730,18 +1749,36 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       return;
     }
     if (!body || body_n == 0) {
-      http_reply_err(cfd, 400, "need_json_body");
+      http_reply(cfd, 400, "application/json",
+                 "{\"schema\":\"grokium.contract_validate.v1\",\"ok\":false,"
+                 "\"error\":\"need_json_body\",\"product_wire\":\"smx2\","
+                 "\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false,"
+                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                 "\"llm_is_commander\":false}");
       return;
     }
     cpath[0] = bits[0] = 0;
     json_get_str(body, body_n, "path", cpath, sizeof cpath);
     json_get_str(body, body_n, "bits", bits, sizeof bits);
     if (!cpath[0]) {
-      http_reply_err(cfd, 400, "need_path");
+      http_reply(cfd, 400, "application/json",
+                 "{\"schema\":\"grokium.contract_validate.v1\",\"ok\":false,"
+                 "\"error\":\"need_path\",\"product_wire\":\"smx2\","
+                 "\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false,"
+                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                 "\"llm_is_commander\":false}");
       return;
     }
     if (grokium_contract_load(&c, cpath) != 0) {
-      http_reply_err(cfd, 404, "contract_not_found");
+      http_reply(cfd, 404, "application/json",
+                 "{\"schema\":\"grokium.contract_validate.v1\",\"ok\":false,"
+                 "\"error\":\"contract_not_found\",\"product_wire\":\"smx2\","
+                 "\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false,"
+                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                 "\"llm_is_commander\":false}");
       return;
     }
     smx_clear(&m, "validate");
