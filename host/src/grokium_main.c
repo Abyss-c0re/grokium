@@ -756,10 +756,30 @@ int main(int argc, char **argv) {
   }
   if (strcmp(cmd, "compat") == 0) {
     gkx_version_state st;
+    char official[64];
+    size_t i, o = 0;
+    int rc;
     gkx_version_init(&st, root);
-    gkx_version_refresh(&st, root);
-    printf("official_cli=%s changed=%d\n", st.official, st.changed);
-    return 0;
+    rc = gkx_version_refresh(&st, root);
+    /* Sanitize version token for JSON (no free-text / inject). */
+    for (i = 0; st.official[i] && o + 1 < sizeof official; i++) {
+      unsigned char c = (unsigned char)st.official[i];
+      if (isalnum(c) || c == '.' || c == '-' || c == '_')
+        official[o++] = (char)c;
+    }
+    official[o] = 0;
+    if (!official[0]) snprintf(official, sizeof official, "none");
+    /* Match on-disk grok_build_compat dual-wire plate (CLI version ≠ product). */
+    printf("{\"schema\":\"grokium.version_compat.v1\",\"ok\":%s,"
+           "\"reported_grok_build_version\":\"%s\","
+           "\"grokium_version\":\"%s\",\"changed\":%s,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false,\"model_is_not_commander\":true}\n",
+           rc == 0 ? "true" : "false", official, GROKIUM_VERSION,
+           st.changed ? "true" : "false");
+    return rc == 0 ? 0 : 1;
   }
   if (strcmp(cmd, "hub") == 0) {
     const char *sub = (ai + 1 < argc) ? argv[ai + 1] : "status";
