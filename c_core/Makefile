@@ -74,6 +74,18 @@ test-commander: $(BIN_CMD)
 	echo "$$V" | grep -q '"ok":true'; \
 	echo "$$V" | grep -q '"llm_is_commander":false'; \
 	if $(BIN_CMD) verify --law-dir $$D --device nb-test --action override_rules --nonce $$NONCE --ts $$TS --sig $$(printf '00%.0s' {1..128}); then echo FORGE_LEAK; exit 1; fi; \
+	H=$(BUILD)/nb_home_test; rm -rf $$H; \
+	I=$$($(BIN_CMD) install-law --law-dir $$D --home $$H --bot nb-test --purpose dual_wire); \
+	echo "$$I" | grep -q '"product_wire":"smx2"'; \
+	echo "$$I" | grep -q '"llm_is_commander":false'; \
+	L=$$H/law/COMMANDER_LAW.json; test -f $$L; \
+	grep -q '"product_wire": "smx2"' $$L; \
+	grep -q '"peer_http": "lab_ops_only"' $$L; \
+	grep -q '"peer_http_is_product_bus": false' $$L; \
+	grep -q '"llm_is_commander": false' $$L; \
+	grep -q '"model_is_not_commander": true' $$L; \
+	grep -q '"share": "state_matrix_only"' $$L; \
+	grep -q '"hold_flash": 1' $$L; \
 	echo COMMANDER_LAW_OK
 
 test-filter: $(BIN_FILTER)
