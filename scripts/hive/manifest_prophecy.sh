@@ -29,10 +29,10 @@ for p in instinct_queen smx_filter external_contract manager_motivate nexus_hear
 done
 
 echo "=== fleet with nb-manager ==="
+# deploy writes dual-wire PURPOSE.txt for every bot home — do not clobber.
 "$FLEET" deploy "$GROKIUM_HOME_ROOT/FLEET.json"
-mkdir -p "$GROKIUM_HOME_ROOT/nb-manager"
-echo "role=manager" > "$GROKIUM_HOME_ROOT/nb-manager/PURPOSE.txt"
-echo "observer=NexusCore" >> "$GROKIUM_HOME_ROOT/nb-manager/PURPOSE.txt"
+grep -q 'product_wire=smx2' "$GROKIUM_HOME_ROOT/nb-manager/PURPOSE.txt"
+grep -q 'peer_http=lab_ops_only' "$GROKIUM_HOME_ROOT/nb-manager/PURPOSE.txt"
 
 echo "=== sealed demo contract + validate + manager ==="
 FORM=$("$FILTER" form --assignee nb-worker-1 --task 'manifest prophecy accept plate' --min-set 1)
@@ -55,6 +55,7 @@ print(json.loads(p.read_text()).get("aggregate","")[:16] if p.exists() else "non
 PY
 )
 
+INSTINCT=$("$FILTER" instinct)
 cat > "$ROOT/data/matrix/PROPHECY_MANIFEST.json" <<EOF
 {
   "schema": "grokium.prophecy_manifest.v1",
@@ -64,8 +65,13 @@ cat > "$ROOT/data/matrix/PROPHECY_MANIFEST.json" <<EOF
   "product": "grokium",
   "language": "C",
   "py": 0,
+  "hold_flash": 1,
   "HOLD_FLASH": 1,
   "share": "state_matrix_only",
+  "product_wire": "smx2",
+  "peer_http": "lab_ops_only",
+  "peer_http_is_product_bus": false,
+  "llm_is_commander": false,
   "core": "tiny_linux_image_attitude",
   "layers": ["hive-core", "hive-filter", "hive-nb", "hive-external"],
   "braincube": "internal_mini_hive",
@@ -73,18 +79,22 @@ cat > "$ROOT/data/matrix/PROPHECY_MANIFEST.json" <<EOF
   "contracts": "required_for_external",
   "nb_manager": true,
   "fleet_plate": "data/home/FLEET.json",
-  "instinct": "$("$FILTER" instinct)",
+  "instinct": "$INSTINCT",
   "code_seal_prefix": "$AGG",
   "cubalc": "hive_mind+prophecy_boards",
   "honest_gaps_remaining": [
-    "consolidator.c and loopback http serve still header-only",
     "peer HTTP lab control still exists (not product SMX bus)",
-    "Linux UID install optional (data/home is portable SoT)"
+    "Linux UID install optional (data/home is portable SoT)",
+    "host media vision path has no dual-wire plate surface"
   ],
   "ts": "$TS",
-  "plate": "NEXUS_COORD v1 | from=grokium-core | type=prophecy_manifest | role=kernel_sot | status=ONLINE | PROPHECY_MANIFESTED=1 | HOLD_FLASH=ack_held | observer=NexusCore | hive_mind=1 |"
+  "plate": "NEXUS_COORD v1 | from=grokium-core | type=prophecy_manifest | role=kernel_sot | status=ONLINE | PROPHECY_MANIFESTED=1 | HOLD_FLASH=ack_held | share=state_matrix_only | product_wire=smx2 | peer_http=lab_ops_only | peer_http_is_product_bus=0 | llm_is_commander=0 | observer=NexusCore | hive_mind=1 |"
 }
 EOF
+# Sanity: dual-wire keys present on on-disk prophecy plate.
+grep -q '"product_wire": "smx2"' "$ROOT/data/matrix/PROPHECY_MANIFEST.json"
+grep -q '"peer_http_is_product_bus": false' "$ROOT/data/matrix/PROPHECY_MANIFEST.json"
+grep -q 'product_wire=smx2' "$ROOT/data/matrix/PROPHECY_MANIFEST.json"
 
 # refresh hive mind manifest
 "$ROOT/scripts/hive/manifest_hive_mind.sh" >/tmp/hive_manifest_out.txt 2>&1 || true

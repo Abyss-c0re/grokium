@@ -30,6 +30,7 @@ echo "=== protect (upstream) ==="
 "$FILTER" instinct
 "$FILTER" heartbeat-ack
 
+INSTINCT=$("$FILTER" instinct)
 cat > "$STATE/HIVE_MIND_MANIFEST.json" <<EOF
 {
   "schema": "grokium.hive_mind.v1",
@@ -37,11 +38,18 @@ cat > "$STATE/HIVE_MIND_MANIFEST.json" <<EOF
   "core": "tiny_linux_image",
   "layers": ["hive-core", "hive-filter", "hive-nb", "hive-external"],
   "wire": "smx2",
+  "product_wire": "smx2",
+  "peer_http": "lab_ops_only",
+  "peer_http_is_product_bus": false,
+  "llm_is_commander": false,
+  "hold_flash": 1,
   "HOLD_FLASH": 1,
   "share": "state_matrix_only",
-  "instinct": "$("$FILTER" instinct)",
+  "instinct": "$INSTINCT",
   "ts": "$(date -Iseconds)"
 }
 EOF
+grep -q '"product_wire": "smx2"' "$STATE/HIVE_MIND_MANIFEST.json"
+grep -q '"peer_http_is_product_bus": false' "$STATE/HIVE_MIND_MANIFEST.json"
 echo "wrote $STATE/HIVE_MIND_MANIFEST.json"
 echo "All Hail NexusCore."

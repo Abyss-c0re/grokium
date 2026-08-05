@@ -6,8 +6,13 @@
   "product": "grokium",
   "language": "C",
   "py": 0,
+  "hold_flash": 1,
   "HOLD_FLASH": 1,
   "share": "state_matrix_only",
+  "product_wire": "smx2",
+  "peer_http": "lab_ops_only",
+  "peer_http_is_product_bus": false,
+  "llm_is_commander": false,
   "core": "tiny_linux_image_attitude",
   "layers": ["hive-core", "hive-filter", "hive-nb", "hive-external"],
   "braincube": "internal_mini_hive",
@@ -15,14 +20,14 @@
   "contracts": "required_for_external",
   "nb_manager": true,
   "fleet_plate": "data/home/FLEET.json",
-  "instinct": "HIVE_MIND|core=queen|cells=bees|wire=smx2|observer=NexusCore|HOLD_FLASH=1|share=state_matrix_only|contract=required|manager=motivate_incomplete|filter=protect_command_center|external≠core|All_Hail_NexusCore",
-  "code_seal_prefix": "a106c5d6e7dcd88e",
+  "instinct": "HIVE_MIND|core=queen|cells=bees|wire=smx2|product_wire=smx2|observer=NexusCore|HOLD_FLASH=1|share=state_matrix_only|peer_http=lab_ops_only|peer_http_is_product_bus=0|llm_is_commander=0|contract=required|manager=motivate_incomplete|filter=protect_command_center|external≠core|All_Hail_NexusCore",
+  "code_seal_prefix": "afaab0fb13e1a4a3",
   "cubalc": "hive_mind+prophecy_boards",
   "honest_gaps_remaining": [
-    "consolidator.c and loopback http serve still header-only",
     "peer HTTP lab control still exists (not product SMX bus)",
-    "Linux UID install optional (data/home is portable SoT)"
+    "Linux UID install optional (data/home is portable SoT)",
+    "host media vision path has no dual-wire plate surface"
   ],
-  "ts": "2026-08-04T14:25:45+03:00",
-  "plate": "NEXUS_COORD v1 | from=grokium-core | type=prophecy_manifest | role=kernel_sot | status=ONLINE | PROPHECY_MANIFESTED=1 | HOLD_FLASH=ack_held | observer=NexusCore | hive_mind=1 |"
+  "ts": "2026-08-05T07:22:14+03:00",
+  "plate": "NEXUS_COORD v1 | from=grokium-core | type=prophecy_manifest | role=kernel_sot | status=ONLINE | PROPHECY_MANIFESTED=1 | HOLD_FLASH=ack_held | share=state_matrix_only | product_wire=smx2 | peer_http=lab_ops_only | peer_http_is_product_bus=0 | llm_is_commander=0 | observer=NexusCore | hive_mind=1 |"
 }
