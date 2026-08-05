@@ -585,11 +585,25 @@ static int run_prog_capture(const char *name) {
   char prog[PATH_MAX];
   snprintf(prog, sizeof prog, "%s/%s", prog_dir, name);
   if (access(prog, R_OK) != 0) {
-    log_add("! missing cubalc program");
+    /* Machine missing_program — dual-wire honesty (no free-text-only). */
+    log_add("{\"schema\":\"grokium.cubalc.v1\",\"ok\":false,"
+            "\"error\":\"missing_program\",\"product_wire\":\"smx2\","
+            "\"peer_http\":\"lab_ops_only\","
+            "\"peer_http_is_product_bus\":false,"
+            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+            "\"llm_is_commander\":false,"
+            "\"hint\":\"cubalc/programs/<name.cubalc>\"}");
     return 2;
   }
   if (!file_ok(cubalc_bin)) {
-    log_add("! CubalC missing (optional)");
+    log_add("{\"schema\":\"grokium.cubalc.v1\",\"ok\":false,"
+            "\"error\":\"missing_binary\",\"product_wire\":\"smx2\","
+            "\"peer_http\":\"lab_ops_only\","
+            "\"peer_http_is_product_bus\":false,"
+            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+            "\"llm_is_commander\":false,"
+            "\"optional\":true,"
+            "\"hint\":\"./scripts/sync_cubalc.sh && make -C deps/cubalc all\"}");
     return 99;
   }
   int pipefd[2];
@@ -639,7 +653,14 @@ static int run_c_core_capture(const char *name, char *const args[]) {
   if (!name || !args) return -1;
   snprintf(bin, sizeof bin, "%s/build/%s", root, name);
   if (access(bin, X_OK) != 0) {
-    log_add("! missing build tool — make -C c_core all");
+    /* Machine missing_c_core — dual-wire honesty (no free-text-only). */
+    log_add("{\"schema\":\"grokium.tool.v1\",\"ok\":false,"
+            "\"error\":\"missing_c_core\",\"product_wire\":\"smx2\","
+            "\"peer_http\":\"lab_ops_only\","
+            "\"peer_http_is_product_bus\":false,"
+            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+            "\"llm_is_commander\":false,"
+            "\"hint\":\"make -C c_core all\"}");
     return 99;
   }
   av[n++] = bin;
