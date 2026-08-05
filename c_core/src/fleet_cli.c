@@ -24,6 +24,53 @@ static void usage(void) {
           "  selftest  — pure-C pid/status honesty (no spawn)\n");
 }
 
+/* Dual-wire deny plates — no free-text usage on machine wire. */
+static const char k_need_bot_id[] =
+    "{\"schema\":\"grokium.fleet_spawn.v1\",\"ok\":false,"
+    "\"error\":\"need_bot_id\",\"product_wire\":\"smx2\","
+    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
+    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+    "\"llm_is_commander\":false,"
+    "\"hint\":\"pass bot id e.g. nb-manager\"}";
+
+static const char k_spawn_failed[] =
+    "{\"schema\":\"grokium.fleet_spawn.v1\",\"ok\":false,"
+    "\"error\":\"spawn_failed\",\"product_wire\":\"smx2\","
+    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
+    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+    "\"llm_is_commander\":false}";
+
+static const char k_need_note_args[] =
+    "{\"schema\":\"grokium.fleet_note_pid.v1\",\"ok\":false,"
+    "\"error\":\"need_bot_id_pid\",\"product_wire\":\"smx2\","
+    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
+    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+    "\"llm_is_commander\":false,"
+    "\"hint\":\"note-pid BOT_ID PID [path]\"}";
+
+static const char k_need_separate_id[] =
+    "{\"schema\":\"grokium.fleet_separate.v1\",\"ok\":false,"
+    "\"error\":\"need_bot_id\",\"product_wire\":\"smx2\","
+    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
+    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+    "\"llm_is_commander\":false}";
+
+static const char k_unknown_bot[] =
+    "{\"schema\":\"grokium.fleet_error.v1\",\"ok\":false,"
+    "\"error\":\"unknown_bot\",\"product_wire\":\"smx2\","
+    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
+    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+    "\"llm_is_commander\":false}";
+
+static int plate_dual_wire_ok(const char *p) {
+  return p && strstr(p, "\"product_wire\":\"smx2\"") &&
+         strstr(p, "\"peer_http\":\"lab_ops_only\"") &&
+         strstr(p, "\"peer_http_is_product_bus\":false") &&
+         strstr(p, "\"llm_is_commander\":false") &&
+         strstr(p, "\"hold_flash\":1") &&
+         strstr(p, "\"share\":\"state_matrix_only\"");
+}
+
 /* Pure-C plate honesty: defaults, note-pid, dead-pid clear, dual-wire fields. */
 static int fleet_selftest(void) {
   gk_fleet F;
@@ -81,6 +128,15 @@ static int fleet_selftest(void) {
       fprintf(stderr, "selftest: PURPOSE dual-wire fail: %.200s\n", pb);
       return 1;
     }
+  }
+  /* Deny plates dual-wire (spawn/note/separate missing args). */
+  if (!strstr(k_need_bot_id, "\"error\":\"need_bot_id\"") ||
+      !plate_dual_wire_ok(k_need_bot_id) || !plate_dual_wire_ok(k_spawn_failed) ||
+      !plate_dual_wire_ok(k_need_note_args) ||
+      !plate_dual_wire_ok(k_need_separate_id) ||
+      !plate_dual_wire_ok(k_unknown_bot)) {
+    fprintf(stderr, "selftest: fleet deny plate dual-wire fail\n");
+    return 1;
   }
   self_pid = (int)getpid();
   if (fleet_note_pid(&F, "nb-manager", self_pid) != 0) {
@@ -236,13 +292,13 @@ int main(int argc, char **argv) {
   if (!strcmp(argv[1], "spawn")) {
     int i;
     if (argc < 3) {
-      fprintf(stderr, "usage: grokium-fleet spawn BOT_ID [path]\n");
+      printf("%s\n", k_need_bot_id);
       return 2;
     }
     if (argc > 3) path = argv[3];
     fleet_load(&F, path);
     if (fleet_spawn(&F, argv[2]) != 0) {
-      fprintf(stderr, "spawn failed (binary=%s id=%s)\n", F.binary, argv[2]);
+      printf("%s\n", k_spawn_failed);
       return 1;
     }
     fleet_save(&F, path);
@@ -262,6 +318,7 @@ int main(int argc, char **argv) {
              strcmp(F.bots[i].id, "nb-manager") == 0 ? "smx_motivate" : "smx2");
       return 0;
     }
+    printf("%s\n", k_unknown_bot);
     return 1;
   }
   if (!strcmp(argv[1], "spawn-all")) {
@@ -283,14 +340,14 @@ int main(int argc, char **argv) {
   if (!strcmp(argv[1], "note-pid")) {
     int pid, i;
     if (argc < 4) {
-      fprintf(stderr, "usage: grokium-fleet note-pid BOT_ID PID [path]\n");
+      printf("%s\n", k_need_note_args);
       return 2;
     }
     if (argc > 4) path = argv[4];
     fleet_load(&F, path);
     pid = atoi(argv[3]);
     if (fleet_note_pid(&F, argv[2], pid) != 0) {
-      fprintf(stderr, "unknown bot id\n");
+      printf("%s\n", k_unknown_bot);
       return 1;
     }
     fleet_save(&F, path);
@@ -308,18 +365,19 @@ int main(int argc, char **argv) {
              F.bots[i].running ? "running" : "separated", path);
       return 0;
     }
+    printf("%s\n", k_unknown_bot);
     return 1;
   }
   if (!strcmp(argv[1], "separate")) {
     int i;
     if (argc < 3) {
-      fprintf(stderr, "usage: grokium-fleet separate BOT_ID [path]\n");
+      printf("%s\n", k_need_separate_id);
       return 2;
     }
     if (argc > 3) path = argv[3];
     fleet_load(&F, path);
     if (fleet_separate(&F, argv[2]) != 0) {
-      fprintf(stderr, "unknown bot id\n");
+      printf("%s\n", k_unknown_bot);
       return 1;
     }
     fleet_save(&F, path);
@@ -335,6 +393,7 @@ int main(int argc, char **argv) {
              F.bots[i].id, path);
       return 0;
     }
+    printf("%s\n", k_unknown_bot);
     return 1;
   }
   if (!strcmp(argv[1], "stop-all")) {
