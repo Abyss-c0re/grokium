@@ -9,6 +9,7 @@
 #include "grokium_integrity.h"
 #include "grokium_session.h"
 #include "grokium_smx_filter.h"
+#include "grokium_status_plate.h"
 #include "sha256.h"
 #include <arpa/inet.h>
 #include <dirent.h>
@@ -520,25 +521,10 @@ static int load_commander(const char *data_root, gk_commander *C) {
 
 static void json_status(const grokium_law *L, const gk_consolidator *C,
                         const gk_fleet *F, int alive, char *out, size_t cap) {
-  char grade_tok[32];
-  /* Match host gkx_status_plate_json dual-wire honesty (Commander ≠ model). */
-  machine_token(C ? C->grade : "EMPTY", grade_tok, sizeof grade_tok);
-  if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
-  snprintf(out, cap,
-           "{\"schema\":\"grokium.status.v1\","
-           "\"ok\":true,\"product\":\"grokium\","
-           "\"control_plane\":\"loopback_http\","
-           "\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\","
-           "\"hold_flash\":%d,\"telemetry\":\"off\","
-           "\"fleet_n\":%d,\"fleet_alive\":%d,"
-           "\"matrix_bits\":%u,\"grade\":\"%s\","
-           "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-           "\"commander\":\"ed25519\",\"python\":0,\"host\":\"C\"}",
-           L ? L->hold_flash : 1, F ? F->n : 0, alive,
-           C ? C->matrix.bits_set : 0, grade_tok);
+  /* Shared dual-wire plate (host CLI/TUI use same formatter). */
+  (void)gk_status_plate_json("loopback_http", L ? L->hold_flash : 1,
+                             F ? F->n : 0, alive, C ? C->matrix.bits_set : 0,
+                             C ? C->grade : "EMPTY", out, cap);
 }
 
 static void json_matrix(const gk_consolidator *C, char *out, size_t cap) {

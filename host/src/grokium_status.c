@@ -3,6 +3,7 @@
  */
 #define _POSIX_C_SOURCE 200809L
 #include "grokium_status.h"
+#include "grokium_status_plate.h"
 #include <errno.h>
 #include <limits.h>
 #include <signal.h>
@@ -96,21 +97,10 @@ int gkx_status_plate_json(const char *repo_root, const char *control_plane,
   int fleet_n = 0, fleet_alive = 0;
   unsigned matrix_bits = 0;
   char grade[32];
-  const char *plane =
-      (control_plane && control_plane[0]) ? control_plane : "host";
   if (!out || cap < 64) return -1;
   gkx_status_fleet_probe(repo_root, &fleet_n, &fleet_alive);
   gkx_status_matrix_probe(repo_root, &matrix_bits, grade, sizeof grade);
-  snprintf(out, cap,
-           "{\"schema\":\"grokium.status.v1\",\"ok\":true,"
-           "\"product\":\"grokium\",\"control_plane\":\"%s\","
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"telemetry\":\"off\",\"fleet_n\":%d,\"fleet_alive\":%d,"
-           "\"matrix_bits\":%u,\"grade\":\"%s\","
-           "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-           "\"commander\":\"ed25519\",\"python\":0,\"host\":\"C\"}",
-           plane, fleet_n, fleet_alive, matrix_bits, grade);
-  return 0;
+  /* Shared c_core dual-wire formatter (match loopback GET /v1/status). */
+  return gk_status_plate_json(control_plane, 1, fleet_n, fleet_alive,
+                              matrix_bits, grade, out, cap);
 }

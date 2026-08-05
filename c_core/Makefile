@@ -14,7 +14,7 @@ CONS_SRC := src/consolidator_cli.c src/consolidator.c src/smx_filter.c \
 	src/smx.c src/algocube.c src/law.c src/sha256.c
 HTTP_SRC := src/http_cli.c src/http.c src/llama.c src/session.c \
 	src/consolidator.c src/fleet.c src/smx_filter.c src/smx.c src/algocube.c \
-	src/law.c src/sha256.c src/commander.c src/integrity.c
+	src/law.c src/status_plate.c src/sha256.c src/commander.c src/integrity.c
 INT_SRC := src/integrity_cli.c src/integrity.c src/sha256.c
 
 .PHONY: all clean test-commander test-filter hive test-consolidate test-serve \

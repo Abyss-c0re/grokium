@@ -38,7 +38,7 @@ SMX_FILTER_SRC := $(C_CORE)/src/smx_filter.c $(C_CORE)/src/law.c \
 SRCS := src/grokium_main.c src/grokium_tui.c src/grokium_chat.c \
 	src/grokium_config.c src/grokium_version.c src/grokium_hub.c \
 	src/grokium_media.c src/grokium_status.c \
-	$(C_CORE)/src/session.c $(SMX_FILTER_SRC)
+	$(C_CORE)/src/session.c $(C_CORE)/src/status_plate.c $(SMX_FILTER_SRC)
 
 .PHONY: all clean nanobot install test-status test-version-compat \
 	test-hub-status test-memory-seed test-media-plate test-session-plate \
@@ -59,9 +59,11 @@ out/grokium: $(SRCS) include/grokium.h include/grokium_chat.h include/grokium_co
 
 # Dual-wire status probes only — no nanobot/ncurses link.
 out/status_probe_selftest: tests/status_probe_selftest.c src/grokium_status.c \
-	include/grokium_status.h
+	include/grokium_status.h $(C_CORE)/src/status_plate.c \
+	$(C_CORE)/include/grokium_status_plate.h
 	@mkdir -p out
-	$(CC) $(CFLAGS) -o $@ tests/status_probe_selftest.c src/grokium_status.c
+	$(CC) $(CFLAGS) -o $@ tests/status_probe_selftest.c src/grokium_status.c \
+		$(C_CORE)/src/status_plate.c
 
 # Version compat plate dual-wire — no nanobot/ncurses link.
 out/version_compat_selftest: tests/version_compat_selftest.c \
