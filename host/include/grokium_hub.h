@@ -10,6 +10,13 @@ int gkx_hub_ensure(const gkx_config *cfg);
 /* Stop hub if we started it (pid file). */
 int gkx_hub_stop(void);
 
+/*
+ * Dual-wire hub stop ack plate (schema grokium.hub_status.v1).
+ * Call after gkx_hub_stop; stopped=true · product bus SMX2 · peer HTTP lab/ops.
+ * Host CLI + TUI /hub stop share this builder (no free-text-only usage).
+ */
+void gkx_hub_stop_json(char *buf, size_t n);
+
 /* Dual-wire hub status plate into buf; returns 0 if healthy (alive+http). */
 int gkx_hub_status(char *buf, size_t n);
 

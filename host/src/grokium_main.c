@@ -547,13 +547,11 @@ int main(int argc, char **argv) {
       return rc == 0 ? 0 : 1;
     }
     if (strcmp(sub, "stop") == 0) {
+      char plate[640];
       gkx_hub_stop();
-      printf("{\"schema\":\"grokium.hub_status.v1\",\"ok\":true,"
-             "\"stopped\":true,\"product_wire\":\"smx2\","
-             "\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"llm_is_commander\":false}\n");
+      /* Shared dual-wire stop ack (match TUI /hub stop). */
+      gkx_hub_stop_json(plate, sizeof plate);
+      printf("%s\n", plate);
       return 0;
     }
     if (strcmp(sub, "status") == 0 || strcmp(sub, "show") == 0 ||

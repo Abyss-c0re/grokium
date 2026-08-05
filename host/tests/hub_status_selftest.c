@@ -85,6 +85,21 @@ int main(void) {
   if (gkx_hub_status(plate, 8) == 0 && strlen(plate) >= 8)
     return fail("tiny buffer should not claim full health plate");
 
-  printf("HOST_HUB_STATUS_OK dual_wire=honest peer_http=lab_ops_only\n");
+  /* Shared stop ack plate (CLI + TUI /hub stop). */
+  gkx_hub_stop_json(plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.hub_status.v1\"") ||
+      !strstr(plate, "\"ok\":true") || !strstr(plate, "\"stopped\":true") ||
+      !strstr(plate, "\"alive\":false") || !strstr(plate, "\"http\":false") ||
+      !strstr(plate, "\"product_wire\":\"smx2\"") ||
+      !strstr(plate, "\"peer_http\":\"lab_ops_only\"") ||
+      !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+      !strstr(plate, "\"llm_is_commander\":false") ||
+      !strstr(plate, "\"hold_flash\":1") ||
+      !strstr(plate, "\"control_plane\":\"host_hub\"")) {
+    fprintf(stderr, "hub_status_selftest: stop plate fail: %s\n", plate);
+    return 1;
+  }
+
+  printf("HOST_HUB_STATUS_OK dual_wire=honest peer_http=lab_ops_only stop=1\n");
   return 0;
 }

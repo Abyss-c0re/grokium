@@ -184,6 +184,20 @@ int gkx_hub_stop(void) {
   return 0;
 }
 
+void gkx_hub_stop_json(char *buf, size_t n) {
+  if (!buf || n < 64) return;
+  /* Shared dual-wire stop ack: lab/ops peer HTTP ≠ product bus. */
+  snprintf(buf, n,
+           "{\"schema\":\"grokium.hub_status.v1\",\"ok\":true,"
+           "\"stopped\":true,\"pid\":0,\"alive\":false,\"http\":false,"
+           "\"control_plane\":\"host_hub\","
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false,\"llm_on_hot_path\":false,"
+           "\"python\":0}");
+}
+
 int gkx_hub_ensure(const gkx_config *cfg) {
   gkx_hub_apply_sched_env(cfg);
   if (hub_http_ok()) return 0;

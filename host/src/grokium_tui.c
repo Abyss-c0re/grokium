@@ -1735,8 +1735,11 @@ static void do_command(const char *raw) {
         log_add(plate);
       }
     } else if (rest[0] && strcmp(rest, "stop") == 0) {
+      char plate[640];
       gkx_hub_stop();
-      log_add("hub: stopped");
+      /* Shared dual-wire stop ack (match CLI hub stop). */
+      gkx_hub_stop_json(plate, sizeof plate);
+      log_add(plate);
     } else if (rest[0] && strcmp(rest, "status") != 0 &&
                strcmp(rest, "show") != 0 && strcmp(rest, "help") != 0 &&
                strcmp(rest, "?") != 0 && strcmp(rest, "compat") != 0) {
