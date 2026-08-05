@@ -105,6 +105,20 @@ int main(void) {
   if (strstr(plate, "\"error\"") || !plate_dual_wire(plate))
     return fail("empty list without error field");
 
-  printf("HOST_SESSION_PLATE_OK shared=c_core dual_wire=honest id_safe=ok meta_only=1\n");
+  /* Host CLI sessions help|-h|--help share this dual-wire help plate. */
+  if (gk_session_help_json(plate, sizeof plate) != 0)
+    return fail("session help");
+  if (!strstr(plate, "\"schema\":\"grokium.sessions.v1\"") ||
+      !strstr(plate, "\"ok\":false") ||
+      !strstr(plate, "\"error\":\"need_query_or_pickup\"") ||
+      !strstr(plate, "\"telemetry\":\"off\"") ||
+      !strstr(plate, "sessions pickup|load") ||
+      !strstr(plate, "no transcripts") || !plate_dual_wire(plate)) {
+    fprintf(stderr, "session_plate_selftest: help plate: %s\n", plate);
+    return 1;
+  }
+
+  printf("HOST_SESSION_PLATE_OK shared=c_core dual_wire=honest id_safe=ok "
+         "meta_only=1 help=1\n");
   return 0;
 }

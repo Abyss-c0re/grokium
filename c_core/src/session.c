@@ -149,6 +149,21 @@ int gk_session_list_empty_json(const char *q, const char *import_dir,
   return 0;
 }
 
+int gk_session_help_json(char *out, size_t cap) {
+  if (!out || cap < 64) return -1;
+  /* Shared dual-wire help: meta only · lab/ops ≠ product bus · no transcripts. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.sessions.v1\",\"ok\":false,"
+           "\"error\":\"need_query_or_pickup\",\"content\":\"meta_only\","
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false,\"telemetry\":\"off\","
+           "\"hint\":\"sessions [q] | sessions pickup|load <id> | no "
+           "transcripts\"}");
+  return 0;
+}
+
 static int json_get_str(const char *body, size_t n, const char *key, char *out,
                         size_t cap) {
   const char *p, *end, *q;

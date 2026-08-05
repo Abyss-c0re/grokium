@@ -75,6 +75,18 @@ int main(void) {
       strstr(plate, "im\"port") || !plate_dual_wire(plate))
     return fail("import_dir not escaped");
 
-  printf("C_CORE_SESSION_PLATE_OK dual_wire=honest id_safe=ok meta_only=1\n");
+  /* Host CLI sessions help shares the same dual-wire help builder. */
+  if (gk_session_help_json(plate, sizeof plate) != 0)
+    return fail("session help");
+  if (!strstr(plate, "\"schema\":\"grokium.sessions.v1\"") ||
+      !strstr(plate, "\"ok\":false") ||
+      !strstr(plate, "\"error\":\"need_query_or_pickup\"") ||
+      !strstr(plate, "\"telemetry\":\"off\"") ||
+      !strstr(plate, "sessions [q]") ||
+      !strstr(plate, "no transcripts") || !plate_dual_wire(plate))
+    return fail("session help dual-wire plate");
+
+  printf("C_CORE_SESSION_PLATE_OK dual_wire=honest id_safe=ok meta_only=1 "
+         "help=1\n");
   return 0;
 }

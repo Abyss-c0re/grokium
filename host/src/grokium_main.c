@@ -356,15 +356,10 @@ static int cmd_sessions(int argc, char **argv) {
   if (argc >= 1 &&
       (!strcmp(argv[0], "help") || !strcmp(argv[0], "-h") ||
        !strcmp(argv[0], "--help"))) {
-    /* Machine help plate — dual-wire honesty (no free-text-only usage). */
-    printf("{\"schema\":\"grokium.sessions.v1\",\"ok\":false,"
-           "\"error\":\"need_query_or_pickup\",\"content\":\"meta_only\","
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false,\"telemetry\":\"off\","
-           "\"hint\":\"sessions [q] · sessions pickup|load <id> · no "
-           "transcripts\"}\n");
+    char deny[768];
+    /* Shared c_core dual-wire help (meta_only · no free-text-only usage). */
+    if (gk_session_help_json(deny, sizeof deny) == 0)
+      printf("%s\n", deny);
     return 0;
   }
   if (argc >= 1) q = argv[0];

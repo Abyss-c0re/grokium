@@ -32,6 +32,13 @@ int gk_session_list_empty_json(const char *q, const char *import_dir,
                                const char *error, char *out, size_t cap);
 
 /*
+ * Dual-wire sessions help plate (CLI help|-h|--help).
+ * ok=false · need_query_or_pickup · content=meta_only · no transcripts.
+ * Host CLI sessions help shares this builder (no free-text-only usage).
+ */
+int gk_session_help_json(char *out, size_t cap);
+
+/*
  * List/search import metas under {data_root}/import (suffix .meta.json).
  * Meta only — never dumps chat transcripts. Fills dual-wire plate in out.
  */
