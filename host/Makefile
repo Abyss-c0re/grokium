@@ -12,8 +12,10 @@ endif
 NANOBOT_BUILD ?= $(NANOBOT_ROOT)/build/host
 NANOBOT_LIBDIR := $(NANOBOT_BUILD)/lib
 
-INCLUDES := -Iinclude -I$(NANOBOT_ROOT)/src -I$(NANOBOT_ROOT)/include \
-	-I$(NANOBOT_ROOT)/libs/sched -I$(NANOBOT_ROOT)/libs/provider
+C_CORE := $(ROOT)/c_core
+INCLUDES := -Iinclude -I$(C_CORE)/include -I$(NANOBOT_ROOT)/src \
+	-I$(NANOBOT_ROOT)/include -I$(NANOBOT_ROOT)/libs/sched \
+	-I$(NANOBOT_ROOT)/libs/provider
 CFLAGS += $(INCLUDES)
 
 LIBS := -L$(NANOBOT_LIBDIR) -Wl,--start-group \
@@ -31,7 +33,8 @@ endif
 
 SRCS := src/grokium_main.c src/grokium_tui.c src/grokium_chat.c \
 	src/grokium_config.c src/grokium_version.c src/grokium_hub.c \
-	src/grokium_media.c src/grokium_session.c src/grokium_status.c
+	src/grokium_media.c src/grokium_status.c \
+	$(C_CORE)/src/session.c
 
 .PHONY: all clean nanobot install test-status test-version-compat \
 	test-hub-status test-memory-seed test-media-plate test-session-plate test
@@ -45,7 +48,7 @@ nanobot:
 	  $(MAKE) -C "$(NANOBOT_ROOT)" host; \
 	fi
 
-out/grokium: $(SRCS) include/grokium.h include/grokium_chat.h include/grokium_config.h include/grokium_version.h include/grokium_hub.h include/grokium_media.h include/grokium_session.h include/grokium_status.h
+out/grokium: $(SRCS) include/grokium.h include/grokium_chat.h include/grokium_config.h include/grokium_version.h include/grokium_hub.h include/grokium_media.h include/grokium_status.h $(C_CORE)/include/grokium_session.h
 	@mkdir -p out
 	$(CC) $(CFLAGS) -o $@ $(SRCS) $(LIBS)
 
@@ -80,11 +83,11 @@ out/media_plate_selftest: tests/media_plate_selftest.c src/grokium_media.c \
 	$(CC) $(CFLAGS) -DGKX_MEDIA_NO_NANOBOT -o $@ \
 		tests/media_plate_selftest.c src/grokium_media.c
 
-# Session meta dual-wire honesty plates — no nanobot/ncurses link.
-out/session_plate_selftest: tests/session_plate_selftest.c src/grokium_session.c \
-	include/grokium_session.h
+# Session meta dual-wire honesty plates — shared pure-C c_core module.
+out/session_plate_selftest: tests/session_plate_selftest.c \
+	$(C_CORE)/src/session.c $(C_CORE)/include/grokium_session.h
 	@mkdir -p out
-	$(CC) $(CFLAGS) -o $@ tests/session_plate_selftest.c src/grokium_session.c
+	$(CC) $(CFLAGS) -o $@ tests/session_plate_selftest.c $(C_CORE)/src/session.c
 
 test-status: out/status_probe_selftest
 	@./out/status_probe_selftest

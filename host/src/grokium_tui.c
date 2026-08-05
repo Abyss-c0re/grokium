@@ -790,7 +790,7 @@ static void cmd_sessions_search(const char *q) {
   d = opendir(dir);
   if (!d) {
     /* Dual-wire empty plate (same contract as host CLI). */
-    if (gkx_session_list_empty_json(q ? q : "", dir, "no_import_dir", plate,
+    if (gk_session_list_empty_json(q ? q : "", dir, "no_import_dir", plate,
                                     sizeof plate) == 0)
       log_add(plate);
     else
@@ -825,7 +825,7 @@ static void cmd_sessions_search(const char *q) {
       if (tlen > 10) id[tlen - 10] = 0;
     }
     /* Drop non-hex ids so free-text/path names never hit the log wire. */
-    if (!gkx_session_id_safe(id)) continue;
+    if (!gk_session_id_safe(id)) continue;
     if (!title[0]) snprintf(title, sizeof title, "%s", id);
     if (strlen(title) > 48) title[48] = 0;
     snprintf(line, sizeof line, "%s | %s | %s | %s", id, title,
@@ -1069,13 +1069,13 @@ static void cmd_session_pickup(const char *id) {
   size_t nread;
   int resumed = 0;
   if (!id || !id[0]) {
-    if (gkx_session_pickup_deny_json(NULL, "need_session_id", plate,
+    if (gk_session_pickup_deny_json(NULL, "need_session_id", plate,
                                      sizeof plate) == 0)
       log_add(plate);
     return;
   }
-  if (!gkx_session_id_safe(id)) {
-    if (gkx_session_pickup_deny_json(NULL, "bad_session_id", plate,
+  if (!gk_session_id_safe(id)) {
+    if (gk_session_pickup_deny_json(NULL, "bad_session_id", plate,
                                      sizeof plate) == 0)
       log_add(plate);
     return;
@@ -1083,7 +1083,7 @@ static void cmd_session_pickup(const char *id) {
   snprintf(path, sizeof path, "%s/data/import/%s.meta.json", root, id);
   f = fopen(path, "r");
   if (!f) {
-    if (gkx_session_pickup_deny_json(id, "not_found", plate, sizeof plate) == 0)
+    if (gk_session_pickup_deny_json(id, "not_found", plate, sizeof plate) == 0)
       log_add(plate);
     return;
   }

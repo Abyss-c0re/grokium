@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0
- * Pure-C selftest for host session meta dual-wire plates (no nanobot).
+ * Pure-C selftest for shared c_core session dual-wire plates (no nanobot).
  */
 #define _POSIX_C_SOURCE 200809L
 #include "grokium_session.h"
@@ -24,17 +24,17 @@ static int plate_dual_wire(const char *plate) {
 int main(void) {
   char plate[768];
 
-  if (gkx_session_id_safe(NULL) || gkx_session_id_safe("") ||
-      gkx_session_id_safe("not a real id") ||
-      gkx_session_id_safe("../../etc/passwd") ||
-      gkx_session_id_safe("abc;rm"))
+  if (gk_session_id_safe(NULL) || gk_session_id_safe("") ||
+      gk_session_id_safe("not a real id") ||
+      gk_session_id_safe("../../etc/passwd") ||
+      gk_session_id_safe("abc;rm"))
     return fail("unsafe ids must reject");
-  if (!gkx_session_id_safe("a1b2c3d4") ||
-      !gkx_session_id_safe("A1B2-c3d4-ef00") ||
-      !gkx_session_id_safe("01234567-89ab-cdef-0123-456789abcdef"))
+  if (!gk_session_id_safe("a1b2c3d4") ||
+      !gk_session_id_safe("A1B2-c3d4-ef00") ||
+      !gk_session_id_safe("01234567-89ab-cdef-0123-456789abcdef"))
     return fail("safe hex/dash ids must accept");
 
-  if (gkx_session_pickup_deny_json(NULL, "bad_session_id", plate,
+  if (gk_session_pickup_deny_json(NULL, "bad_session_id", plate,
                                    sizeof plate) != 0)
     return fail("deny bad_session_id");
   if (!strstr(plate, "\"schema\":\"grokium.session_pickup.v1\"") ||
@@ -47,7 +47,7 @@ int main(void) {
   if (strstr(plate, "\"id\":"))
     return fail("bad_session_id must omit id field");
 
-  if (gkx_session_pickup_deny_json("deadbeef-01", "not_found", plate,
+  if (gk_session_pickup_deny_json("deadbeef-01", "not_found", plate,
                                    sizeof plate) != 0)
     return fail("deny not_found");
   if (!strstr(plate, "\"error\":\"not_found\"") ||
@@ -57,28 +57,28 @@ int main(void) {
   }
 
   /* Injection: free-text / path chars must not survive in the id field. */
-  if (gkx_session_pickup_deny_json("../evil;drop", "not_found", plate,
+  if (gk_session_pickup_deny_json("../evil;drop", "not_found", plate,
                                    sizeof plate) != 0)
     return fail("deny inject id");
   if (!strstr(plate, "\"id\":\"ed\"") || strstr(plate, "../") ||
       strstr(plate, "evil") || strstr(plate, ";drop"))
     return fail("id injection not sanitized");
 
-  if (gkx_session_pickup_deny_json(NULL, "need_session_id", plate,
+  if (gk_session_pickup_deny_json(NULL, "need_session_id", plate,
                                    sizeof plate) != 0)
     return fail("deny need_session_id");
   if (!strstr(plate, "\"error\":\"need_session_id\"") || !plate_dual_wire(plate))
     return fail("need_session_id dual-wire");
 
   /* Error token sanitize (path/prose → machine token). */
-  if (gkx_session_pickup_deny_json(NULL, "path/with:spaces", plate,
+  if (gk_session_pickup_deny_json(NULL, "path/with:spaces", plate,
                                    sizeof plate) != 0)
     return fail("deny err sanitize");
   if (!strstr(plate, "\"error\":\"path_with_spaces\"") ||
       strstr(plate, "path/with"))
     return fail("error token sanitize");
 
-  if (gkx_session_list_empty_json("q\"x", "/tmp/import", "no_import_dir",
+  if (gk_session_list_empty_json("q\"x", "/tmp/import", "no_import_dir",
                                   plate, sizeof plate) != 0)
     return fail("list empty");
   if (!strstr(plate, "\"schema\":\"grokium.sessions.v1\"") ||
@@ -91,12 +91,12 @@ int main(void) {
     return 1;
   }
 
-  if (gkx_session_list_empty_json("", "data/import", NULL, plate,
+  if (gk_session_list_empty_json("", "data/import", NULL, plate,
                                   sizeof plate) != 0)
     return fail("list empty no err");
   if (strstr(plate, "\"error\"") || !plate_dual_wire(plate))
     return fail("empty list without error field");
 
-  printf("HOST_SESSION_PLATE_OK dual_wire=honest id_safe=ok meta_only=1\n");
+  printf("HOST_SESSION_PLATE_OK shared=c_core dual_wire=honest id_safe=ok meta_only=1\n");
   return 0;
 }
