@@ -265,9 +265,11 @@ int grokium_contract_form(grokium_contract *out, const char *dir,
   snprintf(out->path, sizeof out->path, "%s", path);
   f = fopen(path, "w");
   if (!f) return -1;
+  /* On-disk contract plate: dual-wire honesty (SMX product bus ≠ peer HTTP). */
   fprintf(f,
           "{\n"
           "  \"schema\": \"grokium.contract.v1\",\n"
+          "  \"ok\": true,\n"
           "  \"id\": \"%s\",\n"
           "  \"assignee\": \"%s\",\n"
           "  \"issuer\": \"%s\",\n"
@@ -285,6 +287,11 @@ int grokium_contract_form(grokium_contract *out, const char *dir,
           "  \"deadline_ts\": %lld,\n"
           "  \"observer\": \"NexusCore\",\n"
           "  \"wire\": \"smx2\",\n"
+          "  \"product_wire\": \"smx2\",\n"
+          "  \"peer_http\": \"lab_ops_only\",\n"
+          "  \"peer_http_is_product_bus\": false,\n"
+          "  \"llm_is_commander\": false,\n"
+          "  \"share\": \"state_matrix_only\",\n"
           "  \"instinct\": \"%s\"\n"
           "}\n",
           out->id, out->assignee, out->issuer, out->task_digest,
@@ -416,9 +423,11 @@ static int rewrite_status(grokium_contract *c) {
   /* rewrite clean plate */
   f = fopen(c->path, "w");
   if (!f) return -1;
+  /* Rewrite keeps dual-wire honesty fields (lab/ops ≠ product bus). */
   fprintf(f,
           "{\n"
           "  \"schema\": \"grokium.contract.v1\",\n"
+          "  \"ok\": true,\n"
           "  \"id\": \"%s\",\n"
           "  \"assignee\": \"%s\",\n"
           "  \"issuer\": \"%s\",\n"
@@ -435,7 +444,12 @@ static int rewrite_status(grokium_contract *c) {
           "  \"motivate_ticks\": %d,\n"
           "  \"deadline_ts\": %lld,\n"
           "  \"observer\": \"NexusCore\",\n"
-          "  \"wire\": \"smx2\"\n"
+          "  \"wire\": \"smx2\",\n"
+          "  \"product_wire\": \"smx2\",\n"
+          "  \"peer_http\": \"lab_ops_only\",\n"
+          "  \"peer_http_is_product_bus\": false,\n"
+          "  \"llm_is_commander\": false,\n"
+          "  \"share\": \"state_matrix_only\"\n"
           "}\n",
           c->id, c->assignee, c->issuer, c->task_digest,
           c->accept_digit, c->accept_min_set,

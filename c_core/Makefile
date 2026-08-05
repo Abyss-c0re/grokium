@@ -95,7 +95,15 @@ test-filter: $(BIN_FILTER)
 	echo "$$J" | grep -q '"ok":true'; \
 	echo "$$J" | grep -q '"product_wire":"smx2"'; \
 	P=$$(echo "$$J" | sed -n 's/.*"path":"\([^"]*\)".*/\1/p'); \
+	test -n "$$P"; \
+	grep -q '"product_wire": "smx2"' "$$P"; \
+	grep -q '"peer_http": "lab_ops_only"' "$$P"; \
+	grep -q '"peer_http_is_product_bus": false' "$$P"; \
+	grep -q '"llm_is_commander": false' "$$P"; \
+	grep -q '"share": "state_matrix_only"' "$$P"; \
 	$(BIN_FILTER) validate "$$P" --bits 1 || true; \
+	grep -q '"product_wire": "smx2"' "$$P"; \
+	grep -q '"llm_is_commander": false' "$$P"; \
 	M=$$($(BIN_FILTER) manager-tick "$$D"); \
 	echo "$$M" | grep -q motivated; \
 	echo "$$M" | grep -q '"product_wire":"smx2"'; \
