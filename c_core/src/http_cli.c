@@ -700,10 +700,15 @@ static int selftest(void) {
     b = body_of(resp);
     if (!strstr(b, "\"ok\":true") || !strstr(b, "\"motivated\"") ||
         !strstr(b, "\"schema\":\"grokium.manager_tick.v1\"") ||
+        !strstr(b, "\"wire\":\"smx_motivate\"") ||
+        !strstr(b, "\"dir\":") ||
         !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_on_hot_path\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"share\":\"state_matrix_only\"")) {
       fprintf(stderr, "selftest: manager tick dual-wire fail: %.400s\n", b);
       fails++;
     }

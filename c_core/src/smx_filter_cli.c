@@ -113,15 +113,12 @@ int main(int argc, char **argv) {
   }
 
   if (!strcmp(argv[1], "manager-tick")) {
-    int n = grokium_manager_motivate_dir(argc > 2 ? argv[2] : NULL);
-    printf("{\"schema\":\"grokium.manager_tick.v1\",\"ok\":true,"
-           "\"motivated\":%d,\"observer\":\"NexusCore\","
-           "\"wire\":\"smx_motivate\",\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false}\n",
-           n);
+    char plate[1024];
+    const char *dir = argc > 2 ? argv[2] : NULL;
+    int n = grokium_manager_motivate_dir(dir);
+    /* Same dual-wire plate as GET/POST /v1/manager/tick. */
+    grokium_manager_tick_json(n, dir, plate, sizeof plate);
+    printf("%s\n", plate);
     return 0;
   }
 

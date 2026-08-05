@@ -141,9 +141,14 @@ test-filter: $(BIN_FILTER)
 	J2=$$($(BIN_FILTER) form --assignee nb-worker-2 --task 'incomplete for motivate' --min-set 99); \
 	echo "$$J2" | grep -q '"ok":true'; \
 	M=$$($(BIN_FILTER) manager-tick "$$D" 2>"$$D/motivate.err"); \
+	echo "$$M" | grep -q '"schema":"grokium.manager_tick.v1"'; \
 	echo "$$M" | grep -q '"motivated":1'; \
+	echo "$$M" | grep -q '"wire":"smx_motivate"'; \
+	echo "$$M" | grep -q '"dir":'; \
 	echo "$$M" | grep -q '"product_wire":"smx2"'; \
 	echo "$$M" | grep -q '"peer_http_is_product_bus":false'; \
+	echo "$$M" | grep -q '"llm_on_hot_path":false'; \
+	echo "$$M" | grep -q '"llm_is_commander":false'; \
 	grep -q 'NEXUS_COORD v1' "$$D/motivate.err"; \
 	grep -q 'from=nb-manager' "$$D/motivate.err"; \
 	grep -q 'type=motivate' "$$D/motivate.err"; \

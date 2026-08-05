@@ -67,6 +67,14 @@ int grokium_contract_validate(grokium_contract *c, const grokium_smx *result,
 /* Manager: tick motivate on all open/progress contracts in dir. Returns count. */
 int grokium_manager_motivate_dir(const char *dir);
 
+/*
+ * Dual-wire manager-tick ack (schema grokium.manager_tick.v1).
+ * Call after grokium_manager_motivate_dir; dir is JSON-escaped on the plate.
+ * CLI manager-tick and HTTP /v1/manager/tick share this plate.
+ */
+void grokium_manager_tick_json(int motivated, const char *dir, char *out,
+                               size_t cap);
+
 /* Instinct attitude line for core nanobot system memory (static string). */
 const char *grokium_hive_instinct_creed(void);
 

@@ -583,3 +583,43 @@ int grokium_manager_motivate_dir(const char *dir) {
   closedir(d);
   return n;
 }
+
+static void path_escape(const char *in, char *out, size_t cap) {
+  size_t o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in) return;
+  for (; *in && o + 2 < cap; in++) {
+    unsigned char c = (unsigned char)*in;
+    if (c == '"' || c == '\\') {
+      if (o + 3 >= cap) break;
+      out[o++] = '\\';
+      out[o++] = (char)c;
+    } else if (c < 0x20) {
+      continue;
+    } else {
+      out[o++] = (char)c;
+    }
+  }
+  out[o] = 0;
+}
+
+void grokium_manager_tick_json(int motivated, const char *dir, char *out,
+                               size_t cap) {
+  char dir_esc[640];
+  const char *root;
+  if (!out || cap < 64) return;
+  /* Prefer caller dir; else resolved contract root (matches motivate_dir). */
+  root = dir && dir[0] ? dir : contract_dir(NULL);
+  path_escape(root ? root : "", dir_esc, sizeof dir_esc);
+  /* Shared dual-wire plate: CLI manager-tick + HTTP /v1/manager/tick. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.manager_tick.v1\",\"ok\":true,"
+           "\"motivated\":%d,\"observer\":\"NexusCore\","
+           "\"dir\":\"%s\",\"wire\":\"smx_motivate\","
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"hold_flash\":1,\"share\":\"state_matrix_only\","
+           "\"llm_on_hot_path\":false,\"llm_is_commander\":false}",
+           motivated < 0 ? 0 : motivated, dir_esc);
+}

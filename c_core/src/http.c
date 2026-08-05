@@ -1211,7 +1211,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
   }
 
   if (!strcmp(path, "/v1/manager/tick") || !strcmp(path, "/v1/contract/manager-tick")) {
-    char cdir[400], cdir_esc[512];
+    char cdir[400];
     int n;
     if (strcmp(method, "POST") != 0 && strcmp(method, "GET") != 0) {
       http_reply_err(cfd, 405, "method");
@@ -1219,17 +1219,8 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     }
     contract_dir_for(root, cdir, sizeof cdir);
     n = grokium_manager_motivate_dir(cdir);
-    /* Manager motivates incomplete work; HTTP is lab/ops only. */
-    json_escape(cdir, cdir_esc, sizeof cdir_esc);
-    snprintf(resp, sizeof resp,
-             "{\"schema\":\"grokium.manager_tick.v1\",\"ok\":true,"
-             "\"motivated\":%d,\"observer\":\"NexusCore\","
-             "\"dir\":\"%s\",\"wire\":\"smx_motivate\","
-             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"hold_flash\":1,\"share\":\"state_matrix_only\","
-             "\"llm_on_hot_path\":false,\"llm_is_commander\":false}",
-             n, cdir_esc);
+    /* Shared manager-tick plate with smx-filter CLI (lab/ops only). */
+    grokium_manager_tick_json(n, cdir, resp, sizeof resp);
     http_reply(cfd, 200, "application/json", resp);
     return;
   }
