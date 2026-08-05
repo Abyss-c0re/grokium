@@ -1038,64 +1038,39 @@ static int session_resume_local(const char *id, const char *meta) {
 }
 
 static void cmd_session_pickup(const char *id) {
-  char path[PATH_MAX], meta[2048], line[320], plate[768];
-  char title[96], updated[48], model[48];
+  char data_root[PATH_MAX], path[PATH_MAX], meta[2048], line[320], plate[2048];
   FILE *f;
   size_t nread;
-  int resumed = 0;
+  int rc, resumed = 0;
+
+  /* Shared c_core dual-wire plate first (meta_only; never transcripts). */
   if (!id || !id[0]) {
     if (gk_session_pickup_deny_json(NULL, "need_session_id", plate,
                                      sizeof plate) == 0)
       log_add(plate);
     return;
   }
-  if (!gk_session_id_safe(id)) {
-    if (gk_session_pickup_deny_json(NULL, "bad_session_id", plate,
-                                     sizeof plate) == 0)
-      log_add(plate);
-    return;
-  }
+  snprintf(data_root, sizeof data_root, "%s/data", root);
+  rc = gk_session_pickup_json(data_root, id, plate, sizeof plate);
+  log_add("--- session pickup meta-only (shared plate) ---");
+  log_add(plate);
+  if (rc != 0) return;
+
+  /* Host-local resume only — not SMX product bus / not peer HTTP. */
   snprintf(path, sizeof path, "%s/data/import/%s.meta.json", root, id);
   f = fopen(path, "r");
-  if (!f) {
-    if (gk_session_pickup_deny_json(id, "not_found", plate, sizeof plate) == 0)
-      log_add(plate);
-    return;
-  }
+  if (!f) return;
   nread = fread(meta, 1, sizeof meta - 1, f);
   meta[nread] = 0;
   fclose(f);
-  title[0] = updated[0] = model[0] = 0;
-  meta_get_str(meta, "title", title, sizeof title);
-  meta_get_str(meta, "updated_at", updated, sizeof updated);
-  meta_get_str(meta, "model", model, sizeof model);
-  snprintf(line, sizeof line, "pickup> id=%s", id);
-  log_add(line);
-  if (title[0]) {
-    snprintf(line, sizeof line, "  title=%s", title);
-    log_add(line);
-  }
-  if (updated[0]) {
-    snprintf(line, sizeof line, "  updated=%s", updated);
-    log_add(line);
-  }
-  if (model[0]) {
-    snprintf(line, sizeof line, "  model=%s", model);
-    log_add(line);
-  }
   resumed = session_resume_local(id, meta);
   if (resumed > 0) {
     snprintf(line, sizeof line,
              "resume> loaded %d host-local msgs (user/asst, last %d cap)",
              resumed, RESUME_MAX_MSGS);
     log_add(line);
-    log_add("  host-local TUI + nanobot memory seed · not SMX product bus");
-    log_add("  share=state_matrix_only · product_wire=smx2 · hold_flash=1");
-    log_add("  peer_http=lab_ops_only · next agent turns use recent memory");
   } else {
-    log_add("  meta only · no chat_history.jsonl under import_path");
-    log_add("  share=state_matrix_only · product_wire=smx2 · hold_flash=1");
-    log_add("  peer_http=lab_ops_only · peer_http_is_product_bus=0");
+    log_add("resume> meta only · no host-local chat_history.jsonl");
   }
 }
 
