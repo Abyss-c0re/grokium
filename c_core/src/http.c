@@ -1387,9 +1387,16 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       snprintf(id, sizeof id, "%s", path + 13);
     }
     if (!id[0]) {
+      /* Meta-only deny plate: dual-wire honesty (lab/ops ≠ product bus). */
       http_reply(cfd, 400, "application/json",
-                 "{\"ok\":false,\"error\":\"need_session_id\","
-                 "\"content\":\"meta_only\",\"share\":\"state_matrix_only\"}");
+                 "{\"schema\":\"grokium.session_pickup.v1\",\"ok\":false,"
+                 "\"error\":\"need_session_id\","
+                 "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
+                 "\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false,"
+                 "\"llm_is_commander\":false,"
+                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                 "\"resume_available\":false}");
       return;
     }
     rc = session_pickup(root, id, resp, sizeof resp);
