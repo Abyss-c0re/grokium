@@ -76,6 +76,22 @@ int main(int argc, char **argv) {
     fprintf(stderr, "grokium-consolidate: filter deny dual-wire fail\n");
     return 1;
   }
+  /* Save ack builder: dual-wire + dir inject sanitize (no free-text-only). */
+  {
+    gk_consolidator tmp;
+    char savep[512];
+    gk_init(&tmp, "save-selfcheck");
+    snprintf(tmp.grade, sizeof tmp.grade, "OK");
+    gk_save_json(&tmp, "data/kn\"ow;x", savep, sizeof savep);
+    if (!plate_dual_wire_ok(savep) ||
+        !strstr(savep, "\"schema\":\"grokium.consolidator_save.v1\"") ||
+        !strstr(savep, "\"ok\":true") || !strstr(savep, "\"grade\":\"OK\"") ||
+        !strstr(savep, "data/kn\\\"ow;x") || strstr(savep, "kn\"ow")) {
+      fprintf(stderr, "grokium-consolidate: save plate dual-wire fail: %.200s\n",
+              savep);
+      return 1;
+    }
+  }
   if (argc < 2 || !strcmp(argv[1], "help") || !strcmp(argv[1], "-h") ||
       !strcmp(argv[1], "--help")) {
     emit_need_subcmd();
@@ -327,6 +343,7 @@ int main(int argc, char **argv) {
     return 0;
   }
   if (!strcmp(argv[1], "save")) {
+    char plate[640];
     const char *boot =
         "NEXUS_COORD v1 | from=consolidate | type=seed | HOLD_FLASH=ack_held | "
         "share=state_matrix_only | product_wire=smx2 | "
@@ -336,13 +353,9 @@ int main(int argc, char **argv) {
     gk_ingest(&C, "boot", boot, strlen(boot), now);
     gk_consolidate(&C, now);
     if (gk_save_dir(&C, dir) != 0) return 1;
-    printf("{\"schema\":\"grokium.consolidator_save.v1\",\"ok\":true,"
-           "\"dir\":\"%s\",\"grade\":\"%s\",\"share\":\"state_matrix_only\","
-           "\"hold_flash\":1,\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"llm_is_commander\":false}\n",
-           dir, C.grade);
+    /* Shared dual-wire save ack (dir JSON-escaped · grade machine-token). */
+    gk_save_json(&C, dir, plate, sizeof plate);
+    printf("%s\n", plate);
     return 0;
   }
   /* Unknown subcmd — dual-wire need_subcmd (no free-text usage). */

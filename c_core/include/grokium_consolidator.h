@@ -72,6 +72,13 @@ int  gk_cube_status_json(const gk_consolidator *C, int hold_flash,
 void gk_coord_json(const gk_consolidator *C, char *out, size_t cap);
 /* Dual-wire coord deny (need_plate | smx_filter_deny | ingest_failed | …). */
 void gk_coord_err_json(const char *error, char *out, size_t cap);
+/*
+ * Dual-wire save ack plate (schema grokium.consolidator_save.v1).
+ * Call after successful gk_save_dir. dir is JSON-escaped; grade machine-token.
+ * Consolidator CLI `save` shares this builder (no free-text-only usage).
+ */
+void gk_save_json(const gk_consolidator *C, const char *dir, char *out,
+                  size_t cap);
 int  gk_save_dir(const gk_consolidator *C, const char *dir);
 int  gk_load_dir(gk_consolidator *C, const char *dir);
 #endif

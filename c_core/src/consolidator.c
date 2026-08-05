@@ -285,6 +285,28 @@ static void json_escape_path(const char *in, char *out, size_t cap) {
   out[o] = 0;
 }
 
+void gk_save_json(const gk_consolidator *C, const char *dir, char *out,
+                  size_t cap) {
+  char dir_esc[256], grade_tok[32];
+  if (!out || cap < 64) return;
+  /* Escape dir so hostile path args cannot break the dual-wire plate. */
+  json_escape_path(dir && dir[0] ? dir : "data/knowledge", dir_esc,
+                   sizeof dir_esc);
+  if (!dir_esc[0]) snprintf(dir_esc, sizeof dir_esc, "data/knowledge");
+  plate_token(C && C->grade[0] ? C->grade : "EMPTY", grade_tok,
+              sizeof grade_tok);
+  if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
+  /* Shared dual-wire save ack (CLI save · lab/ops ≠ product bus). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.consolidator_save.v1\",\"ok\":true,"
+           "\"dir\":\"%s\",\"grade\":\"%s\",\"share\":\"state_matrix_only\","
+           "\"hold_flash\":1,\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"llm_on_hot_path\":false}",
+           dir_esc, grade_tok);
+}
+
 static int count_dir_entries(const char *path) {
   DIR *d;
   struct dirent *e;
