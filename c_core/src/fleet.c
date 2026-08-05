@@ -119,6 +119,57 @@ int fleet_status(gk_fleet *F) {
   return alive;
 }
 
+void fleet_status_json(gk_fleet *F, char *out, size_t cap) {
+  int i, alive;
+  size_t used;
+  if (!out || cap < 64) return;
+  if (!F) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.nanobot_status.v1\",\"ok\":false,"
+             "\"error\":\"no_fleet\",\"product_wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"commander_is_model\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"bots\":[]}");
+    return;
+  }
+  alive = fleet_status(F);
+  /* product_wire (not wire_product) — dual-wire honesty with host plates. */
+  used = (size_t)snprintf(out, cap,
+                          "{\"schema\":\"grokium.nanobot_status.v1\","
+                          "\"ok\":true,\"alive\":%d,\"n\":%d,"
+                          "\"nb_manager\":true,"
+                          "\"product_wire\":\"smx2\","
+                          "\"peer_http\":\"lab_ops_only\","
+                          "\"peer_http_is_product_bus\":false,"
+                          "\"llm_is_commander\":false,"
+                          "\"commander_is_model\":false,"
+                          "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                          "\"bots\":[",
+                          alive, F->n);
+  for (i = 0; i < F->n && used + 128 < cap; i++) {
+    const gk_bot *b = &F->bots[i];
+    char pid_buf[24];
+    int n;
+    if (b->pid > 0)
+      snprintf(pid_buf, sizeof pid_buf, "%d", b->pid);
+    else
+      snprintf(pid_buf, sizeof pid_buf, "null");
+    n = snprintf(out + used, cap - used,
+                 "%s{\"id\":\"%s\",\"port\":%d,\"pid\":%s,"
+                 "\"status\":\"%s\",\"offline\":%s,\"wire\":\"%s\"}",
+                 i ? "," : "", b->id, b->port, pid_buf,
+                 b->running ? "running" : "separated",
+                 b->running ? "false" : "true",
+                 strcmp(b->id, "nb-manager") == 0 ? "smx_motivate" : "smx2");
+    if (n < 0) break;
+    used += (size_t)n;
+  }
+  if (used + 3 < cap)
+    snprintf(out + used, cap - used, "]}");
+}
+
 int fleet_note_pid(gk_fleet *F, const char *bot_id, int pid) {
   int i;
   if (!F || !bot_id) return -1;

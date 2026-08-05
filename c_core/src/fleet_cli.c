@@ -236,9 +236,25 @@ static int fleet_selftest(void) {
       return 1;
     }
   }
+  /* Shared nanobot_status plate (HTTP /v1/nanobot/status) — honest pid/bots. */
+  {
+    char st[4096];
+    fleet_status_json(&F, st, sizeof st);
+    if (!plate_dual_wire_ok(st) ||
+        !strstr(st, "\"schema\":\"grokium.nanobot_status.v1\"") ||
+        !strstr(st, "\"ok\":true") || !strstr(st, "\"nb_manager\":true") ||
+        !strstr(st, "\"commander_is_model\":false") ||
+        !strstr(st, "nb-manager") || !strstr(st, "\"wire\":\"smx_motivate\"") ||
+        !strstr(st, "\"bots\":[") || strstr(st, "\"wire_product\"") ||
+        strstr(st, "999999999")) {
+      fprintf(stderr, "selftest: fleet_status_json dual-wire fail: %.300s\n",
+              st);
+      return 1;
+    }
+  }
   printf("FLEET_SELFTEST_OK n=%d alive=1 nb_manager=1 product_wire=smx2 "
          "peer_http=lab_ops_only bot_dual_wire=1 purpose=honest "
-         "status_plate=honest\n",
+         "status_plate=honest nanobot_status_json=1\n",
          F.n);
   return 0;
 }

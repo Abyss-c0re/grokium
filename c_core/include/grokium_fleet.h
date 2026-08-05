@@ -2,6 +2,8 @@
 #ifndef GROKIUM_FLEET_H
 #define GROKIUM_FLEET_H
 /* Separable nanobot subagents — purpose assigned, Cube Standards */
+#include <stddef.h>
+
 #define GK_FLEET_MAX 8
 typedef struct {
   char id[32];
@@ -28,6 +30,11 @@ void fleet_default_roles(gk_fleet *F);
 int  fleet_deploy(gk_fleet *F);
 /* Probe PIDs with kill(0); clear dead; return alive count. */
 int  fleet_status(gk_fleet *F);
+/*
+ * Dual-wire nanobot status plate (schema grokium.nanobot_status.v1).
+ * Probes PIDs first; pid/status/offline honest; meta_only bots list (no logs).
+ */
+void fleet_status_json(gk_fleet *F, char *out, size_t cap);
 /* Host/hub records a spawned bot pid (or -1 to clear). */
 int  fleet_note_pid(gk_fleet *F, const char *bot_id, int pid);
 /* Fork/exec F->binary (--home/--port/--offline). Peer HTTP = lab_ops only. */

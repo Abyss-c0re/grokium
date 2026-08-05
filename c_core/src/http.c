@@ -561,46 +561,6 @@ static void json_status(const grokium_law *L, const gk_consolidator *C,
            C ? C->matrix.bits_set : 0, grade_tok);
 }
 
-static void json_fleet(gk_fleet *F, char *out, size_t cap) {
-  int i, alive;
-  size_t used;
-  if (!F || !out || cap < 64) return;
-  alive = fleet_status(F);
-  /* product_wire (not wire_product) — same key as host/status/fleet plates. */
-  used = (size_t)snprintf(out, cap,
-                          "{\"schema\":\"grokium.nanobot_status.v1\","
-                          "\"ok\":true,\"alive\":%d,\"n\":%d,"
-                          "\"nb_manager\":true,"
-                          "\"product_wire\":\"smx2\","
-                          "\"peer_http\":\"lab_ops_only\","
-                          "\"peer_http_is_product_bus\":false,"
-                          "\"llm_is_commander\":false,"
-                          "\"commander_is_model\":false,"
-                          "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                          "\"bots\":[",
-                          alive, F->n);
-  for (i = 0; i < F->n && used + 128 < cap; i++) {
-    const gk_bot *b = &F->bots[i];
-    char pid_buf[24];
-    int n;
-    if (b->pid > 0)
-      snprintf(pid_buf, sizeof pid_buf, "%d", b->pid);
-    else
-      snprintf(pid_buf, sizeof pid_buf, "null");
-    n = snprintf(out + used, cap - used,
-                 "%s{\"id\":\"%s\",\"port\":%d,\"pid\":%s,"
-                 "\"status\":\"%s\",\"offline\":%s,\"wire\":\"%s\"}",
-                 i ? "," : "", b->id, b->port, pid_buf,
-                 b->running ? "running" : "separated",
-                 b->running ? "false" : "true",
-                 strcmp(b->id, "nb-manager") == 0 ? "smx_motivate" : "smx2");
-    if (n < 0) break;
-    used += (size_t)n;
-  }
-  if (used + 3 < cap)
-    snprintf(out + used, cap - used, "]}");
-}
-
 static void json_matrix(const gk_consolidator *C, char *out, size_t cap) {
   char hex[65];
   char bits[GROKIUM_CELLS + 1];
@@ -910,7 +870,8 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       http_reply_err(cfd, 500, "no_fleet");
       return;
     }
-    json_fleet(F, resp, sizeof resp);
+    /* Shared fleet plate (pid/status honest; dual-wire). */
+    fleet_status_json(F, resp, sizeof resp);
     http_reply(cfd, 200, "application/json", resp);
     return;
   }
