@@ -37,6 +37,9 @@ Spawn writes `PURPOSE.txt` + `nanobot.log` under each home.
 On-disk plate schema: `grokium.nanobot_fleet.v1` under `data/home/FLEET.json`.
 CLI `status` and `GET /v1/nanobot/status` share `grokium.nanobot_status.v1`
 (`fleet_status_json`: honest `bots[]` pid/status/offline + dual-wire keys).
+CLI `note-pid` and `POST /v1/nanobot/note-pid` share
+`grokium.nanobot_note_pid.v1` (`fleet_note_pid_json`: honest pid/running/status;
+dead pids → `null` + separated).
 
 `make -C c_core test-fleet` / `grokium-fleet selftest` checks defaults, note-pid
 live vs dead, reload, alive count, and dual-wire plate fields.
@@ -54,8 +57,9 @@ live vs dead, reload, alive count, and dual-wire plate fields.
 | `POST /v1/nanobot/deploy` | deploy homes + honest offline plate |
 | `POST /v1/nanobot/spawn` | body = id, `{"id":…}`, or empty = all |
 | `POST /v1/nanobot/separate` | SIGTERM one bot; body = id or `{"id":…}` |
+| `POST /v1/nanobot/note-pid` | body = `ID PID` or `{"id","pid"}`; host/hub record |
 
-Spawn/deploy/separate replies carry the same dual-wire honesty keys as status.
+Spawn/deploy/separate/note-pid replies carry the same dual-wire honesty keys as status.
 
 | Plane | Protocol | Role |
 |-------|----------|------|

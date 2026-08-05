@@ -16,15 +16,7 @@ static const char k_need_subcmd[] =
     "\"hint\":\"defaults|deploy|save|status|spawn|spawn-all|note-pid|"
     "separate|stop-all|selftest\"}";
 
-static const char k_need_note_args[] =
-    "{\"schema\":\"grokium.fleet_note_pid.v1\",\"ok\":false,"
-    "\"error\":\"need_bot_id_pid\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false,"
-    "\"hint\":\"note-pid BOT_ID PID [path]\"}";
-
-/* unknown_bot for note-pid (spawn/separate use schema-scoped shared helpers). */
+/* unknown_bot for generic fleet denials (note-pid uses schema-scoped helper). */
 static const char k_unknown_bot[] =
     "{\"schema\":\"grokium.fleet_error.v1\",\"ok\":false,"
     "\"error\":\"unknown_bot\",\"product_wire\":\"smx2\","
@@ -106,7 +98,6 @@ static int fleet_selftest(void) {
     char den[512];
     if (!strstr(k_need_subcmd, "\"error\":\"need_subcmd\"") ||
         !plate_dual_wire_ok(k_need_subcmd) ||
-        !plate_dual_wire_ok(k_need_note_args) ||
         !plate_dual_wire_ok(k_unknown_bot)) {
       fprintf(stderr, "selftest: fleet deny plate dual-wire fail\n");
       return 1;
@@ -136,6 +127,20 @@ static int fleet_selftest(void) {
     if (!strstr(den, "\"schema\":\"grokium.nanobot_separate.v1\"") ||
         !strstr(den, "\"error\":\"unknown_bot\"") || !plate_dual_wire_ok(den)) {
       fprintf(stderr, "selftest: separate unknown_bot dual-wire fail: %.200s\n",
+              den);
+      return 1;
+    }
+    fleet_note_pid_err_json("need_bot_id_pid", den, sizeof den);
+    if (!strstr(den, "\"schema\":\"grokium.nanobot_note_pid.v1\"") ||
+        !strstr(den, "\"error\":\"need_bot_id_pid\"") ||
+        !plate_dual_wire_ok(den)) {
+      fprintf(stderr, "selftest: note_pid need dual-wire fail: %.200s\n", den);
+      return 1;
+    }
+    fleet_note_pid_err_json("unknown_bot", den, sizeof den);
+    if (!strstr(den, "\"schema\":\"grokium.nanobot_note_pid.v1\"") ||
+        !strstr(den, "\"error\":\"unknown_bot\"") || !plate_dual_wire_ok(den)) {
+      fprintf(stderr, "selftest: note_pid unknown dual-wire fail: %.200s\n",
               den);
       return 1;
     }
@@ -284,11 +289,30 @@ static int fleet_selftest(void) {
               st);
       return 1;
     }
+    /* note-pid: live manager honest; dead host cleared to null. */
+    fleet_note_pid_json(&F, "nb-manager", path, st, sizeof st);
+    if (!plate_dual_wire_ok(st) ||
+        !strstr(st, "\"schema\":\"grokium.nanobot_note_pid.v1\"") ||
+        !strstr(st, "\"ok\":true") || !strstr(st, "\"id\":\"nb-manager\"") ||
+        !strstr(st, "\"wire\":\"smx_motivate\"") ||
+        !strstr(st, "\"running\":true") || !strstr(st, "\"pid\":")) {
+      fprintf(stderr, "selftest: fleet_note_pid_json live fail: %.250s\n", st);
+      return 1;
+    }
+    fleet_note_pid_json(&F, "nb-host", path, st, sizeof st);
+    if (!plate_dual_wire_ok(st) ||
+        !strstr(st, "\"schema\":\"grokium.nanobot_note_pid.v1\"") ||
+        !strstr(st, "\"pid\":null") || !strstr(st, "\"running\":false") ||
+        !strstr(st, "\"status\":\"separated\"")) {
+      fprintf(stderr, "selftest: fleet_note_pid_json dead fail: %.250s\n", st);
+      return 1;
+    }
   }
   printf("FLEET_SELFTEST_OK n=%d alive=1 nb_manager=1 product_wire=smx2 "
          "peer_http=lab_ops_only bot_dual_wire=1 purpose=honest "
          "status_plate=nanobot_status_v1 deploy_plate=nanobot_deploy_v1 "
-         "spawn_plate=nanobot_spawn_v1 separate_plate=nanobot_separate_v1\n",
+         "spawn_plate=nanobot_spawn_v1 separate_plate=nanobot_separate_v1 "
+         "note_pid_plate=nanobot_note_pid_v1\n",
          F.n);
   return 0;
 }
@@ -385,35 +409,26 @@ int main(int argc, char **argv) {
     return n > 0 ? 0 : 1;
   }
   if (!strcmp(argv[1], "note-pid")) {
-    int pid, i;
+    char plate[1024];
+    int pid;
     if (argc < 4) {
-      printf("%s\n", k_need_note_args);
+      fleet_note_pid_err_json("need_bot_id_pid", plate, sizeof plate);
+      printf("%s\n", plate);
       return 2;
     }
     if (argc > 4) path = argv[4];
     fleet_load(&F, path);
     pid = atoi(argv[3]);
     if (fleet_note_pid(&F, argv[2], pid) != 0) {
-      printf("%s\n", k_unknown_bot);
+      fleet_note_pid_err_json("unknown_bot", plate, sizeof plate);
+      printf("%s\n", plate);
       return 1;
     }
     fleet_save(&F, path);
-    for (i = 0; i < F.n; i++) {
-      if (strcmp(F.bots[i].id, argv[2]) != 0) continue;
-      printf("{\"schema\":\"grokium.fleet_note_pid.v1\",\"ok\":true,"
-             "\"id\":\"%s\",\"pid\":%s,\"running\":%s,"
-             "\"status\":\"%s\",\"path\":\"%s\","
-             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"llm_is_commander\":false}\n",
-             F.bots[i].id, F.bots[i].pid > 0 ? argv[3] : "null",
-             F.bots[i].running ? "true" : "false",
-             F.bots[i].running ? "running" : "separated", path);
-      return 0;
-    }
-    printf("%s\n", k_unknown_bot);
-    return 1;
+    /* Same dual-wire plate as POST /v1/nanobot/note-pid. */
+    fleet_note_pid_json(&F, argv[2], path, plate, sizeof plate);
+    printf("%s\n", plate);
+    return 0;
   }
   if (!strcmp(argv[1], "separate")) {
     char plate[1024];

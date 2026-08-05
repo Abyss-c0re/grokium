@@ -59,6 +59,15 @@ void fleet_separate_json(const char *id, const char *path, char *out,
                          size_t cap);
 /* Dual-wire separate deny (need_bot_id | unknown_bot | no_fleet). */
 void fleet_separate_err_json(const char *error, char *out, size_t cap);
+/*
+ * Dual-wire note-pid ack (schema grokium.nanobot_note_pid.v1).
+ * Call after fleet_note_pid + fleet_save; honest pid/running/status/wire.
+ * Dead pids appear as null + separated (host/hub external spawn record).
+ */
+void fleet_note_pid_json(gk_fleet *F, const char *id, const char *path,
+                         char *out, size_t cap);
+/* Dual-wire note-pid deny (need_bot_id_pid | unknown_bot | no_fleet). */
+void fleet_note_pid_err_json(const char *error, char *out, size_t cap);
 /* Host/hub records a spawned bot pid (or -1 to clear). */
 int  fleet_note_pid(gk_fleet *F, const char *bot_id, int pid);
 /* Fork/exec F->binary (--home/--port/--offline). Peer HTTP = lab_ops only. */

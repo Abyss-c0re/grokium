@@ -319,6 +319,57 @@ void fleet_separate_json(const char *id, const char *path, char *out,
            bid, path_esc, wire);
 }
 
+void fleet_note_pid_err_json(const char *error, char *out, size_t cap) {
+  const char *err = error && error[0] ? error : "unknown_bot";
+  if (!out || cap < 64) return;
+  if (!strcmp(err, "need_bot_id_pid")) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.nanobot_note_pid.v1\",\"ok\":false,"
+             "\"error\":\"need_bot_id_pid\"," FLEET_DUAL_WIRE_TAIL ","
+             "\"hint\":\"id and pid required e.g. nb-manager 1234\"}");
+    return;
+  }
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.nanobot_note_pid.v1\",\"ok\":false,"
+           "\"error\":\"%s\"," FLEET_DUAL_WIRE_TAIL "}",
+           err);
+}
+
+void fleet_note_pid_json(gk_fleet *F, const char *id, const char *path,
+                         char *out, size_t cap) {
+  char path_esc[640];
+  const char *bid = id && id[0] ? id : "";
+  int i;
+  if (!out || cap < 64) return;
+  if (!F) {
+    fleet_note_pid_err_json("no_fleet", out, cap);
+    return;
+  }
+  if (!bid[0]) {
+    fleet_note_pid_err_json("need_bot_id_pid", out, cap);
+    return;
+  }
+  path_escape(path ? path : "", path_esc, sizeof path_esc);
+  for (i = 0; i < F->n; i++) {
+    const gk_bot *b = &F->bots[i];
+    char pid_buf[24];
+    if (strcmp(b->id, bid) != 0) continue;
+    if (b->pid > 0)
+      snprintf(pid_buf, sizeof pid_buf, "%d", b->pid);
+    else
+      snprintf(pid_buf, sizeof pid_buf, "null");
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.nanobot_note_pid.v1\",\"ok\":true,"
+             "\"id\":\"%s\",\"pid\":%s,\"running\":%s,\"status\":\"%s\","
+             "\"path\":\"%s\",\"wire\":\"%s\"," FLEET_DUAL_WIRE_TAIL "}",
+             b->id, pid_buf, b->running ? "true" : "false",
+             b->running ? "running" : "separated", path_esc,
+             strcmp(b->id, "nb-manager") == 0 ? "smx_motivate" : "smx2");
+    return;
+  }
+  fleet_note_pid_err_json("unknown_bot", out, cap);
+}
+
 int fleet_note_pid(gk_fleet *F, const char *bot_id, int pid) {
   int i;
   if (!F || !bot_id) return -1;

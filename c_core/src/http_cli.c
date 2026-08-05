@@ -477,6 +477,56 @@ static int selftest(void) {
       fails++;
     }
   }
+  /* note-pid missing args → need_bot_id_pid dual-wire */
+  if (http_post("127.0.0.1", port, "/v1/nanobot/note-pid", "", resp,
+                sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "400") && !strstr(b, "need_bot_id_pid")) ||
+        !strstr(b, "\"schema\":\"grokium.nanobot_note_pid.v1\"") ||
+        !strstr(b, "\"error\":\"need_bot_id_pid\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"hold_flash\":1")) {
+      fprintf(stderr, "selftest: nanobot note-pid need args fail: %.400s\n", b);
+      fails++;
+    }
+  }
+  /* note-pid unknown bot → unknown_bot dual-wire */
+  if (http_post("127.0.0.1", port, "/v1/nanobot/note-pid", "not-a-real-bot 1",
+                resp, sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "404") && !strstr(b, "unknown_bot")) ||
+        !strstr(b, "\"schema\":\"grokium.nanobot_note_pid.v1\"") ||
+        !strstr(b, "\"error\":\"unknown_bot\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"hold_flash\":1")) {
+      fprintf(stderr, "selftest: nanobot note-pid unknown dual-wire fail: %.400s\n",
+              b);
+      fails++;
+    }
+  }
+  /* note-pid dead pid → honest null/separated plate */
+  if (http_post("127.0.0.1", port, "/v1/nanobot/note-pid",
+                "nb-manager 999999999", resp, sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if (!strstr(b, "\"schema\":\"grokium.nanobot_note_pid.v1\"") ||
+        !strstr(b, "\"ok\":true") || !strstr(b, "\"id\":\"nb-manager\"") ||
+        !strstr(b, "\"pid\":null") || !strstr(b, "\"status\":\"separated\"") ||
+        !strstr(b, "\"wire\":\"smx_motivate\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(b, "\"llm_is_commander\":false")) {
+      fprintf(stderr, "selftest: nanobot note-pid dead honesty fail: %.400s\n",
+              b);
+      fails++;
+    }
+  }
   if (http_get("127.0.0.1", port, "/v1/matrix/latest", resp, sizeof resp) < 0)
     fails++;
   else {

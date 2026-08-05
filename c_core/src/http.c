@@ -853,6 +853,97 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     return;
   }
 
+  /* Host/hub records external spawn pid (or clear with pid<=0 / null). */
+  if (!strcmp(path, "/v1/nanobot/note-pid")) {
+    char plate[512], id[64], id_raw[64], id_tok[64], pid_tok[32];
+    const char *src;
+    size_t i, j, o;
+    int pid = 0, have_pid = 0, is_json;
+    if (strcmp(method, "POST") != 0) {
+      http_reply_err(cfd, 405, "method");
+      return;
+    }
+    if (!F) {
+      fleet_note_pid_err_json("no_fleet", resp, sizeof resp);
+      http_reply(cfd, 500, "application/json", resp);
+      return;
+    }
+    id_raw[0] = id[0] = pid_tok[0] = 0;
+    src = body && body_n ? body : "";
+    is_json = src[0] == '{';
+    if (is_json) {
+      const char *k = strstr(src, "\"id\"");
+      const char *p = strstr(src, "\"pid\"");
+      if (k) {
+        k = strchr(k + 4, '"');
+        if (k) {
+          k++;
+          for (j = 0; j + 1 < sizeof id_raw && k[j] && k[j] != '"'; j++)
+            id_raw[j] = k[j];
+          id_raw[j] = 0;
+        }
+      }
+      if (p) {
+        p = strchr(p + 5, ':');
+        if (p) {
+          p++;
+          while (*p == ' ' || *p == '\t') p++;
+          have_pid = 1;
+          if (*p == 'n' || *p == 'N')
+            pid = -1; /* JSON null → clear */
+          else
+            pid = (int)strtol(p, NULL, 10);
+        }
+      }
+    } else {
+      /* body: "BOT_ID PID" whitespace-separated machine tokens. */
+      o = 0;
+      for (i = 0; i < body_n && src[i] && src[i] != ' ' && src[i] != '\t' &&
+                  src[i] != '\n' && src[i] != '\r' && o + 1 < sizeof id_raw;
+           i++)
+        id_raw[o++] = src[i];
+      id_raw[o] = 0;
+      while (i < body_n &&
+             (src[i] == ' ' || src[i] == '\t' || src[i] == '\n' ||
+              src[i] == '\r'))
+        i++;
+      o = 0;
+      for (; i < body_n && src[i] && src[i] != ' ' && src[i] != '\t' &&
+             src[i] != '\n' && src[i] != '\r' && o + 1 < sizeof pid_tok;
+           i++)
+        pid_tok[o++] = src[i];
+      pid_tok[o] = 0;
+      if (pid_tok[0]) {
+        have_pid = 1;
+        pid = (int)strtol(pid_tok, NULL, 10);
+      }
+    }
+    machine_token(id_raw, id_tok, sizeof id_tok);
+    o = 0;
+    for (i = 0; id_tok[i] && o + 1 < sizeof id; i++) {
+      unsigned char c = (unsigned char)id_tok[i];
+      if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+          (c >= '0' && c <= '9') || c == '_' || c == '-')
+        id[o++] = (char)c;
+    }
+    id[o] = 0;
+    if (!id[0] || !have_pid) {
+      fleet_note_pid_err_json("need_bot_id_pid", resp, sizeof resp);
+      http_reply(cfd, 400, "application/json", resp);
+      return;
+    }
+    if (fleet_note_pid(F, id, pid) != 0) {
+      fleet_note_pid_err_json("unknown_bot", resp, sizeof resp);
+      http_reply(cfd, 404, "application/json", resp);
+      return;
+    }
+    snprintf(plate, sizeof plate, "%s/home/FLEET.json", root);
+    fleet_save(F, plate);
+    fleet_note_pid_json(F, id, plate, resp, sizeof resp);
+    http_reply(cfd, 200, "application/json", resp);
+    return;
+  }
+
   if (!strcmp(path, "/v1/matrix/latest") || !strcmp(path, "/v1/stream/smx/latest")) {
     if (strcmp(method, "GET") != 0) {
       http_reply_err(cfd, 405, "method");
