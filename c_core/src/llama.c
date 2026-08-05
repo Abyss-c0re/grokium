@@ -480,3 +480,72 @@ fail:
   }
   return 0;
 }
+
+/* Hint field: machine-safe subset (no quotes / backslash inject). */
+static void hint_token(const char *in, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in || !in[0]) return;
+  for (i = 0; in[i] && o + 1 < cap && o < 120; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.' ||
+        c == '/' || c == ' ' || c == '|' || c == '[' || c == ']' ||
+        c == '<' || c == '>' || c == ':' || c == '=' || c == '{' ||
+        c == '}' || c == '"' || c == '\\' || c == ',' || c == '?' ||
+        c == '!' || c == '+' || c == '*' || c == '#' || c == '@' ||
+        c == '(' || c == ')' || c == ';') {
+      /* Map JSON metacharacters so the plate stays valid. */
+      if (c == '"' || c == '\\')
+        out[o++] = '_';
+      else
+        out[o++] = (char)c;
+    } else if (c == '\t') {
+      out[o++] = ' ';
+    }
+  }
+  out[o] = 0;
+}
+
+void grokium_chat_err_json(const char *error, const char *hint, char *out,
+                           size_t cap) {
+  char err_tok[80], hint_tok[160];
+  const char *h;
+  if (!out || cap < 64) return;
+  machine_token(error && error[0] ? error : "chat_failed", err_tok,
+                sizeof err_tok);
+  if (!err_tok[0]) snprintf(err_tok, sizeof err_tok, "chat_failed");
+  if (hint && hint[0]) {
+    hint_token(hint, hint_tok, sizeof hint_tok);
+    h = hint_tok[0] ? hint_tok : NULL;
+  } else if (!strcmp(err_tok, "need_message")) {
+    h = "message required · local llama · LLM≠commander";
+  } else if (!strcmp(err_tok, "method")) {
+    h = "POST /v1/chat · local llama · LLM≠commander";
+  } else {
+    h = NULL;
+  }
+  /* Shared dual-wire plate: HTTP /v1/chat · serve CLI · host chat/-p. */
+  if (h && h[0]) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.chat.v1\",\"ok\":false,"
+             "\"error\":\"%s\",\"hint\":\"%s\","
+             "\"llm_is_commander\":false,\"commander_is_model\":false,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"local_first\":true,\"telemetry\":\"off\"}",
+             err_tok, h);
+  } else {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.chat.v1\",\"ok\":false,"
+             "\"error\":\"%s\","
+             "\"llm_is_commander\":false,\"commander_is_model\":false,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"local_first\":true,\"telemetry\":\"off\"}",
+             err_tok);
+  }
+}

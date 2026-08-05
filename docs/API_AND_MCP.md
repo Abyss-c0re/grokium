@@ -51,7 +51,7 @@ make -C c_core all
 | POST | `/v1/commander/sign` | loopback + local `commander.sk` only |
 | POST | `/v1/commander/reject_model` | deny “I am Grok” authority claims |
 | GET | `/v1/llama/probe` | local llama.cpp reachability (`llm_is_commander:false`) |
-| POST | `/v1/chat` | local-first completion via loopback llama only (`llm_is_commander:false`) |
+| POST | `/v1/chat` | local-first completion; empty → shared `grokium_chat_err_json` dual-wire |
 | POST | `/v1/agent` | lab/ops agent-lite (chat only; `tools:false`; tools → host nanobot) |
 | GET | `/v1/integrity` | code seal + privacy tick (503 if fail) |
 | GET | `/v1/integrity/policy` | integrity policy plate |

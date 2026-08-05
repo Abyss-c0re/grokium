@@ -1189,12 +1189,9 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     char msg[2048];
     int code;
     if (strcmp(method, "POST") != 0) {
-      http_reply(cfd, 405, "application/json",
-                 "{\"schema\":\"grokium.chat.v1\",\"ok\":false,"
-                 "\"error\":\"method\",\"llm_is_commander\":false,"
-                 "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
+      /* Shared dual-wire chat deny (serve CLI / host same builder). */
+      grokium_chat_err_json("method", NULL, resp, sizeof resp);
+      http_reply(cfd, 405, "application/json", resp);
       return;
     }
     msg[0] = 0;
@@ -1214,23 +1211,14 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       }
     }
     if (!msg[0]) {
-      http_reply(cfd, 400, "application/json",
-                 "{\"schema\":\"grokium.chat.v1\",\"ok\":false,"
-                 "\"error\":\"need_message\","
-                 "\"hint\":\"{\\\"message\\\":\\\"…\\\"}\","
-                 "\"llm_is_commander\":false,\"share\":\"state_matrix_only\","
-                 "\"hold_flash\":1,\"product_wire\":\"smx2\","
-                 "\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false}");
+      grokium_chat_err_json("need_message", "{\"message\":\"...\"}", resp,
+                            sizeof resp);
+      http_reply(cfd, 400, "application/json", resp);
       return;
     }
     if (grokium_llama_chat(msg, resp, sizeof resp) != 0) {
-      http_reply(cfd, 500, "application/json",
-                 "{\"schema\":\"grokium.chat.v1\",\"ok\":false,"
-                 "\"error\":\"chat_failed\",\"llm_is_commander\":false,"
-                 "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
+      grokium_chat_err_json("chat_failed", NULL, resp, sizeof resp);
+      http_reply(cfd, 500, "application/json", resp);
       return;
     }
     if (strstr(resp, "\"ok\":true"))

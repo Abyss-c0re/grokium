@@ -953,14 +953,6 @@ static const char k_need_subcmd[] =
     "\"llm_is_commander\":false,\"loopback_only\":true,"
     "\"hint\":\"[port]|selftest|probe|chat MSG|license|help\"}";
 
-static const char k_need_message[] =
-    "{\"schema\":\"grokium.chat.v1\",\"ok\":false,"
-    "\"error\":\"need_message\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false,"
-    "\"hint\":\"chat \\\"message\\\" · local llama · LLM≠commander\"}";
-
 static int plate_dual_wire_ok(const char *p) {
   return p && strstr(p, "\"product_wire\":\"smx2\"") &&
          strstr(p, "\"peer_http\":\"lab_ops_only\"") &&
@@ -976,12 +968,22 @@ int main(int argc, char **argv) {
   grokium_law L;
   int port = 17444;
   const char *root = "data";
+  char need_msg[512];
 
   if (!plate_dual_wire_ok(k_need_subcmd) ||
-      !plate_dual_wire_ok(k_need_message) ||
-      !strstr(k_need_subcmd, "\"error\":\"need_subcmd\"") ||
-      !strstr(k_need_message, "\"error\":\"need_message\"")) {
+      !strstr(k_need_subcmd, "\"error\":\"need_subcmd\"")) {
     fprintf(stderr, "grokium-serve: deny plate dual-wire fail\n");
+    return 1;
+  }
+  /* Shared chat need_message plate (HTTP /v1/chat · host chat same builder). */
+  grokium_chat_err_json("need_message", NULL, need_msg, sizeof need_msg);
+  if (!plate_dual_wire_ok(need_msg) ||
+      !strstr(need_msg, "\"schema\":\"grokium.chat.v1\"") ||
+      !strstr(need_msg, "\"error\":\"need_message\"") ||
+      !strstr(need_msg, "\"local_first\":true") ||
+      !strstr(need_msg, "\"commander_is_model\":false")) {
+    fprintf(stderr, "grokium-serve: chat need_message dual-wire fail: %.200s\n",
+            need_msg);
     return 1;
   }
   {
@@ -1020,8 +1022,9 @@ int main(int argc, char **argv) {
     char buf[4096];
     const char *msg = argc >= 3 ? argv[2] : "";
     if (!msg[0]) {
-      /* Match loopback /v1/chat need_message dual-wire plate. */
-      printf("%s\n", k_need_message);
+      /* Same dual-wire plate as POST /v1/chat need_message. */
+      grokium_chat_err_json("need_message", NULL, buf, sizeof buf);
+      printf("%s\n", buf);
       return 2;
     }
     if (grokium_llama_chat(msg, buf, sizeof buf) != 0) return 1;

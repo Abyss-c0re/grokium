@@ -13,4 +13,13 @@ int grokium_llama_probe(char *json_out, size_t cap);
 /* Local-first chat completion via loopback llama only. Never commander. */
 int grokium_llama_chat(const char *message, char *json_out, size_t cap);
 
+/*
+ * Dual-wire chat deny plate (schema grokium.chat.v1).
+ * error is sanitized to a machine token; optional hint is sanitized (no JSON inject).
+ * NULL/empty hint → error-specific default (need_message / method / generic).
+ * POST /v1/chat, serve CLI chat, and host chat/-p share this plate.
+ */
+void grokium_chat_err_json(const char *error, const char *hint, char *out,
+                           size_t cap);
+
 #endif

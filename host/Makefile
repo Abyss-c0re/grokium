@@ -38,11 +38,14 @@ SMX_FILTER_SRC := $(C_CORE)/src/smx_filter.c $(C_CORE)/src/law.c \
 # Coord dual-wire plates (gk_coord_*); not linked into filter-only selftests.
 CONSOLIDATOR_SRC := $(C_CORE)/src/consolidator.c
 
+# Shared chat dual-wire deny plates (grokium_chat_err_json); not filter selftests.
+LLAMA_SRC := $(C_CORE)/src/llama.c
+
 SRCS := src/grokium_main.c src/grokium_tui.c src/grokium_chat.c \
 	src/grokium_config.c src/grokium_version.c src/grokium_hub.c \
 	src/grokium_media.c src/grokium_status.c \
 	$(C_CORE)/src/session.c $(C_CORE)/src/status_plate.c \
-	$(SMX_FILTER_SRC) $(CONSOLIDATOR_SRC)
+	$(SMX_FILTER_SRC) $(CONSOLIDATOR_SRC) $(LLAMA_SRC)
 
 .PHONY: all clean nanobot install test-status test-version-compat \
 	test-hub-status test-memory-seed test-media-plate test-session-plate \
@@ -57,7 +60,7 @@ nanobot:
 	  $(MAKE) -C "$(NANOBOT_ROOT)" host; \
 	fi
 
-out/grokium: $(SRCS) include/grokium.h include/grokium_chat.h include/grokium_config.h include/grokium_version.h include/grokium_hub.h include/grokium_media.h include/grokium_status.h $(C_CORE)/include/grokium_session.h $(C_CORE)/include/grokium_smx_filter.h $(C_CORE)/include/grokium_law.h $(C_CORE)/include/grokium_consolidator.h
+out/grokium: $(SRCS) include/grokium.h include/grokium_chat.h include/grokium_config.h include/grokium_version.h include/grokium_hub.h include/grokium_media.h include/grokium_status.h $(C_CORE)/include/grokium_session.h $(C_CORE)/include/grokium_smx_filter.h $(C_CORE)/include/grokium_law.h $(C_CORE)/include/grokium_consolidator.h $(C_CORE)/include/grokium_llama.h
 	@mkdir -p out
 	$(CC) $(CFLAGS) -o $@ $(SRCS) $(LIBS)
 
