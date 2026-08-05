@@ -732,11 +732,14 @@ int main(int argc, char **argv) {
   }
   if (strcmp(cmd, "contract") == 0) {
     if (ai + 1 >= argc) {
-      fprintf(stderr,
-              "usage: grokium contract form --assignee ID --task TEXT "
-              "[--digit N] [--min-set N]\n"
-              "       grokium contract validate PATH [--bits 01…]\n"
-              "       grokium contract manager-tick [DIR]\n");
+      /* Machine need_subcmd plate (match filter dual-wire honesty). */
+      printf("{\"schema\":\"grokium.contract.v1\",\"ok\":false,"
+             "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false,"
+             "\"hint\":\"form|validate|manager-tick\"}\n");
       return 2;
     }
     return run_c_core("grokium-smx-filter", argc - ai - 1, argv + ai + 1);

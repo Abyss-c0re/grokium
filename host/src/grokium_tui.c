@@ -1278,10 +1278,14 @@ static void cmd_contract(const char *arg) {
   const char *p = arg ? arg : "";
   while (*p == ' ') p++;
   if (!p[0] || !strcmp(p, "help") || !strcmp(p, "?")) {
-    log_add("usage: /contract form --assignee ID --task TEXT […]");
-    log_add("       /contract validate PATH [--bits 01…]");
-    log_add("       /contract manager-tick [DIR]  (same as /manager)");
-    log_add("  external cells only · product_wire=smx2 · prose denied on bus");
+    /* Machine need_subcmd plate (dual-wire; no free-text-only usage). */
+    log_add("{\"schema\":\"grokium.contract.v1\",\"ok\":false,"
+            "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
+            "\"peer_http\":\"lab_ops_only\","
+            "\"peer_http_is_product_bus\":false,"
+            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+            "\"llm_is_commander\":false,"
+            "\"hint\":\"form|validate|manager-tick\"}");
     return;
   }
   if (!strncmp(p, "manager", 7) || !strcmp(p, "tick") ||
@@ -1298,8 +1302,14 @@ static void cmd_contract(const char *arg) {
     (void)contract_flag_val(p, "--digit", digit, sizeof digit);
     (void)contract_flag_val(p, "--min-set", minset, sizeof minset);
     if (!assignee[0] || !task[0]) {
-      log_add("usage: /contract form --assignee ID --task TEXT");
-      log_add("  optional: --digit N --min-set N");
+      /* Match filter CLI need_assignee_and_task dual-wire plate. */
+      log_add("{\"schema\":\"grokium.contract_form.v1\",\"ok\":false,"
+              "\"error\":\"need_assignee_and_task\","
+              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+              "\"peer_http_is_product_bus\":false,"
+              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+              "\"llm_is_commander\":false,"
+              "\"hint\":\"form --assignee ID --task TEXT\"}");
       return;
     }
     av[n++] = "form";
@@ -1318,8 +1328,24 @@ static void cmd_contract(const char *arg) {
     av[n] = NULL;
     log_add("--- contract form (pure-C SMX filter · external cells) ---");
     (void)run_c_core_capture("grokium-smx-filter", av);
-    log_add("  share=state_matrix_only · Commander≠model · peer_http=lab_ops");
+    log_add("  share=state_matrix_only · product_wire=smx2 · hold_flash=1");
+    log_add("  peer_http=lab_ops_only · Commander≠model");
     return;
+  }
+  /* validate without path: dual-wire need_path before shell-out */
+  if (!strncmp(p, "validate", 8) && (p[8] == ' ' || p[8] == 0)) {
+    const char *sp = p + 8;
+    while (*sp == ' ') sp++;
+    if (!*sp) {
+      log_add("{\"schema\":\"grokium.contract_validate.v1\",\"ok\":false,"
+              "\"error\":\"need_path\",\"product_wire\":\"smx2\","
+              "\"peer_http\":\"lab_ops_only\","
+              "\"peer_http_is_product_bus\":false,"
+              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+              "\"llm_is_commander\":false,"
+              "\"hint\":\"validate PATH [--bits 01…]\"}");
+      return;
+    }
   }
   /* validate / other: tokenize */
   snprintf(rest_copy, sizeof rest_copy, "%s", p);
@@ -1331,12 +1357,19 @@ static void cmd_contract(const char *arg) {
   }
   av[n] = NULL;
   if (n < 1) {
-    log_add("usage: /contract form|validate|manager-tick …");
+    log_add("{\"schema\":\"grokium.contract.v1\",\"ok\":false,"
+            "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
+            "\"peer_http\":\"lab_ops_only\","
+            "\"peer_http_is_product_bus\":false,"
+            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+            "\"llm_is_commander\":false,"
+            "\"hint\":\"form|validate|manager-tick\"}");
     return;
   }
   log_add("--- contract (pure-C SMX filter · external cells) ---");
   (void)run_c_core_capture("grokium-smx-filter", av);
-  log_add("  share=state_matrix_only · Commander≠model · peer_http=lab_ops");
+  log_add("  share=state_matrix_only · product_wire=smx2 · hold_flash=1");
+  log_add("  peer_http=lab_ops_only · Commander≠model");
 }
 
 /* Fleet plate: pure-C grokium-fleet (honest pid/status). CubalC opt-in. */
