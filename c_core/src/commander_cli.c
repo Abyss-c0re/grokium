@@ -124,6 +124,24 @@ int main(int argc, char **argv) {
     fprintf(stderr, "grokium-commander: install plate sanitize fail\n");
     return 1;
   }
+  /* Reject-model plates (HTTP /v1/commander/reject_model same builder). */
+  grokium_commander_reject_json(0, plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.commander_reject.v1\"") ||
+      !strstr(plate, "\"ok\":false") ||
+      !strstr(plate, "\"error\":\"model_is_not_commander\"") ||
+      !strstr(plate, "\"allowed\":false") ||
+      !strstr(plate, "\"llm_is_commander\":false") ||
+      !strstr(plate, "\"product_wire\":\"smx2\"")) {
+    fprintf(stderr, "grokium-commander: reject deny dual-wire fail\n");
+    return 1;
+  }
+  grokium_commander_reject_json(1, plate, sizeof plate);
+  if (!strstr(plate, "\"ok\":true") || !strstr(plate, "\"allowed\":true") ||
+      !strstr(plate, "\"commander_is_model\":false") ||
+      strstr(plate, "\"error\"")) {
+    fprintf(stderr, "grokium-commander: reject allow dual-wire fail\n");
+    return 1;
+  }
 
   if (argc < 2 || !strcmp(argv[1], "help") || !strcmp(argv[1], "-h") ||
       !strcmp(argv[1], "--help")) {

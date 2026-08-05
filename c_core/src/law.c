@@ -312,3 +312,28 @@ void grokium_commander_install_json(const char *home, const char *bot,
            "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
            hm, bt, fp);
 }
+
+void grokium_commander_reject_json(int allowed, char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Shared dual-wire reject-model plate (POST /v1/commander/reject_model). */
+  if (allowed) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.commander_reject.v1\",\"ok\":true,"
+             "\"allowed\":true,\"product\":\"grokium\","
+             "\"not\":\"grok_model\",\"unforgeable\":true,"
+             "\"llm_is_commander\":false,\"commander_is_model\":false,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
+  } else {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.commander_reject.v1\",\"ok\":false,"
+             "\"allowed\":false,\"error\":\"model_is_not_commander\","
+             "\"product\":\"grokium\",\"not\":\"grok_model\","
+             "\"unforgeable\":true,\"llm_is_commander\":false,"
+             "\"commander_is_model\":false,\"product_wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
+  }
+}

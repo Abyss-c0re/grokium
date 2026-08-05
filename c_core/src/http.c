@@ -1380,26 +1380,9 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       else
         deny = 1;
     }
-    if (deny) {
-      http_reply(cfd, 403, "application/json",
-                 "{\"schema\":\"grokium.commander_reject.v1\",\"ok\":false,"
-                 "\"allowed\":false,\"error\":\"model_is_not_commander\","
-                 "\"product\":\"grokium\",\"not\":\"grok_model\","
-                 "\"unforgeable\":true,\"llm_is_commander\":false,"
-                 "\"commander_is_model\":false,\"product_wire\":\"smx2\","
-                 "\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
-      return;
-    }
-    http_reply(cfd, 200, "application/json",
-               "{\"schema\":\"grokium.commander_reject.v1\",\"ok\":true,"
-               "\"allowed\":true,\"product\":\"grokium\","
-               "\"not\":\"grok_model\",\"llm_is_commander\":false,"
-               "\"commander_is_model\":false,\"product_wire\":\"smx2\","
-               "\"peer_http\":\"lab_ops_only\","
-               "\"peer_http_is_product_bus\":false,"
-               "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
+    /* Shared dual-wire reject plate (Commander ≠ model · LLM never commander). */
+    grokium_commander_reject_json(deny ? 0 : 1, resp, sizeof resp);
+    http_reply(cfd, deny ? 403 : 200, "application/json", resp);
     return;
   }
 
@@ -1448,14 +1431,12 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     }
     /* loopback-only already enforced by bind; still require sk on disk */
     if (load_commander(root, &cmd) != 0 || !cmd.has_sk) {
-      http_reply(cfd, 403, "application/json",
-                 "{\"schema\":\"grokium.commander.v1\",\"ok\":false,"
-                 "\"error\":\"no_commander_sk\","
-                 "\"hint\":\"sign only with local commander.sk (never commit)\","
-                 "\"not\":\"grok_model\",\"llm_is_commander\":false,"
-                 "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
+      /* Shared Commander deny (never emit free-text-only sk miss). */
+      grokium_commander_deny_json(
+          "commander", "no_commander_sk",
+          "sign only with local commander.sk (never commit)", resp,
+          sizeof resp);
+      http_reply(cfd, 403, "application/json", resp);
       return;
     }
     if (!body || body_n == 0) {

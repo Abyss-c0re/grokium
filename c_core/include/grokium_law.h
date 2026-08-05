@@ -84,4 +84,11 @@ void grokium_commander_verify_json(int ok, char *out, size_t cap);
 void grokium_commander_install_json(const char *home, const char *bot,
                                     const char *fingerprint, char *out,
                                     size_t cap);
+
+/*
+ * Dual-wire Commander reject-model plate (schema grokium.commander_reject.v1).
+ * allowed=0 → ok=false error=model_is_not_commander; allowed≠0 → ok=true.
+ * POST /v1/commander/reject_model shares this builder (LLM ≠ commander).
+ */
+void grokium_commander_reject_json(int allowed, char *out, size_t cap);
 #endif
