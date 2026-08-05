@@ -806,89 +806,15 @@ static int meta_get_str(const char *body, const char *key, char *out, size_t cap
   return 0;
 }
 
-static int contains_ci(const char *hay, const char *needle) {
-  size_t nlen, hlen, i, j;
-  if (!needle || !needle[0]) return 1;
-  if (!hay) return 0;
-  nlen = strlen(needle);
-  hlen = strlen(hay);
-  if (nlen > hlen) return 0;
-  for (i = 0; i + nlen <= hlen; i++) {
-    for (j = 0; j < nlen; j++) {
-      char a = hay[i + j], b = needle[j];
-      if (a >= 'A' && a <= 'Z') a = (char)(a + 32);
-      if (b >= 'A' && b <= 'Z') b = (char)(b + 32);
-      if (a != b) break;
-    }
-    if (j == nlen) return 1;
-  }
-  return 0;
-}
-
 /* Imported Grok Build metas only — no chat transcripts on the TUI log. */
 static void cmd_sessions_search(const char *q) {
-  char dir[PATH_MAX], path[PATH_MAX], meta[2048], line[320], plate[768];
-  char id[96], title[96], updated[48], model[48];
-  DIR *d;
-  struct dirent *e;
-  int matched = 0, scanned = 0;
-  FILE *f;
-  size_t nread, tlen;
+  char data_root[PATH_MAX], plate[8192];
 
-  snprintf(dir, sizeof dir, "%s/data/import", root);
-  d = opendir(dir);
-  if (!d) {
-    /* Dual-wire empty plate (same contract as host CLI). */
-    if (gk_session_list_empty_json(q ? q : "", dir, "no_import_dir", plate,
-                                    sizeof plate) == 0)
-      log_add(plate);
-    else
-      log_add("sessions> no data/import (meta only)");
-    return;
-  }
-  snprintf(line, sizeof line, "--- sessions meta-only q=%s ---",
-           q && q[0] ? q : "*");
-  log_add(line);
-  while ((e = readdir(d)) != NULL && matched < 12 && scanned < 500) {
-    size_t len = strlen(e->d_name);
-    if (len < 11 || strcmp(e->d_name + len - 10, ".meta.json") != 0)
-      continue;
-    scanned++;
-    snprintf(path, sizeof path, "%s/%s", dir, e->d_name);
-    f = fopen(path, "r");
-    if (!f) continue;
-    nread = fread(meta, 1, sizeof meta - 1, f);
-    meta[nread] = 0;
-    fclose(f);
-    if (q && q[0] && !contains_ci(meta, q) && !contains_ci(e->d_name, q))
-      continue;
-    id[0] = title[0] = updated[0] = model[0] = 0;
-    meta_get_str(meta, "id", id, sizeof id);
-    meta_get_str(meta, "title", title, sizeof title);
-    meta_get_str(meta, "updated_at", updated, sizeof updated);
-    meta_get_str(meta, "model", model, sizeof model);
-    if (!id[0]) {
-      /* filename uuid.meta.json */
-      snprintf(id, sizeof id, "%s", e->d_name);
-      tlen = strlen(id);
-      if (tlen > 10) id[tlen - 10] = 0;
-    }
-    /* Drop non-hex ids so free-text/path names never hit the log wire. */
-    if (!gk_session_id_safe(id)) continue;
-    if (!title[0]) snprintf(title, sizeof title, "%s", id);
-    if (strlen(title) > 48) title[48] = 0;
-    snprintf(line, sizeof line, "%s | %s | %s | %s", id, title,
-             updated[0] ? updated : "-", model[0] ? model : "-");
-    log_add(line);
-    matched++;
-  }
-  closedir(d);
-  snprintf(line, sizeof line,
-           "sessions> n=%d scanned=%d · content=meta_only · "
-           "product_wire=smx2 · peer_http=lab_ops_only · hold_flash=1 · "
-           "resume messages=host (not on product bus)",
-           matched, scanned);
-  log_add(line);
+  /* Shared c_core dual-wire list plate (match CLI / loopback). */
+  snprintf(data_root, sizeof data_root, "%s/data", root);
+  gk_session_list_json(data_root, q ? q : "", plate, sizeof plate);
+  log_add("--- sessions meta-only (shared plate) ---");
+  log_add(plate);
 }
 
 /* Allow only HOME or repo data/ for host-local resume files. */
