@@ -1507,8 +1507,14 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     return;
   }
 
+  /* Unknown route — dual-wire honesty (lab/ops ≠ product bus; LLM ≠ commander). */
   http_reply(cfd, 404, "application/json",
-             "{\"ok\":false,\"error\":\"not_found\","
+             "{\"schema\":\"grokium.error.v1\",\"ok\":false,"
+             "\"error\":\"not_found\","
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
              "\"hint\":\"/ui /healthz /v1/status /v1/cube/status /v1/sessions "
              "/v1/commander /v1/chat /v1/agent /v1/coord /v1/stream/smx "
              "/v1/contract/form /v1/manager/tick /v1/nanobot/status\"}");
