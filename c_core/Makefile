@@ -155,6 +155,19 @@ test-filter: $(BIN_FILTER)
 	grep -q 'motive=matrix_harmony' "$$D/motivate.err"; \
 	PULSE=$$(head -1 "$$D/motivate.err"); \
 	$(BIN_FILTER) allow-check "$$PULSE" | grep -q '"allow":true'; \
+	# assignee inject → machine token only (isolated dir; disk + wire plates) \
+	Dinj=$(BUILD)/contracts_inject_test; rm -rf $$Dinj; mkdir -p $$Dinj; \
+	export GROKIUM_CONTRACT_DIR=$$Dinj; \
+	Jinj=$$($(BIN_FILTER) form --assignee 'nb-x","evil":true' --task 'inject probe' --min-set 1); \
+	echo "$$Jinj" | grep -q '"ok":true'; \
+	echo "$$Jinj" | grep -q '"assignee":"nb-xeviltrue"'; \
+	echo "$$Jinj" | grep -qv '"evil"'; \
+	Pinj=$$(echo "$$Jinj" | sed -n 's/.*"path":"\([^"]*\)".*/\1/p'); \
+	test -n "$$Pinj"; \
+	grep -q '"assignee": "nb-xeviltrue"' "$$Pinj"; \
+	if grep -q 'evil":true' "$$Pinj"; then echo ASSIGNEE_INJECT_LEAK; exit 1; fi; \
+	if $(BIN_FILTER) form --assignee '!!!' --task 'empty after sanitize' --min-set 1; then \
+	  echo ASSIGNEE_EMPTY_LEAK; exit 1; fi; \
 	echo SMX_FILTER_OK
 
 test-consolidate: $(BUILD)/grokium-consolidate

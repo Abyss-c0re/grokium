@@ -119,7 +119,7 @@ static int selftest(void) {
   char resp[4096];
   const char *b;
   int st, fails = 0;
-  setenv("GROKIUM_SERVE_MAX", "40", 1);
+  setenv("GROKIUM_SERVE_MAX", "48", 1);
   /* Integrity tick needs repo root (CODE_SEAL + privacy plate). */
   set_repo_root_env();
   {
@@ -569,6 +569,22 @@ static int selftest(void) {
         !strstr(b, "\"llm_is_commander\":false") ||
         !strstr(b, "\"hold_flash\":1")) {
       fprintf(stderr, "selftest: contract form dual-wire fail: %.400s\n", b);
+      fails++;
+    }
+  }
+  /* assignee inject on form → machine token only (no JSON break on plate) */
+  if (http_post("127.0.0.1", port, "/v1/contract/form",
+                "{\"assignee\":\"nb-x\\\",\\\"evil\\\":true\",\"task\":\"probe\","
+                "\"min_set\":1}",
+                resp, sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if (!strstr(b, "\"schema\":\"grokium.contract_form.v1\"") ||
+        !strstr(b, "\"ok\":true") ||
+        !strstr(b, "\"assignee\":\"nb-xeviltrue\"") || strstr(b, "\"evil\"")) {
+      fprintf(stderr, "selftest: contract form assignee inject fail: %.400s\n",
+              b);
       fails++;
     }
   }

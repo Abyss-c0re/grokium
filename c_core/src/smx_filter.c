@@ -17,6 +17,36 @@ static void sha256_hex_bytes(const void *data, size_t n, char out[65]) {
   gk_sha256_hex(data, n, out);
 }
 
+/* Bot/assignee machine token — no free-text or JSON inject on plates. */
+static void id_token(const char *in, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in || !in[0]) return;
+  for (i = 0; in[i] && o + 1 < cap; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9') || c == '_' || c == '-')
+      out[o++] = (char)c;
+  }
+  out[o] = 0;
+}
+
+/* Accept SHA field: hex digits only (empty if none remain). */
+static void hex_token(const char *in, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in || !in[0]) return;
+  for (i = 0; in[i] && o + 1 < cap && o < 64; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
+        (c >= 'A' && c <= 'F'))
+      out[o++] = (char)c;
+  }
+  out[o] = 0;
+}
+
 const char *grokium_hive_instinct_creed(void) {
   /* Machine creed: product bus is SMX2; peer HTTP is lab/ops only. */
   return "HIVE_MIND|core=queen|cells=bees|wire=smx2|product_wire=smx2|"
@@ -246,19 +276,21 @@ int grokium_contract_form(grokium_contract *out, const char *dir,
   time_t now = time(NULL);
   if (!out || !assignee || !assignee[0]) return -1;
   memset(out, 0, sizeof *out);
+  /* Sanitize before plate write: assignee is bot id token only (no prose). */
+  id_token(assignee, out->assignee, sizeof out->assignee);
+  if (!out->assignee[0]) return -1;
   snprintf(d, sizeof d, "%s", contract_dir(dir));
   mkdir_p(d);
   snprintf(out->id, sizeof out->id, "c%ld-%04x", (long)now,
            (unsigned)(now ^ (time_t)getpid()) & 0xffff);
-  snprintf(out->assignee, sizeof out->assignee, "%s", assignee);
   snprintf(out->issuer, sizeof out->issuer, "grokium-filter");
   if (task && task[0])
     sha256_hex_bytes(task, strlen(task), out->task_digest);
   out->accept_digit = accept_digit;
   out->accept_min_set = accept_min_set > 0 ? accept_min_set : 0;
   if (accept_smx_sha256 && accept_smx_sha256[0])
-    snprintf(out->accept_smx_sha256, sizeof out->accept_smx_sha256, "%s",
-             accept_smx_sha256);
+    hex_token(accept_smx_sha256, out->accept_smx_sha256,
+              sizeof out->accept_smx_sha256);
   out->budget = 40;
   out->hold_flash = 1;
   out->status = GROKIUM_CONTRACT_OPEN;
@@ -373,8 +405,22 @@ int grokium_contract_load(grokium_contract *out, const char *path) {
   json_int(buf, "motivate_ticks", &out->motivate_ticks);
   {
     int dl = 0;
+    char idt[GROKIUM_CONTRACT_ID_LEN];
+    char who[64];
+    char hex[GROKIUM_ACCEPT_HEX_LEN];
     if (json_int(buf, "deadline_ts", &dl) == 0)
       out->deadline_ts = dl;
+    /* Fail-closed re-sanitize plate fields (legacy inject plates). */
+    id_token(out->id, idt, sizeof idt);
+    snprintf(out->id, sizeof out->id, "%s", idt);
+    id_token(out->assignee, who, sizeof who);
+    snprintf(out->assignee, sizeof out->assignee, "%s", who);
+    id_token(out->issuer, who, sizeof who);
+    snprintf(out->issuer, sizeof out->issuer, "%s", who);
+    hex_token(out->task_digest, hex, sizeof hex);
+    snprintf(out->task_digest, sizeof out->task_digest, "%s", hex);
+    hex_token(out->accept_smx_sha256, hex, sizeof hex);
+    snprintf(out->accept_smx_sha256, sizeof out->accept_smx_sha256, "%s", hex);
   }
   free(buf);
   if (!out->id[0]) return -1;
