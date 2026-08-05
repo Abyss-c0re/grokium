@@ -1542,14 +1542,12 @@ static void do_command(const char *raw) {
       char k[80], v[160];
       int on;
       if (!eq) {
-        /* Machine need_key_value plate — dual-wire honesty. */
-        log_add("{\"schema\":\"grokium.settings.v1\",\"ok\":false,"
-                "\"error\":\"need_key_value\",\"product_wire\":\"smx2\","
-                "\"peer_http\":\"lab_ops_only\","
-                "\"peer_http_is_product_bus\":false,"
-                "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                "\"llm_is_commander\":false,"
-                "\"hint\":\"/settings key=value|save|reload|path|show\"}");
+        char plate[512];
+        /* Shared dual-wire need_key_value. */
+        grokium_err_json(
+            "settings", "need_key_value",
+            "/settings key=value|save|reload|path|show", plate, sizeof plate);
+        log_add(plate);
         return;
       }
       *eq = 0;
@@ -1588,14 +1586,12 @@ static void do_command(const char *raw) {
       else if (!strcmp(k,"ui.stream_redraw"))
         cfg.ui_stream_redraw = on;
       else {
-        /* Machine unknown_key plate — dual-wire honesty (no free-text-only). */
-        log_add("{\"schema\":\"grokium.settings.v1\",\"ok\":false,"
-                "\"error\":\"unknown_key\",\"product_wire\":\"smx2\","
-                "\"peer_http\":\"lab_ops_only\","
-                "\"peer_http_is_product_bus\":false,"
-                "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                "\"llm_is_commander\":false,"
-                "\"hint\":\"/settings key=value|save|reload|path|show\"}");
+        char plate[512];
+        /* Shared dual-wire unknown_key (no free-text key echo). */
+        grokium_err_json(
+            "settings", "unknown_key",
+            "/settings key=value|save|reload|path|show", plate, sizeof plate);
+        log_add(plate);
         return;
       }
       always_approve = cfg.agent_always_approve;
@@ -1668,14 +1664,11 @@ static void do_command(const char *raw) {
       gkx_config_save_prefs(&cfg, state_dir);
       log_add("backend=grok");
     } else {
-      /* Machine need_backend plate — dual-wire honesty (LLM ≠ commander). */
-      log_add("{\"schema\":\"grokium.backend.v1\",\"ok\":false,"
-              "\"error\":\"need_backend\",\"product_wire\":\"smx2\","
-              "\"peer_http\":\"lab_ops_only\","
-              "\"peer_http_is_product_bus\":false,"
-              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-              "\"llm_is_commander\":false,"
-              "\"hint\":\"/backend local|grok\"}");
+      char plate[512];
+      /* Shared dual-wire need_backend (LLM ≠ commander). */
+      grokium_err_json("backend", "need_backend", "/backend local|grok", plate,
+                       sizeof plate);
+      log_add(plate);
     }
     return;
   }
@@ -1737,14 +1730,12 @@ static void do_command(const char *raw) {
       if (gkx_hub_ensure(&cfg) == 0) {
         log_add("hub: ready");
       } else {
-        /* Machine hub_start_failed plate — dual-wire honesty. */
-        log_add("{\"schema\":\"grokium.hub.v1\",\"ok\":false,"
-                "\"error\":\"hub_start_failed\",\"product_wire\":\"smx2\","
-                "\"peer_http\":\"lab_ops_only\","
-                "\"peer_http_is_product_bus\":false,"
-                "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                "\"llm_is_commander\":false,"
-                "\"hint\":\"/hub status · check nanobot peer + local llama\"}");
+        char plate[512];
+        /* Shared dual-wire hub_start_failed. */
+        grokium_err_json(
+            "hub", "hub_start_failed",
+            "/hub status check nanobot peer + local llama", plate, sizeof plate);
+        log_add(plate);
       }
     } else if (rest[0] && strcmp(rest, "stop") == 0) {
       gkx_hub_stop();
@@ -1800,39 +1791,30 @@ static void do_command(const char *raw) {
   }
   if (strcmp(cmd, "attach") == 0 || strcmp(cmd, "file") == 0 || strcmp(cmd, "open") == 0) {
     if (!rest[0]) {
-      /* Machine need_path plate — dual-wire honesty (no free-text-only usage). */
-      log_add("{\"schema\":\"grokium.attach.v1\",\"ok\":false,"
-              "\"error\":\"need_path\",\"product_wire\":\"smx2\","
-              "\"peer_http\":\"lab_ops_only\","
-              "\"peer_http_is_product_bus\":false,"
-              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-              "\"llm_is_commander\":false,"
-              "\"hint\":\"/attach <path> [prompt for vision]\"}");
+      char plate[512];
+      /* Shared dual-wire need_path (no free-text-only usage). */
+      grokium_err_json("attach", "need_path",
+                       "/attach <path> [prompt for vision]", plate, sizeof plate);
+      log_add(plate);
       return;
     }
     char path[PATH_MAX], prompt[IN_MAX];
     prompt[0] = 0;
     if (sscanf(rest, "%511s %799[^\n]", path, prompt) < 1) {
-      log_add("{\"schema\":\"grokium.attach.v1\",\"ok\":false,"
-              "\"error\":\"need_path\",\"product_wire\":\"smx2\","
-              "\"peer_http\":\"lab_ops_only\","
-              "\"peer_http_is_product_bus\":false,"
-              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-              "\"llm_is_commander\":false,"
-              "\"hint\":\"/attach <path>\"}");
+      char plate[512];
+      grokium_err_json("attach", "need_path", "/attach <path>", plate,
+                       sizeof plate);
+      log_add(plate);
       return;
     }
     size_t raw_n = 0;
     unsigned char *raw = gkx_file_read_raw(path, &raw_n);
     if (!raw) {
-      /* Machine file_unreadable plate — dual-wire (no free-text-only path). */
-      log_add("{\"schema\":\"grokium.attach.v1\",\"ok\":false,"
-              "\"error\":\"file_unreadable\",\"product_wire\":\"smx2\","
-              "\"peer_http\":\"lab_ops_only\","
-              "\"peer_http_is_product_bus\":false,"
-              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-              "\"llm_is_commander\":false,\"content\":\"meta_only\","
-              "\"hint\":\"/attach <readable-path>\"}");
+      char plate[512];
+      /* Shared dual-wire file_unreadable (no free-text path). */
+      grokium_err_json("attach", "file_unreadable", "/attach <readable-path>",
+                       plate, sizeof plate);
+      log_add(plate);
       return;
     }
     const char *mime = gkx_mime_guess(path);
@@ -1902,50 +1884,39 @@ static void do_command(const char *raw) {
     }
     if (!strcmp(sub, "open")) {
       if (!arg[0]) {
-        log_add("{\"schema\":\"grokium.viz.v1\",\"ok\":false,"
-                "\"error\":\"need_path\",\"product_wire\":\"smx2\","
-                "\"peer_http\":\"lab_ops_only\","
-                "\"peer_http_is_product_bus\":false,"
-                "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                "\"llm_is_commander\":false,"
-                "\"hint\":\"/viz open <path>\"}");
+        char plate[512];
+        grokium_err_json("viz", "need_path", "/viz open <path>", plate,
+                         sizeof plate);
+        log_add(plate);
         return;
       }
       if (gkx_viz_open(&cfg, arg, 0) == 0) {
         log_add("opened (desktop cmd)");
       } else {
-        /* Machine open_failed plate — dual-wire honesty (no free-text-only). */
-        log_add("{\"schema\":\"grokium.viz.v1\",\"ok\":false,"
-                "\"error\":\"open_failed\",\"product_wire\":\"smx2\","
-                "\"peer_http\":\"lab_ops_only\","
-                "\"peer_http_is_product_bus\":false,"
-                "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                "\"llm_is_commander\":false,"
-                "\"hint\":\"/viz open <path> · set viz.desktop_cmd\"}");
+        char plate[512];
+        /* Shared dual-wire open_failed (no free-text-only). */
+        grokium_err_json("viz", "open_failed",
+                         "/viz open <path> set viz.desktop_cmd", plate,
+                         sizeof plate);
+        log_add(plate);
       }
       return;
     }
     if (!strcmp(sub, "vr")) {
       if (!arg[0]) {
-        log_add("{\"schema\":\"grokium.viz.v1\",\"ok\":false,"
-                "\"error\":\"need_path\",\"product_wire\":\"smx2\","
-                "\"peer_http\":\"lab_ops_only\","
-                "\"peer_http_is_product_bus\":false,"
-                "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                "\"llm_is_commander\":false,"
-                "\"hint\":\"/viz vr <path>\"}");
+        char plate[512];
+        grokium_err_json("viz", "need_path", "/viz vr <path>", plate,
+                         sizeof plate);
+        log_add(plate);
         return;
       }
       if (gkx_viz_open(&cfg, arg, 1) == 0) {
         log_add("opened (vr/desktop cmd)");
       } else {
-        log_add("{\"schema\":\"grokium.viz.v1\",\"ok\":false,"
-                "\"error\":\"open_failed\",\"product_wire\":\"smx2\","
-                "\"peer_http\":\"lab_ops_only\","
-                "\"peer_http_is_product_bus\":false,"
-                "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                "\"llm_is_commander\":false,"
-                "\"hint\":\"/viz vr <path> · set viz.vr_cmd\"}");
+        char plate[512];
+        grokium_err_json("viz", "open_failed",
+                         "/viz vr <path> set viz.vr_cmd", plate, sizeof plate);
+        log_add(plate);
       }
       return;
     }

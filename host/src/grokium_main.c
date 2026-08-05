@@ -311,24 +311,19 @@ static int cmd_status(int argc, char **argv) {
     return run_cubalc_program("board.cubalc", NULL);
   if (sub[0] && (!strcmp(sub, "help") || !strcmp(sub, "-h") ||
                  !strcmp(sub, "--help"))) {
-    /* Machine help plate — dual-wire honesty (no free-text-only usage). */
-    printf("{\"schema\":\"grokium.status.v1\",\"ok\":false,"
-           "\"error\":\"need_run_or_cubalc\",\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false,\"python\":0,\"host\":\"C\","
-           "\"hint\":\"status [cubalc|board] · pure-C dual-wire plate\"}\n");
+    char deny[512];
+    /* Shared dual-wire help (no free-text-only usage). */
+    grokium_err_json("status", "need_run_or_cubalc",
+                     "status [cubalc|board] pure-C dual-wire plate", deny,
+                     sizeof deny);
+    printf("%s\n", deny);
     return 0;
   }
   if (gkx_status_plate_json(root, "host_cli", plate, sizeof plate) != 0) {
-    /* Machine plate_failed — dual-wire honesty (no free-text-only). */
-    printf("{\"schema\":\"grokium.status.v1\",\"ok\":false,"
-           "\"error\":\"plate_failed\",\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false,\"python\":0,\"host\":\"C\"}\n");
+    char deny[512];
+    /* Shared dual-wire plate_failed (no free-text-only). */
+    grokium_err_json("status", "plate_failed", NULL, deny, sizeof deny);
+    printf("%s\n", deny);
     return 1;
   }
   printf("%s\n", plate);

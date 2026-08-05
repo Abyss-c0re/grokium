@@ -201,10 +201,36 @@ int main(void) {
         strstr(plate, "\"evil\"") || !strstr(plate, "\"error\":\"baddrop\"") ||
         !strstr(plate, "a_b && c"))
       return fail("err_json inject sanitize fail");
+    /* TUI settings/attach/viz share the same dual-wire err builder. */
+    grokium_err_json("settings", "need_key_value",
+                     "/settings key=value|save|reload|path|show", plate,
+                     sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.settings.v1\"") ||
+        !strstr(plate, "\"error\":\"need_key_value\"") ||
+        !strstr(plate, "\"product_wire\":\"smx2\""))
+      return fail("settings err dual-wire plate fail");
+    grokium_err_json("attach", "need_path",
+                     "/attach <path> [prompt for vision]", plate, sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.attach.v1\"") ||
+        !strstr(plate, "\"error\":\"need_path\"") ||
+        !strstr(plate, "/attach <path>"))
+      return fail("attach need_path dual-wire plate fail");
+    grokium_err_json("viz", "open_failed",
+                     "/viz open <path> set viz.desktop_cmd", plate, sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.viz.v1\"") ||
+        !strstr(plate, "\"error\":\"open_failed\"") ||
+        !strstr(plate, "\"hold_flash\":1"))
+      return fail("viz open_failed dual-wire plate fail");
+    grokium_err_json("status", "plate_failed", NULL, plate, sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.status.v1\"") ||
+        !strstr(plate, "\"error\":\"plate_failed\"") ||
+        !strstr(plate, "\"llm_is_commander\":false") || strstr(plate, "\"hint\""))
+      return fail("status plate_failed dual-wire plate fail");
   }
 
   printf("HOST_SMX_FILTER_OK external=strict hold_flash=1 dual_wire=gate "
          "allow_plate=1 instinct_plate=1 manager_help_plate=1 license_plate=1 "
-         "need_subcmd=1 commander_deny=1 mode_need_subcmd=1 err_json=1\n");
+         "need_subcmd=1 commander_deny=1 mode_need_subcmd=1 err_json=1 "
+         "settings_attach_viz=1\n");
   return 0;
 }
