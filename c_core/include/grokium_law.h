@@ -60,4 +60,28 @@ void grokium_need_subcmd_json(const char *schema_leaf, const char *hint,
  */
 void grokium_commander_deny_json(const char *schema_leaf, const char *error,
                                  const char *hint, char *out, size_t cap);
+
+/*
+ * Dual-wire Commander success plate (schema grokium.commander.v1).
+ * fingerprint hex-sanitized; law_dir/domain path-sanitized (no JSON inject).
+ * has_sk: -1 omit field, 0 false, 1 true. domain NULL → omit domain.
+ * CLI keygen/show + GET /v1/commander share this builder.
+ */
+void grokium_commander_ok_json(const char *fingerprint, const char *law_dir,
+                               const char *domain, int has_sk, char *out,
+                               size_t cap);
+
+/*
+ * Dual-wire Commander verify plate (schema grokium.commander_verify.v1).
+ * ok=1 → commander "grokium"; ok=0 → commander null. CLI + HTTP verify share.
+ */
+void grokium_commander_verify_json(int ok, char *out, size_t cap);
+
+/*
+ * Dual-wire Commander install-law success plate (schema grokium.commander.v1).
+ * home/bot path-sanitized; fingerprint hex-sanitized.
+ */
+void grokium_commander_install_json(const char *home, const char *bot,
+                                    const char *fingerprint, char *out,
+                                    size_t cap);
 #endif

@@ -1352,31 +1352,16 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     }
     law_dir_for(root, law, sizeof law);
     if (load_commander(root, &cmd) != 0) {
-      snprintf(resp, sizeof resp,
-               "{\"schema\":\"grokium.commander.v1\",\"ok\":false,"
-               "\"error\":\"no_commander_pk\",\"law_dir\":\"%s\","
-               "\"hint\":\"grokium-commander keygen --law-dir DIR\","
-               "\"not\":\"grok_model\",\"llm_is_commander\":false,"
-               "\"commander_is_model\":false,\"product_wire\":\"smx2\","
-               "\"peer_http\":\"lab_ops_only\","
-               "\"peer_http_is_product_bus\":false,"
-               "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
-               law);
+      /* Shared Commander deny (no free-text path inject on miss). */
+      grokium_commander_deny_json(
+          "commander", "no_commander_pk",
+          "grokium-commander keygen --law-dir DIR", resp, sizeof resp);
       http_reply(cfd, 404, "application/json", resp);
       return;
     }
-    /* never emit sk; has_sk only for ops honesty on loopback */
-    snprintf(resp, sizeof resp,
-             "{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
-             "\"product\":\"grokium\",\"not\":\"grok_model\","
-             "\"domain\":\"%s\",\"fingerprint\":\"%s\",\"has_sk\":%s,"
-             "\"unforgeable\":true,\"law_dir\":\"%s\","
-             "\"commander_is_model\":false,\"llm_is_commander\":false,"
-             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
-             GK_CMD_DOMAIN, cmd.fingerprint_hex,
-             cmd.has_sk ? "true" : "false", law);
+    /* Shared dual-wire show (never emit sk; has_sk for loopback ops honesty). */
+    grokium_commander_ok_json(cmd.fingerprint_hex, law, GK_CMD_DOMAIN,
+                              cmd.has_sk ? 1 : 0, resp, sizeof resp);
     http_reply(cfd, 200, "application/json", resp);
     return;
   }
@@ -1447,15 +1432,8 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     }
     ok = gk_commander_verify_override(&cmd, device, action, nonce, ts, NULL, 0,
                                       sig);
-    snprintf(resp, sizeof resp,
-             "{\"schema\":\"grokium.commander_verify.v1\",\"ok\":%s,"
-             "\"commander\":%s,\"not\":\"grok_model\","
-             "\"unforgeable\":true,\"product\":\"grokium\","
-             "\"llm_is_commander\":false,\"commander_is_model\":false,"
-             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
-             ok ? "true" : "false", ok ? "\"grokium\"" : "null");
+    /* Shared dual-wire verify plate (match grokium-commander verify). */
+    grokium_commander_verify_json(ok, resp, sizeof resp);
     http_reply(cfd, ok ? 200 : 403, "application/json", resp);
     return;
   }

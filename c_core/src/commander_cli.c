@@ -94,6 +94,36 @@ int main(int argc, char **argv) {
     fprintf(stderr, "grokium-commander: need_verify_args dual-wire fail\n");
     return 1;
   }
+  /* Success builders: dual-wire + path inject sanitize (no free-text law_dir). */
+  grokium_commander_ok_json("deadbeef", "data/law\";drop", "GROKIUM-COMMANDER-v1",
+                            1, plate, sizeof plate);
+  if (!strstr(plate, "\"ok\":true") ||
+      !strstr(plate, "\"fingerprint\":\"deadbeef\"") ||
+      !strstr(plate, "\"product_wire\":\"smx2\"") ||
+      !strstr(plate, "\"llm_is_commander\":false") ||
+      !strstr(plate, "\"has_sk\":true") || strstr(plate, "\";drop") ||
+      strstr(plate, "\";") || strstr(plate, "\\\"") ||
+      !strstr(plate, "\"law_dir\":\"data/law_drop\"")) {
+    fprintf(stderr, "grokium-commander: ok plate dual-wire/sanitize fail\n");
+    return 1;
+  }
+  grokium_commander_verify_json(1, plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.commander_verify.v1\"") ||
+      !strstr(plate, "\"ok\":true") ||
+      !strstr(plate, "\"commander\":\"grokium\"") ||
+      !strstr(plate, "\"peer_http_is_product_bus\":false")) {
+    fprintf(stderr, "grokium-commander: verify plate dual-wire fail\n");
+    return 1;
+  }
+  grokium_commander_install_json("home\";x", "nb-test", "abc", plate,
+                                 sizeof plate);
+  if (!strstr(plate, "\"law\":\"installed\"") || strstr(plate, "\";x") ||
+      !strstr(plate, "\"home\":\"home_x\"") ||
+      !strstr(plate, "\"hold_flash\":1") ||
+      !strstr(plate, "\"commander_is_model\":false")) {
+    fprintf(stderr, "grokium-commander: install plate sanitize fail\n");
+    return 1;
+  }
 
   if (argc < 2 || !strcmp(argv[1], "help") || !strcmp(argv[1], "-h") ||
       !strcmp(argv[1], "--help")) {
@@ -122,14 +152,10 @@ int main(int argc, char **argv) {
     }
     if (gk_commander_generate(&C) != 0) { fprintf(stderr, "keygen failed\n"); return 1; }
     if (gk_commander_save(&C, law_dir) != 0) { fprintf(stderr, "save failed\n"); return 1; }
-    printf("{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
-           "\"product\":\"grokium\",\"not\":\"grok_model\","
-           "\"fingerprint\":\"%s\",\"law_dir\":\"%s\",\"unforgeable\":true,"
-           "\"llm_is_commander\":false,\"commander_is_model\":false,"
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1}\n",
-           C.fingerprint_hex, law_dir);
+    /* Shared dual-wire success (path-sanitized law_dir · LLM ≠ commander). */
+    grokium_commander_ok_json(C.fingerprint_hex, law_dir, NULL, -1, plate,
+                              sizeof plate);
+    printf("%s\n", plate);
     return 0;
   }
 
@@ -139,15 +165,10 @@ int main(int argc, char **argv) {
       return 2;
     }
     if (gk_commander_load(&C, law_dir) != 0) { fprintf(stderr, "load failed\n"); return 1; }
-    printf("{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
-           "\"product\":\"grokium\",\"not\":\"grok_model\","
-           "\"domain\":\"%s\",\"fingerprint\":\"%s\",\"has_sk\":%s,"
-           "\"unforgeable\":true,\"llm_is_commander\":false,"
-           "\"commander_is_model\":false,\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1}\n",
-           GK_CMD_DOMAIN, C.fingerprint_hex, C.has_sk ? "true" : "false");
+    /* Shared dual-wire show (domain + has_sk · match GET /v1/commander). */
+    grokium_commander_ok_json(C.fingerprint_hex, law_dir, GK_CMD_DOMAIN,
+                              C.has_sk ? 1 : 0, plate, sizeof plate);
+    printf("%s\n", plate);
     return 0;
   }
 
@@ -187,13 +208,9 @@ int main(int argc, char **argv) {
     if (body_path) read_all(body_path, &body, &blen);
     ok = gk_commander_verify_override(&C, device, action, nonce, ts, body, blen, sig);
     free(body);
-    printf("{\"schema\":\"grokium.commander_verify.v1\",\"ok\":%s,"
-           "\"commander\":%s,\"not\":\"grok_model\",\"unforgeable\":true,"
-           "\"llm_is_commander\":false,\"commander_is_model\":false,"
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1}\n",
-           ok ? "true" : "false", ok ? "\"grokium\"" : "null");
+    /* Shared dual-wire verify plate (match HTTP /v1/commander/verify). */
+    grokium_commander_verify_json(ok, plate, sizeof plate);
+    printf("%s\n", plate);
     return ok ? 0 : 1;
   }
 
@@ -206,14 +223,10 @@ int main(int argc, char **argv) {
     if (gk_commander_install_nanobot_law(&C, home, bot ? bot : "nb", purpose ? purpose : "assigned") != 0) {
       fprintf(stderr, "install failed\n"); return 1;
     }
-    printf("{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
-           "\"home\":\"%s\",\"bot\":\"%s\",\"fingerprint\":\"%s\","
-           "\"law\":\"installed\",\"not\":\"grok_model\","
-           "\"llm_is_commander\":false,\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1}\n",
-           home, bot ? bot : "nb", C.fingerprint_hex);
+    /* Shared dual-wire install ack (home/bot path-sanitized). */
+    grokium_commander_install_json(home, bot ? bot : "nb", C.fingerprint_hex,
+                                   plate, sizeof plate);
+    printf("%s\n", plate);
     return 0;
   }
 

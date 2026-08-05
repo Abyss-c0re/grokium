@@ -183,3 +183,132 @@ void grokium_commander_deny_json(const char *schema_leaf, const char *error,
              leaf, err);
   }
 }
+
+/* Path/token field: alnum + safe path punctuation; map JSON metacharacters. */
+static void path_token(const char *in, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in || !in[0]) return;
+  for (i = 0; in[i] && o + 1 < cap && o < 200; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.' ||
+        c == '/' || c == ':' || c == '@' || c == '+') {
+      out[o++] = (char)c;
+    } else if (c == '"' || c == '\\' || c == '\n' || c == '\r' || c == '\t') {
+      out[o++] = '_';
+    } else if (c == ' ') {
+      out[o++] = '_';
+    }
+  }
+  out[o] = 0;
+}
+
+/* Hex fingerprint only (sha256 hex · no free-text inject). */
+static void hex_token(const char *in, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in || !in[0]) return;
+  for (i = 0; in[i] && o + 1 < cap && o < 64; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
+        (c >= 'A' && c <= 'F'))
+      out[o++] = (char)c;
+  }
+  out[o] = 0;
+}
+
+void grokium_commander_ok_json(const char *fingerprint, const char *law_dir,
+                               const char *domain, int has_sk, char *out,
+                               size_t cap) {
+  char fp[72], dir[220], dom[96];
+  if (!out || cap < 64) return;
+  hex_token(fingerprint, fp, sizeof fp);
+  if (!fp[0]) snprintf(fp, sizeof fp, "none");
+  path_token(law_dir, dir, sizeof dir);
+  path_token(domain, dom, sizeof dom);
+  /* Shared dual-wire success: Ed25519 residual · LLM ≠ commander. */
+  if (dom[0] && has_sk >= 0 && dir[0]) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
+             "\"product\":\"grokium\",\"not\":\"grok_model\","
+             "\"domain\":\"%s\",\"fingerprint\":\"%s\",\"has_sk\":%s,"
+             "\"unforgeable\":true,\"law_dir\":\"%s\","
+             "\"llm_is_commander\":false,\"commander_is_model\":false,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
+             dom, fp, has_sk ? "true" : "false", dir);
+  } else if (dom[0] && has_sk >= 0) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
+             "\"product\":\"grokium\",\"not\":\"grok_model\","
+             "\"domain\":\"%s\",\"fingerprint\":\"%s\",\"has_sk\":%s,"
+             "\"unforgeable\":true,"
+             "\"llm_is_commander\":false,\"commander_is_model\":false,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
+             dom, fp, has_sk ? "true" : "false");
+  } else if (dir[0]) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
+             "\"product\":\"grokium\",\"not\":\"grok_model\","
+             "\"fingerprint\":\"%s\",\"law_dir\":\"%s\",\"unforgeable\":true,"
+             "\"llm_is_commander\":false,\"commander_is_model\":false,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
+             fp, dir);
+  } else {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
+             "\"product\":\"grokium\",\"not\":\"grok_model\","
+             "\"fingerprint\":\"%s\",\"unforgeable\":true,"
+             "\"llm_is_commander\":false,\"commander_is_model\":false,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
+             fp);
+  }
+}
+
+void grokium_commander_verify_json(int ok, char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Shared dual-wire verify plate (CLI + HTTP /v1/commander/verify). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.commander_verify.v1\",\"ok\":%s,"
+           "\"commander\":%s,\"not\":\"grok_model\",\"unforgeable\":true,"
+           "\"product\":\"grokium\","
+           "\"llm_is_commander\":false,\"commander_is_model\":false,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
+           ok ? "true" : "false", ok ? "\"grokium\"" : "null");
+}
+
+void grokium_commander_install_json(const char *home, const char *bot,
+                                    const char *fingerprint, char *out,
+                                    size_t cap) {
+  char hm[220], bt[64], fp[72];
+  if (!out || cap < 64) return;
+  path_token(home, hm, sizeof hm);
+  if (!hm[0]) snprintf(hm, sizeof hm, "none");
+  path_token(bot, bt, sizeof bt);
+  if (!bt[0]) snprintf(bt, sizeof bt, "nb");
+  hex_token(fingerprint, fp, sizeof fp);
+  if (!fp[0]) snprintf(fp, sizeof fp, "none");
+  /* Shared dual-wire install-law ack (CLI install-law). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
+           "\"home\":\"%s\",\"bot\":\"%s\",\"fingerprint\":\"%s\","
+           "\"law\":\"installed\",\"product\":\"grokium\","
+           "\"not\":\"grok_model\",\"unforgeable\":true,"
+           "\"llm_is_commander\":false,\"commander_is_model\":false,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
+           hm, bt, fp);
+}
