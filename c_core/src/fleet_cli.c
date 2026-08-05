@@ -1,20 +1,16 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #define _POSIX_C_SOURCE 200809L
 #include "grokium_fleet.h"
+#include "grokium_law.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-/* Dual-wire deny plates — no free-text usage on machine wire. */
-static const char k_need_subcmd[] =
-    "{\"schema\":\"grokium.fleet.v1\",\"ok\":false,"
-    "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false,"
-    "\"hint\":\"defaults|deploy|save|status|spawn|spawn-all|note-pid|"
-    "separate|stop-all|selftest\"}";
+/* Shared dual-wire need_subcmd (host TUI /fleet help same builder). */
+static const char k_fleet_hint[] =
+    "defaults|deploy|save|status|spawn|spawn-all|note-pid|"
+    "separate|stop-all|selftest";
 
 /* unknown_bot for generic fleet denials (note-pid uses schema-scoped helper). */
 static const char k_unknown_bot[] =
@@ -33,7 +29,11 @@ static int plate_dual_wire_ok(const char *p) {
          strstr(p, "\"share\":\"state_matrix_only\"");
 }
 
-static void usage(void) { printf("%s\n", k_need_subcmd); }
+static void usage(void) {
+  char plate[512];
+  grokium_need_subcmd_json("fleet", k_fleet_hint, plate, sizeof plate);
+  printf("%s\n", plate);
+}
 
 /* Pure-C plate honesty: defaults, note-pid, dead-pid clear, dual-wire fields. */
 static int fleet_selftest(void) {
@@ -96,9 +96,10 @@ static int fleet_selftest(void) {
   /* Deny plates dual-wire (usage/spawn/note/separate missing args). */
   {
     char den[512];
-    if (!strstr(k_need_subcmd, "\"error\":\"need_subcmd\"") ||
-        !plate_dual_wire_ok(k_need_subcmd) ||
-        !plate_dual_wire_ok(k_unknown_bot)) {
+    grokium_need_subcmd_json("fleet", k_fleet_hint, den, sizeof den);
+    if (!strstr(den, "\"error\":\"need_subcmd\"") ||
+        !strstr(den, "\"schema\":\"grokium.fleet.v1\"") ||
+        !plate_dual_wire_ok(den) || !plate_dual_wire_ok(k_unknown_bot)) {
       fprintf(stderr, "selftest: fleet deny plate dual-wire fail\n");
       return 1;
     }

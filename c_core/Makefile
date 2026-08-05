@@ -9,7 +9,7 @@ BIN_FILTER := $(BUILD)/grokium-smx-filter
 
 FILTER_SRC := src/smx_filter_cli.c src/smx_filter.c src/smx.c src/algocube.c \
 	src/law.c src/sha256.c
-FLEET_SRC := src/fleet_cli.c src/fleet.c
+FLEET_SRC := src/fleet_cli.c src/fleet.c src/law.c
 CONS_SRC := src/consolidator_cli.c src/consolidator.c src/smx_filter.c \
 	src/smx.c src/algocube.c src/law.c src/sha256.c
 HTTP_SRC := src/http_cli.c src/http.c src/llama.c src/session.c \
@@ -243,6 +243,13 @@ test-integrity: $(BUILD)/grokium-integrity
 test-fleet: $(BUILD)/grokium-fleet
 	@$(BUILD)/grokium-fleet selftest
 	@set -e; \
+	H=$$($(BUILD)/grokium-fleet help || true); \
+	echo "$$H" | grep -q '"schema":"grokium.fleet.v1"'; \
+	echo "$$H" | grep -q '"error":"need_subcmd"'; \
+	echo "$$H" | grep -q '"product_wire":"smx2"'; \
+	echo "$$H" | grep -q '"peer_http_is_product_bus":false'; \
+	echo "$$H" | grep -q '"llm_is_commander":false'; \
+	echo "$$H" | grep -q '"hold_flash":1'; \
 	D=$(BUILD)/fleet_ack_test; rm -rf $$D; mkdir -p $$D; \
 	P=$$D/FLEET.json; \
 	OUT=$$($(BUILD)/grokium-fleet deploy $$P); \
