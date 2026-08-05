@@ -471,10 +471,15 @@ static int cmd_sessions(int argc, char **argv) {
   if (argc >= 1 &&
       (!strcmp(argv[0], "help") || !strcmp(argv[0], "-h") ||
        !strcmp(argv[0], "--help"))) {
-    fprintf(stderr,
-            "usage: grokium sessions [q]\n"
-            "       grokium sessions pickup|load <id>\n"
-            "  content=meta_only · share=state_matrix_only · no transcripts\n");
+    /* Machine help plate — dual-wire honesty (no free-text-only usage). */
+    printf("{\"schema\":\"grokium.sessions.v1\",\"ok\":false,"
+           "\"error\":\"need_query_or_pickup\",\"content\":\"meta_only\","
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false,\"telemetry\":\"off\","
+           "\"hint\":\"sessions [q] · sessions pickup|load <id> · no "
+           "transcripts\"}\n");
     return 0;
   }
   if (argc >= 1) q = argv[0];
@@ -762,18 +767,35 @@ int main(int argc, char **argv) {
     return run_c_core("grokium-smx-filter", argc - ai - 1, argv + ai + 1);
   }
   if (strcmp(cmd, "commander") == 0) {
-    if (ai + 1 >= argc) {
-      fprintf(stderr,
-              "usage: grokium commander keygen|show|sign|verify|install-law "
-              "--law-dir DIR …\n"
-              "  Commander is Ed25519 law identity — never a Grok model.\n");
+    if (ai + 1 >= argc ||
+        !strcmp(argv[ai + 1], "help") || !strcmp(argv[ai + 1], "-h") ||
+        !strcmp(argv[ai + 1], "--help")) {
+      /* Machine need_subcmd plate — dual-wire honesty (Commander ≠ model). */
+      printf("{\"schema\":\"grokium.commander.v1\",\"ok\":false,"
+             "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false,\"commander_is_model\":false,"
+             "\"commander\":\"ed25519\",\"not\":\"grok_model\","
+             "\"hint\":\"keygen|show|sign|verify|install-law --law-dir "
+             "DIR\"}\n");
       return 2;
     }
     return run_c_core("grokium-commander", argc - ai - 1, argv + ai + 1);
   }
   if (strcmp(cmd, "integrity") == 0) {
-    if (ai + 1 >= argc) {
-      fprintf(stderr, "usage: grokium integrity tick|policy|reseal\n");
+    if (ai + 1 >= argc ||
+        !strcmp(argv[ai + 1], "help") || !strcmp(argv[ai + 1], "-h") ||
+        !strcmp(argv[ai + 1], "--help")) {
+      /* Machine need_subcmd plate — dual-wire honesty (fail-closed seal). */
+      printf("{\"schema\":\"grokium.integrity_report.v1\",\"ok\":false,"
+             "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false,"
+             "\"hint\":\"tick|policy|reseal\"}\n");
       return 2;
     }
     return run_c_core("grokium-integrity", argc - ai - 1, argv + ai + 1);
