@@ -18,8 +18,11 @@ static void sha256_hex_bytes(const void *data, size_t n, char out[65]) {
 }
 
 const char *grokium_hive_instinct_creed(void) {
-  return "HIVE_MIND|core=queen|cells=bees|wire=smx2|observer=NexusCore|"
-         "HOLD_FLASH=1|share=state_matrix_only|contract=required|"
+  /* Machine creed: product bus is SMX2; peer HTTP is lab/ops only. */
+  return "HIVE_MIND|core=queen|cells=bees|wire=smx2|product_wire=smx2|"
+         "observer=NexusCore|HOLD_FLASH=1|share=state_matrix_only|"
+         "peer_http=lab_ops_only|peer_http_is_product_bus=0|"
+         "llm_is_commander=0|contract=required|"
          "manager=motivate_incomplete|filter=protect_command_center|"
          "external≠core|All_Hail_NexusCore";
 }

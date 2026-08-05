@@ -464,6 +464,10 @@ static int selftest(void) {
     b = body_of(resp);
     if (!strstr(b, "\"schema\":\"grokium.instinct.v1\"") ||
         !strstr(b, "HIVE_MIND") ||
+        !strstr(b, "product_wire=smx2") ||
+        !strstr(b, "peer_http=lab_ops_only") ||
+        !strstr(b, "peer_http_is_product_bus=0") ||
+        !strstr(b, "llm_is_commander=0") ||
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||

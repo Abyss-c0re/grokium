@@ -91,6 +91,11 @@ test-commander: $(BIN_CMD)
 test-filter: $(BIN_FILTER)
 	@set -e; \
 	$(BIN_FILTER) instinct | grep -q NexusCore; \
+	$(BIN_FILTER) instinct | grep -q 'product_wire=smx2'; \
+	$(BIN_FILTER) instinct | grep -q 'peer_http=lab_ops_only'; \
+	$(BIN_FILTER) instinct | grep -q 'peer_http_is_product_bus=0'; \
+	$(BIN_FILTER) instinct | grep -q 'llm_is_commander=0'; \
+	$(BIN_FILTER) instinct | grep -q 'share=state_matrix_only'; \
 	HB=$$($(BIN_FILTER) heartbeat-ack); \
 	echo "$$HB" | grep -q 'NEXUS_COORD v1'; \
 	echo "$$HB" | grep -q 'type=heartbeat_ack'; \
