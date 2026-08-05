@@ -426,6 +426,9 @@ static int cmd_session_pickup(const char *id) {
   if (!f) {
     printf("{\"schema\":\"grokium.session_pickup.v1\",\"ok\":false,"
            "\"error\":\"not_found\",\"id\":\"%s\",\"content\":\"meta_only\","
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,"
            "\"share\":\"state_matrix_only\",\"resume_available\":false,"
            "\"hint\":\"import meta only; TUI /pickup resumes host-local\"}\n",
            id);
@@ -445,7 +448,10 @@ static int cmd_session_pickup(const char *id) {
   json_escape(hist, he, sizeof he);
   printf("{\"schema\":\"grokium.session_pickup.v1\",\"ok\":true,"
          "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
-         "\"peer_http\":\"lab_ops_only\",\"share\":\"state_matrix_only\","
+         "\"peer_http\":\"lab_ops_only\","
+         "\"peer_http_is_product_bus\":false,"
+         "\"llm_is_commander\":false,"
+         "\"share\":\"state_matrix_only\","
          "\"telemetry\":\"off\",\"resume\":\"host_tui\","
          "\"resume_available\":%s,\"resume_hist\":\"%s\","
          "\"hint\":\"TUI /pickup loads last turns host-local only\","
@@ -495,13 +501,18 @@ static int cmd_sessions(int argc, char **argv) {
            "\"sessions\":[],\"q\":\"%s\",\"import_dir\":\"%s/data/import\","
            "\"error\":\"no_import_dir\",\"content\":\"meta_only\","
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,"
            "\"share\":\"state_matrix_only\",\"telemetry\":\"off\"}\n",
            q_esc, root);
     return 0;
   }
   printf("{\"schema\":\"grokium.sessions.v1\",\"ok\":true,"
          "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
-         "\"peer_http\":\"lab_ops_only\",\"share\":\"state_matrix_only\","
+         "\"peer_http\":\"lab_ops_only\","
+         "\"peer_http_is_product_bus\":false,"
+         "\"llm_is_commander\":false,"
+         "\"share\":\"state_matrix_only\","
          "\"telemetry\":\"off\",\"q\":\"%s\",\"import_dir\":\"%s\","
          "\"sessions\":[",
          q_esc, dir);
