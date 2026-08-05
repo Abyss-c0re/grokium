@@ -152,6 +152,32 @@ test-integrity: $(BUILD)/grokium-integrity
 
 test-fleet: $(BUILD)/grokium-fleet
 	@$(BUILD)/grokium-fleet selftest
+	@set -e; \
+	D=$(BUILD)/fleet_ack_test; rm -rf $$D; mkdir -p $$D; \
+	P=$$D/FLEET.json; \
+	OUT=$$($(BUILD)/grokium-fleet deploy $$P); \
+	echo "$$OUT" | grep -q '"schema":"grokium.fleet_deploy.v1"'; \
+	echo "$$OUT" | grep -q '"product_wire":"smx2"'; \
+	echo "$$OUT" | grep -q '"peer_http_is_product_bus":false'; \
+	echo "$$OUT" | grep -q '"llm_is_commander":false'; \
+	OUT=$$($(BUILD)/grokium-fleet save $$P); \
+	echo "$$OUT" | grep -q '"schema":"grokium.fleet_save.v1"'; \
+	echo "$$OUT" | grep -q '"product_wire":"smx2"'; \
+	echo "$$OUT" | grep -q '"share":"state_matrix_only"'; \
+	OUT=$$($(BUILD)/grokium-fleet status $$P); \
+	echo "$$OUT" | grep -q '"product_wire":"smx2"'; \
+	OUT=$$($(BUILD)/grokium-fleet note-pid nb-manager 999999999 $$P); \
+	echo "$$OUT" | grep -q '"schema":"grokium.fleet_note_pid.v1"'; \
+	echo "$$OUT" | grep -q '"product_wire":"smx2"'; \
+	echo "$$OUT" | grep -q '"peer_http":"lab_ops_only"'; \
+	echo "$$OUT" | grep -q '"pid":null'; \
+	OUT=$$($(BUILD)/grokium-fleet separate nb-host $$P); \
+	echo "$$OUT" | grep -q '"schema":"grokium.fleet_separate.v1"'; \
+	echo "$$OUT" | grep -q '"llm_is_commander":false'; \
+	OUT=$$($(BUILD)/grokium-fleet stop-all $$P); \
+	echo "$$OUT" | grep -q '"schema":"grokium.fleet_stop.v1"'; \
+	echo "$$OUT" | grep -q '"peer_http_is_product_bus":false'; \
+	echo FLEET_ACK_DUAL_WIRE_OK
 
 hive: test-filter test-consolidate test-serve test-commander test-integrity \
 	test-fleet $(BUILD)/grokium-fleet

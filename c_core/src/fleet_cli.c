@@ -148,16 +148,28 @@ int main(int argc, char **argv) {
     fleet_default_roles(&F);
     fleet_deploy(&F);
     fleet_save(&F, path);
-    printf("{\"ok\":true,\"deployed\":%d,\"path\":\"%s\",\"nb_manager\":true}\n",
-           F.n, path);
+    /* CLI ack: dual-wire honesty (on-disk plate already carries these). */
+    printf("{\"schema\":\"grokium.fleet_deploy.v1\",\"ok\":true,"
+           "\"deployed\":%d,\"path\":\"%s\",\"nb_manager\":true,"
+           "\"alive\":%d,\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false}\n",
+           F.n, path, fleet_status(&F));
     return 0;
   }
   if (!strcmp(argv[1], "save")) {
     if (argc > 2) path = argv[2];
     fleet_load(&F, path);
     fleet_save(&F, path);
-    printf("{\"ok\":true,\"saved\":\"%s\",\"n\":%d,\"alive\":%d}\n", path, F.n,
-           fleet_status(&F));
+    printf("{\"schema\":\"grokium.fleet_save.v1\",\"ok\":true,"
+           "\"saved\":\"%s\",\"n\":%d,\"alive\":%d,\"nb_manager\":true,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false}\n",
+           path, F.n, fleet_status(&F));
     return 0;
   }
   if (!strcmp(argv[1], "status")) {
@@ -193,9 +205,14 @@ int main(int argc, char **argv) {
     fleet_save(&F, path);
     for (i = 0; i < F.n; i++) {
       if (strcmp(F.bots[i].id, argv[2]) != 0) continue;
-      printf("{\"ok\":true,\"id\":\"%s\",\"pid\":%d,\"running\":%s,"
+      /* Peer HTTP on bot ports is lab/ops; product talk stays SMX2. */
+      printf("{\"schema\":\"grokium.fleet_spawn.v1\",\"ok\":true,"
+             "\"id\":\"%s\",\"pid\":%d,\"running\":%s,"
              "\"status\":\"%s\",\"path\":\"%s\",\"wire\":\"%s\","
-             "\"peer_http\":\"lab_ops_only\"}\n",
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false}\n",
              F.bots[i].id, F.bots[i].pid > 0 ? F.bots[i].pid : 0,
              F.bots[i].running ? "true" : "false",
              F.bots[i].running ? "running" : "separated", path,
@@ -211,8 +228,12 @@ int main(int argc, char **argv) {
     n = fleet_spawn_all(&F);
     fleet_save(&F, path);
     if (n < 0) return 1;
-    printf("{\"ok\":true,\"spawned\":%d,\"n\":%d,\"alive\":%d,\"path\":\"%s\","
-           "\"peer_http\":\"lab_ops_only\",\"product_wire\":\"smx2\"}\n",
+    printf("{\"schema\":\"grokium.fleet_spawn_all.v1\",\"ok\":true,"
+           "\"spawned\":%d,\"n\":%d,\"alive\":%d,\"path\":\"%s\","
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false}\n",
            n, F.n, fleet_status(&F), path);
     return n > 0 ? 0 : 1;
   }
@@ -232,8 +253,13 @@ int main(int argc, char **argv) {
     fleet_save(&F, path);
     for (i = 0; i < F.n; i++) {
       if (strcmp(F.bots[i].id, argv[2]) != 0) continue;
-      printf("{\"ok\":true,\"id\":\"%s\",\"pid\":%s,\"running\":%s,"
-             "\"status\":\"%s\",\"path\":\"%s\"}\n",
+      printf("{\"schema\":\"grokium.fleet_note_pid.v1\",\"ok\":true,"
+             "\"id\":\"%s\",\"pid\":%s,\"running\":%s,"
+             "\"status\":\"%s\",\"path\":\"%s\","
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false}\n",
              F.bots[i].id, F.bots[i].pid > 0 ? argv[3] : "null",
              F.bots[i].running ? "true" : "false",
              F.bots[i].running ? "running" : "separated", path);
@@ -256,8 +282,13 @@ int main(int argc, char **argv) {
     fleet_save(&F, path);
     for (i = 0; i < F.n; i++) {
       if (strcmp(F.bots[i].id, argv[2]) != 0) continue;
-      printf("{\"ok\":true,\"id\":\"%s\",\"status\":\"separated\","
-             "\"pid\":null,\"path\":\"%s\"}\n",
+      printf("{\"schema\":\"grokium.fleet_separate.v1\",\"ok\":true,"
+             "\"id\":\"%s\",\"status\":\"separated\","
+             "\"pid\":null,\"path\":\"%s\","
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false}\n",
              F.bots[i].id, path);
       return 0;
     }
@@ -268,8 +299,13 @@ int main(int argc, char **argv) {
     fleet_load(&F, path);
     fleet_stop_all(&F);
     fleet_save(&F, path);
-    printf("{\"ok\":true,\"stopped\":true,\"n\":%d,\"path\":\"%s\"}\n", F.n,
-           path);
+    printf("{\"schema\":\"grokium.fleet_stop.v1\",\"ok\":true,"
+           "\"stopped\":true,\"n\":%d,\"path\":\"%s\",\"alive\":0,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false}\n",
+           F.n, path);
     return 0;
   }
   usage();
