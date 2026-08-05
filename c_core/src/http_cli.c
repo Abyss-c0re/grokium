@@ -9,6 +9,7 @@
 #include "grokium_http.h"
 #include "grokium_law.h"
 #include <arpa/inet.h>
+#include <dirent.h>
 #include <limits.h>
 #include <netinet/in.h>
 #include <signal.h>
@@ -143,6 +144,23 @@ static int selftest(void) {
     if (!rroot || !rroot[0]) rroot = ".";
     snprintf(cdir, sizeof cdir, "%s/data/contracts_selftest", rroot);
     snprintf(data_root, sizeof data_root, "%s/data", rroot);
+    /* Fresh isolated contract dir — avoid motivating stale plates. */
+    {
+      DIR *cd;
+      struct dirent *de;
+      char p[PATH_MAX];
+      mkdir(cdir, 0755);
+      cd = opendir(cdir);
+      if (cd) {
+        while ((de = readdir(cd)) != NULL) {
+          size_t n = strlen(de->d_name);
+          if (n < 6 || strcmp(de->d_name + n - 5, ".json") != 0) continue;
+          snprintf(p, sizeof p, "%s/%s", cdir, de->d_name);
+          (void)unlink(p);
+        }
+        closedir(cd);
+      }
+    }
     setenv("GROKIUM_CONTRACT_DIR", cdir, 1);
     /* GROKIUM_LAW_DIR + GROKIUM_ROOT inherited from parent */
     gk_init(&C, "serve-selftest");

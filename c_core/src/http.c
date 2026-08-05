@@ -846,6 +846,17 @@ static int law_dir_for(const char *data_root, char *out, size_t cap) {
   return 0;
 }
 
+/* Match smx_filter contract_dir: env override, else {data_root}/contracts. */
+static void contract_dir_for(const char *data_root, char *out, size_t cap) {
+  const char *e = getenv("GROKIUM_CONTRACT_DIR");
+  if (e && e[0]) {
+    snprintf(out, cap, "%s", e);
+    return;
+  }
+  snprintf(out, cap, "%s/contracts",
+           data_root && data_root[0] ? data_root : "data");
+}
+
 static int load_commander(const char *data_root, gk_commander *C) {
   char law[400], pk[420];
   if (!C) return -1;
@@ -1725,7 +1736,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
                  "\"llm_is_commander\":false}");
       return;
     }
-    snprintf(cdir, sizeof cdir, "%s/contracts", root);
+    contract_dir_for(root, cdir, sizeof cdir);
     if (grokium_contract_form(&c, cdir, assignee, task, digit, min_set,
                               sha[0] ? sha : NULL) != 0) {
       http_reply(cfd, 500, "application/json",
@@ -1828,7 +1839,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       http_reply_err(cfd, 405, "method");
       return;
     }
-    snprintf(cdir, sizeof cdir, "%s/contracts", root);
+    contract_dir_for(root, cdir, sizeof cdir);
     n = grokium_manager_motivate_dir(cdir);
     /* Manager motivates incomplete work; HTTP is lab/ops only. */
     json_escape(cdir, cdir_esc, sizeof cdir_esc);
