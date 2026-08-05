@@ -1031,48 +1031,23 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       return;
     }
     if (!C || !body || body_n == 0) {
-      /* Coord-scoped need_plate (dual-wire; not free-text empty_body only). */
-      http_reply(cfd, 400, "application/json",
-                 "{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
-                 "\"error\":\"need_plate\","
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                 "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"llm_on_hot_path\":false,\"llm_is_commander\":false}");
+      /* Shared coord deny (CLI consolidate + host /coord). */
+      gk_coord_err_json("need_plate", resp, sizeof resp);
+      http_reply(cfd, 400, "application/json", resp);
       return;
     }
     /* sanitize: prose / hold_flash=0 / non-SMX denied (external origin) */
     allow = grokium_smx_filter_allow_frame(L, (const uint8_t *)body, body_n, 1);
     if (!allow) {
-      http_reply(cfd, 403, "application/json",
-                 "{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
-                 "\"error\":\"smx_filter_deny\","
-                 "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                 "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-                 "\"peer_http_is_product_bus\":false,"
-                 "\"llm_on_hot_path\":false,\"llm_is_commander\":false}");
+      gk_coord_err_json("smx_filter_deny", resp, sizeof resp);
+      http_reply(cfd, 403, "application/json", resp);
       return;
     }
     snprintf(id, sizeof id, "coord_%llu", (unsigned long long)C->pack_seq + 1);
     gk_ingest(C, id, body, body_n, now);
     gk_consolidate(C, now);
-    {
-      char hex[65], grade_tok[32];
-      smx_sha256_hex(&C->matrix, hex);
-      machine_token(C->grade, grade_tok, sizeof grade_tok);
-      if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
-      /* Lab/ops ingest plate; product multi-peer bus remains SMX2. */
-      snprintf(resp, sizeof resp,
-               "{\"schema\":\"grokium.coord.v1\",\"ok\":true,"
-               "\"ingested\":true,\"grade\":\"%s\","
-               "\"bits_set\":%u,\"seq\":%llu,\"sha256\":\"%s\","
-               "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-               "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-               "\"peer_http_is_product_bus\":false,"
-               "\"llm_on_hot_path\":false,\"llm_is_commander\":false}",
-               grade_tok, C->matrix.bits_set,
-               (unsigned long long)C->matrix.seq, hex);
-    }
+    /* Shared coord success plate with consolidate CLI / host path. */
+    gk_coord_json(C, resp, sizeof resp);
     http_reply(cfd, 200, "application/json", resp);
     return;
   }

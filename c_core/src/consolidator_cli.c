@@ -10,26 +10,6 @@
 #include <string.h>
 #include <time.h>
 
-/*
- * External ingest deny plate — same dual-wire honesty as loopback /v1/coord.
- * Host TUI/CLI surface this via grokium-consolidate (SMX sanitize gate).
- */
-static const char k_filter_deny[] =
-    "{\"schema\":\"grokium.consolidator_ingest.v1\",\"ok\":false,"
-    "\"error\":\"smx_filter_deny\",\"share\":\"state_matrix_only\","
-    "\"hold_flash\":1,\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"llm_on_hot_path\":false,\"llm_is_commander\":false}";
-
-/* Missing plate — machine deny (no free-text usage on the wire). */
-static const char k_need_plate[] =
-    "{\"schema\":\"grokium.consolidator_ingest.v1\",\"ok\":false,"
-    "\"error\":\"need_plate\",\"share\":\"state_matrix_only\","
-    "\"hold_flash\":1,\"product_wire\":\"smx2\","
-    "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
-    "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-    "\"hint\":\"pass NEXUS_COORD or SMX 01-bits plate\"}";
-
 /* Bare/help/unknown — dual-wire need_subcmd (no free-text usage). */
 static const char k_need_subcmd[] =
     "{\"schema\":\"grokium.consolidator.v1\",\"ok\":false,"
@@ -51,11 +31,14 @@ static int plate_dual_wire_ok(const char *p) {
 /* External ingest path: prose / hold_flash=0 / non-SMX denied (law). */
 static int ingest_external(gk_consolidator *C, grokium_law *L, const char *id,
                            const char *data, double now) {
+  char plate[512];
   size_t n;
   if (!C || !L || !data || !data[0]) return -1;
   n = strlen(data);
   if (!grokium_smx_filter_allow_frame(L, (const uint8_t *)data, n, 1)) {
-    fprintf(stderr, "%s\n", k_filter_deny);
+    /* Same dual-wire plate as POST /v1/coord smx_filter_deny. */
+    gk_coord_err_json("smx_filter_deny", plate, sizeof plate);
+    fprintf(stderr, "%s\n", plate);
     return -1;
   }
   return gk_ingest(C, id, data, n, now);
@@ -65,12 +48,26 @@ int main(int argc, char **argv) {
   gk_consolidator C;
   grokium_law L;
   char ability[512];
+  char den[512];
   const char *dir = "data/knowledge";
   double now = (double)time(NULL);
-  if (!plate_dual_wire_ok(k_need_subcmd) || !plate_dual_wire_ok(k_need_plate) ||
-      !plate_dual_wire_ok(k_filter_deny) ||
+  if (!plate_dual_wire_ok(k_need_subcmd) ||
       !strstr(k_need_subcmd, "\"error\":\"need_subcmd\"")) {
     fprintf(stderr, "grokium-consolidate: deny plate dual-wire fail\n");
+    return 1;
+  }
+  gk_coord_err_json("need_plate", den, sizeof den);
+  if (!plate_dual_wire_ok(den) ||
+      !strstr(den, "\"schema\":\"grokium.coord.v1\"") ||
+      !strstr(den, "\"error\":\"need_plate\"")) {
+    fprintf(stderr, "grokium-consolidate: need_plate dual-wire fail: %.200s\n",
+            den);
+    return 1;
+  }
+  gk_coord_err_json("smx_filter_deny", den, sizeof den);
+  if (!plate_dual_wire_ok(den) ||
+      !strstr(den, "\"error\":\"smx_filter_deny\"")) {
+    fprintf(stderr, "grokium-consolidate: filter deny dual-wire fail\n");
     return 1;
   }
   if (argc < 2 || !strcmp(argv[1], "help") || !strcmp(argv[1], "-h") ||
@@ -115,22 +112,10 @@ int main(int argc, char **argv) {
       fprintf(stderr, "dedup fail n=%d\n", C.n_items);
       return 1;
     }
-    /* deny plate dual-wire honesty (host sanitize path) */
-    if (!strstr(k_filter_deny, "\"product_wire\":\"smx2\"") ||
-        !strstr(k_filter_deny, "\"peer_http\":\"lab_ops_only\"") ||
-        !strstr(k_filter_deny, "\"peer_http_is_product_bus\":false") ||
-        !strstr(k_filter_deny, "\"llm_is_commander\":false") ||
-        !strstr(k_filter_deny, "\"hold_flash\":1") ||
-        !strstr(k_filter_deny, "\"share\":\"state_matrix_only\"")) {
-      fprintf(stderr, "selftest: filter deny dual-wire plate fail\n");
-      return 1;
-    }
-    /* need_plate + need_subcmd dual-wire (no free-text usage) */
-    if (!strstr(k_need_plate, "\"error\":\"need_plate\"") ||
-        !plate_dual_wire_ok(k_need_plate) ||
-        !strstr(k_need_subcmd, "\"error\":\"need_subcmd\"") ||
+    /* need_subcmd dual-wire (coord deny plates checked at main entry). */
+    if (!strstr(k_need_subcmd, "\"error\":\"need_subcmd\"") ||
         !plate_dual_wire_ok(k_need_subcmd)) {
-      fprintf(stderr, "selftest: need_plate/need_subcmd dual-wire fail\n");
+      fprintf(stderr, "selftest: need_subcmd dual-wire fail\n");
       return 1;
     }
     /* prose must not enter lattice */
@@ -145,6 +130,19 @@ int main(int argc, char **argv) {
       return 1;
     }
     gk_consolidate(&C, now);
+    /* Coord success plate (same builder as POST /v1/coord). */
+    {
+      char coord[768];
+      gk_coord_json(&C, coord, sizeof coord);
+      if (!plate_dual_wire_ok(coord) ||
+          !strstr(coord, "\"schema\":\"grokium.coord.v1\"") ||
+          !strstr(coord, "\"ok\":true") || !strstr(coord, "\"ingested\":true") ||
+          !strstr(coord, "\"sha256\":") || !strstr(coord, "\"bits_set\":")) {
+        fprintf(stderr, "selftest: gk_coord_json dual-wire fail: %.250s\n",
+                coord);
+        return 1;
+      }
+    }
     gk_ability(&C, now, ability, sizeof ability);
     printf("%s\n", ability);
     if (!C.seal_ok) return 1;
@@ -285,10 +283,12 @@ int main(int argc, char **argv) {
     return 0;
   }
   if (!strcmp(argv[1], "ingest")) {
+    char plate[768];
     int i, got = 0;
     if (argc <= 2) {
-      /* Machine need_plate — fail-closed, no free-text usage on wire. */
-      printf("%s\n", k_need_plate);
+      /* Shared need_plate with POST /v1/coord + host /coord. */
+      gk_coord_err_json("need_plate", plate, sizeof plate);
+      printf("%s\n", plate);
       return 2;
     }
     for (i = 2; i < argc; i++) {
@@ -298,18 +298,14 @@ int main(int argc, char **argv) {
         return 1; /* fail-closed on any denied fragment */
     }
     if (!got) {
-      fprintf(stderr,
-              "{\"schema\":\"grokium.consolidator_ingest.v1\",\"ok\":false,"
-              "\"error\":\"nothing_ingested\",\"share\":\"state_matrix_only\","
-              "\"hold_flash\":1,\"product_wire\":\"smx2\","
-              "\"peer_http\":\"lab_ops_only\","
-              "\"peer_http_is_product_bus\":false,"
-              "\"llm_is_commander\":false}\n");
+      gk_coord_err_json("nothing_ingested", plate, sizeof plate);
+      fprintf(stderr, "%s\n", plate);
       return 1;
     }
     gk_consolidate(&C, now);
-    gk_ability(&C, now, ability, sizeof ability);
-    printf("%s\n", ability);
+    /* Same dual-wire coord plate as POST /v1/coord. */
+    gk_coord_json(&C, plate, sizeof plate);
+    printf("%s\n", plate);
     return C.seal_ok ? 0 : 1;
   }
   if (!strcmp(argv[1], "ability")) {

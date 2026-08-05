@@ -10,6 +10,7 @@
 #include "grokium_status.h"
 #include "grokium_law.h"
 #include "grokium_smx_filter.h"
+#include "grokium_consolidator.h"
 #include "util.h"
 #include "ng_sched.h"
 #include "shell.h"
@@ -706,30 +707,22 @@ static int run_c_core_capture(const char *name, char *const args[]) {
 
 static void cmd_coord_ingest(const char *plate) {
   char *av[3];
+  char deny[512];
   int rc;
   grokium_law L;
   size_t n;
   if (!plate || !plate[0]) {
-    /* Machine need_plate — dual-wire honesty (no free-text usage only). */
-    log_add("{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
-            "\"error\":\"need_plate\",\"content\":\"meta_only\","
-            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-            "\"peer_http_is_product_bus\":false,"
-            "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-            "\"hint\":\"pass NEXUS_COORD or SMX 01-bits plate\"}");
+    /* Shared need_plate with POST /v1/coord + consolidate CLI. */
+    gk_coord_err_json("need_plate", deny, sizeof deny);
+    log_add(deny);
     return;
   }
   /* Host-local SMX filter gate — fail-closed before consolidate exec. */
   n = strlen(plate);
   grokium_law_default(&L);
   if (!grokium_smx_filter_allow_frame(&L, (const uint8_t *)plate, n, 1)) {
-    log_add("{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
-            "\"error\":\"smx_filter_deny\",\"content\":\"meta_only\","
-            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-            "\"peer_http_is_product_bus\":false,"
-            "\"llm_on_hot_path\":false,\"llm_is_commander\":false}");
+    gk_coord_err_json("smx_filter_deny", deny, sizeof deny);
+    log_add(deny);
     return;
   }
   log_add("coord> sanitize+ingest (SMX filter)…");
@@ -742,13 +735,10 @@ static void cmd_coord_ingest(const char *plate) {
             "product_wire=smx2 · peer_http=lab_ops_only");
   else if (rc == 99)
     ; /* already logged missing tool */
-  else
-    log_add("{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
-            "\"error\":\"ingest_failed\",\"content\":\"meta_only\","
-            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-            "\"peer_http_is_product_bus\":false,"
-            "\"llm_on_hot_path\":false,\"llm_is_commander\":false}");
+  else {
+    gk_coord_err_json("ingest_failed", deny, sizeof deny);
+    log_add(deny);
+  }
 }
 
 static void cmd_smx_latest(void) {

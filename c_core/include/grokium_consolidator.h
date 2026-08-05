@@ -64,6 +64,14 @@ int  gk_matrix_json(const gk_consolidator *C, char *out, size_t cap);
  */
 int  gk_cube_status_json(const gk_consolidator *C, int hold_flash,
                          const char *data_root, char *out, size_t cap);
+/*
+ * Dual-wire coord ingest ack (schema grokium.coord.v1).
+ * Call after gk_ingest + gk_consolidate; grade/bits/seq/sha honest.
+ * Loopback /v1/coord, consolidate CLI, and host /coord share this plate.
+ */
+void gk_coord_json(const gk_consolidator *C, char *out, size_t cap);
+/* Dual-wire coord deny (need_plate | smx_filter_deny | ingest_failed | …). */
+void gk_coord_err_json(const char *error, char *out, size_t cap);
 int  gk_save_dir(const gk_consolidator *C, const char *dir);
 int  gk_load_dir(gk_consolidator *C, const char *dir);
 #endif

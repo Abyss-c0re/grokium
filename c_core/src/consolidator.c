@@ -184,6 +184,51 @@ static void plate_token(const char *in, char *out, size_t cap) {
   out[o] = 0;
 }
 
+/* Shared dual-wire tails for coord ingest plates (CLI + HTTP + host). */
+#define COORD_DUAL_WIRE_TAIL                                               \
+  "\"share\":\"state_matrix_only\",\"hold_flash\":1,"                      \
+  "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","              \
+  "\"peer_http_is_product_bus\":false,"                                    \
+  "\"llm_on_hot_path\":false,\"llm_is_commander\":false"
+
+void gk_coord_err_json(const char *error, char *out, size_t cap) {
+  const char *err = error && error[0] ? error : "ingest_failed";
+  if (!out || cap < 64) return;
+  if (!strcmp(err, "need_plate")) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
+             "\"error\":\"need_plate\",\"content\":\"meta_only\","
+             COORD_DUAL_WIRE_TAIL ","
+             "\"hint\":\"pass NEXUS_COORD or SMX 01-bits plate\"}");
+    return;
+  }
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
+           "\"error\":\"%s\",\"content\":\"meta_only\"," COORD_DUAL_WIRE_TAIL
+           "}",
+           err);
+}
+
+void gk_coord_json(const gk_consolidator *C, char *out, size_t cap) {
+  char hex[65], grade_tok[32];
+  if (!out || cap < 64) return;
+  if (!C) {
+    gk_coord_err_json("no_consolidator", out, cap);
+    return;
+  }
+  smx_sha256_hex(&C->matrix, hex);
+  plate_token(C->grade, grade_tok, sizeof grade_tok);
+  if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
+  /* Lab/ops ingest plate; product multi-peer bus remains SMX2. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.coord.v1\",\"ok\":true,"
+           "\"ingested\":true,\"grade\":\"%s\","
+           "\"bits_set\":%u,\"seq\":%llu,\"sha256\":\"%s\","
+           COORD_DUAL_WIRE_TAIL "}",
+           grade_tok, C->matrix.bits_set, (unsigned long long)C->matrix.seq,
+           hex);
+}
+
 int gk_matrix_json(const gk_consolidator *C, char *out, size_t cap) {
   char hex[65];
   char bits[GROKIUM_CELLS + 1];
