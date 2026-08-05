@@ -216,8 +216,29 @@ static int fleet_selftest(void) {
     fprintf(stderr, "selftest: dead pid leaked onto plate\n");
     return 1;
   }
+  /* Status CLI plate shape (not only on-disk FLEET.json) carries dual-wire. */
+  {
+    char st[512];
+    int alive2 = fleet_status(&F);
+    snprintf(st, sizeof st,
+             "{\"schema\":\"grokium.fleet_status.v1\",\"ok\":true,"
+             "\"alive\":%d,\"n\":%d,\"nb_manager\":true,\"probed\":true,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false,\"path\":\"%s\"}",
+             alive2, F.n, path);
+    if (!plate_dual_wire_ok(st) ||
+        !strstr(st, "\"schema\":\"grokium.fleet_status.v1\"") ||
+        !strstr(st, "\"probed\":true")) {
+      fprintf(stderr, "selftest: fleet status plate dual-wire fail: %.200s\n",
+              st);
+      return 1;
+    }
+  }
   printf("FLEET_SELFTEST_OK n=%d alive=1 nb_manager=1 product_wire=smx2 "
-         "peer_http=lab_ops_only bot_dual_wire=1 purpose=honest\n",
+         "peer_http=lab_ops_only bot_dual_wire=1 purpose=honest "
+         "status_plate=honest\n",
          F.n);
   return 0;
 }
@@ -274,12 +295,13 @@ int main(int argc, char **argv) {
     alive = fleet_status(&F);
     /* Persist kill(0) result so on-disk plate stays honest. */
     (void)fleet_save(&F, path);
+    /* CLI status plate must stamp dual-wire honesty (Commander ≠ model). */
     printf("{\"schema\":\"grokium.fleet_status.v1\",\"ok\":true,"
            "\"alive\":%d,\"n\":%d,\"nb_manager\":true,\"probed\":true,"
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"path\":\"%s\"}\n",
+           "\"llm_is_commander\":false,\"path\":\"%s\"}\n",
            alive, F.n, path);
     return 0;
   }
