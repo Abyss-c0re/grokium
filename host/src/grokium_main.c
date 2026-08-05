@@ -9,7 +9,6 @@
 #include "grokium_status.h"
 #include "grokium_law.h"
 #include "grokium_smx_filter.h"
-#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -347,162 +346,15 @@ static int cmd_status(int argc, char **argv) {
   return 0;
 }
 
-/* Imported Grok Build metas only — never dump chat transcripts on CLI wire. */
-static int meta_get_str(const char *body, const char *key, char *out, size_t cap) {
-  char pat[96];
-  const char *p, *q;
-  size_t klen, i;
-  if (!body || !key || !out || cap < 2) return -1;
-  out[0] = 0;
-  klen = strlen(key);
-  if (klen + 3 >= sizeof pat) return -1;
-  snprintf(pat, sizeof pat, "\"%s\"", key);
-  p = strstr(body, pat);
-  if (!p) return -1;
-  p += klen + 2;
-  while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
-  if (*p != ':') return -1;
-  p++;
-  while (*p == ' ' || *p == '\t') p++;
-  if (*p != '"') return -1;
-  p++;
-  q = p;
-  while (*q && *q != '"') {
-    if (*q == '\\' && q[1]) q += 2;
-    else q++;
-  }
-  i = (size_t)(q - p);
-  if (i >= cap) i = cap - 1;
-  memcpy(out, p, i);
-  out[i] = 0;
-  return 0;
-}
-
-static int contains_ci(const char *hay, const char *needle) {
-  size_t nlen, hlen, i, j;
-  if (!needle || !needle[0]) return 1;
-  if (!hay) return 0;
-  nlen = strlen(needle);
-  hlen = strlen(hay);
-  if (nlen > hlen) return 0;
-  for (i = 0; i + nlen <= hlen; i++) {
-    for (j = 0; j < nlen; j++) {
-      char a = hay[i + j], b = needle[j];
-      if (a >= 'A' && a <= 'Z') a = (char)(a + 32);
-      if (b >= 'A' && b <= 'Z') b = (char)(b + 32);
-      if (a != b) break;
-    }
-    if (j == nlen) return 1;
-  }
-  return 0;
-}
-
-static void json_escape(const char *in, char *out, size_t cap) {
-  size_t o = 0;
-  if (!out || cap < 2) return;
-  out[0] = 0;
-  if (!in) return;
-  for (; *in && o + 2 < cap; in++) {
-    unsigned char c = (unsigned char)*in;
-    if (c == '"' || c == '\\') {
-      if (o + 3 >= cap) break;
-      out[o++] = '\\';
-      out[o++] = (char)c;
-    } else if (c < 0x20) {
-      continue;
-    } else {
-      out[o++] = (char)c;
-    }
-  }
-  out[o] = 0;
-}
-
-/* Detect host-local chat_history without reading transcripts onto the wire. */
-static int session_resume_available(const char *id, const char *meta,
-                                    char *hist_out, size_t hcap) {
-  char import_path[PATH_MAX], try[PATH_MAX];
-  const char *h;
-  size_t hl;
-  if (hist_out && hcap) hist_out[0] = 0;
-  if (!id || !id[0]) return 0;
-  import_path[0] = 0;
-  if (meta) {
-    meta_get_str(meta, "import_path", import_path, sizeof import_path);
-    if (!import_path[0])
-      meta_get_str(meta, "source", import_path, sizeof import_path);
-  }
-  h = getenv("HOME");
-  hl = (h && h[0]) ? strlen(h) : 0;
-  if (import_path[0] == '/') {
-    int allow = 0;
-    if (hl && strncmp(import_path, h, hl) == 0 &&
-        (import_path[hl] == '/' || import_path[hl] == 0))
-      allow = 1;
-    snprintf(try, sizeof try, "%s/data", root);
-    if (!allow && strncmp(import_path, try, strlen(try)) == 0)
-      allow = 1;
-    if (allow) {
-      snprintf(try, sizeof try, "%s/chat_history.jsonl", import_path);
-      if (access(try, R_OK) == 0) {
-        if (hist_out && hcap) snprintf(hist_out, hcap, "%s", try);
-        return 1;
-      }
-    }
-  }
-  snprintf(try, sizeof try, "%s/data/import/%s/chat_history.jsonl", root, id);
-  if (access(try, R_OK) == 0) {
-    if (hist_out && hcap) snprintf(hist_out, hcap, "%s", try);
-    return 1;
-  }
-  return 0;
-}
-
+/* Imported Grok Build metas only — shared c_core plate (no transcripts). */
 static int cmd_session_pickup(const char *id) {
-  char path[PATH_MAX], meta[2048], hist[PATH_MAX], plate[1024];
-  char title[96], updated[48], model[96];
-  char te[128], ue[64], me[128], he[PATH_MAX * 2];
-  FILE *f;
-  size_t nread;
-  int resume_ok;
-  if (!gk_session_id_safe(id)) {
-    /* Machine deny plate (match c_core): no free-text usage on the wire. */
-    if (gk_session_pickup_deny_json(NULL, "bad_session_id", plate,
-                                     sizeof plate) == 0)
-      printf("%s\n", plate);
-    return 1;
-  }
-  snprintf(path, sizeof path, "%s/data/import/%s.meta.json", root, id);
-  f = fopen(path, "r");
-  if (!f) {
-    if (gk_session_pickup_deny_json(id, "not_found", plate, sizeof plate) == 0)
-      printf("%s\n", plate);
-    return 1;
-  }
-  nread = fread(meta, 1, sizeof meta - 1, f);
-  meta[nread] = 0;
-  fclose(f);
-  title[0] = updated[0] = model[0] = hist[0] = 0;
-  meta_get_str(meta, "title", title, sizeof title);
-  meta_get_str(meta, "updated_at", updated, sizeof updated);
-  meta_get_str(meta, "model", model, sizeof model);
-  resume_ok = session_resume_available(id, meta, hist, sizeof hist);
-  json_escape(title, te, sizeof te);
-  json_escape(updated, ue, sizeof ue);
-  json_escape(model, me, sizeof me);
-  json_escape(hist, he, sizeof he);
-  printf("{\"schema\":\"grokium.session_pickup.v1\",\"ok\":true,"
-         "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
-         "\"peer_http\":\"lab_ops_only\","
-         "\"peer_http_is_product_bus\":false,"
-         "\"llm_is_commander\":false,"
-         "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-         "\"telemetry\":\"off\",\"resume\":\"host_tui\","
-         "\"resume_available\":%s,\"resume_hist\":\"%s\","
-         "\"hint\":\"TUI /pickup loads last turns host-local only\","
-         "\"session\":{\"id\":\"%s\",\"title\":\"%s\",\"updated_at\":\"%s\","
-         "\"model\":\"%s\"}}\n",
-         resume_ok ? "true" : "false", he, id, te, ue, me);
-  return 0;
+  char data_root[PATH_MAX], plate[2048];
+  int rc;
+  /* Dual-wire pickup plate from c_core (deny fills plate on error). */
+  snprintf(data_root, sizeof data_root, "%s/data", root);
+  rc = gk_session_pickup_json(data_root, id, plate, sizeof plate);
+  printf("%s\n", plate);
+  return rc == 0 ? 0 : 1;
 }
 
 static int cmd_sessions(int argc, char **argv) {
