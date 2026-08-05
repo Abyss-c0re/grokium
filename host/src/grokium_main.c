@@ -864,7 +864,14 @@ int main(int argc, char **argv) {
       break;
     }
     if (i >= argc) {
-      fprintf(stderr, "usage: grokium chat [--backend local|grok] [--model ID] <msg>\n");
+      /* Machine need_message plate — dual-wire honesty (LLM ≠ commander). */
+      printf("{\"schema\":\"grokium.chat.v1\",\"ok\":false,"
+             "\"error\":\"need_message\",\"product_wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false,"
+             "\"hint\":\"chat [--backend local|grok] [--model ID] <msg>\"}\n");
       return 2;
     }
     char msg[2000];
@@ -902,7 +909,14 @@ int main(int argc, char **argv) {
   }
   if (strcmp(cmd, "run") == 0) {
     if (ai + 1 >= argc) {
-      fprintf(stderr, "usage: grokium run <file.cubalc>\n");
+      /* Machine need_path plate — dual-wire honesty (CubalC opt-in). */
+      printf("{\"schema\":\"grokium.run.v1\",\"ok\":false,"
+             "\"error\":\"need_path\",\"product_wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false,"
+             "\"hint\":\"run <file.cubalc>\"}\n");
       return 2;
     }
     char *av[] = {cubalc_bin, "run", argv[ai + 1], NULL};
