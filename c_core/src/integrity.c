@@ -149,16 +149,33 @@ static void aggregate_hex(const gk_seal_ent *ents, int n, char out[65]) {
 }
 
 static int privacy_ok(const char *root) {
-  char path[512], body[1024];
+  char path[512], body[2048];
   root_join(root, "data/integrity/PRIVACY_CANONICAL.json", path, sizeof path);
   if (read_file_str(path, body, sizeof body) != 0) return 0;
+  /* Hard-off collection flags (spaces optional). */
   if (strstr(body, "\"telemetry\":true") || strstr(body, "\"telemetry\": true"))
     return 0;
-  if (strstr(body, "\"usage_stats\":true")) return 0;
-  if (strstr(body, "\"codebase_upload\":true")) return 0;
-  if (!strstr(body, "\"telemetry\":false") && !strstr(body, "\"telemetry\": false"))
+  if (strstr(body, "\"usage_stats\":true") ||
+      strstr(body, "\"usage_stats\": true"))
+    return 0;
+  if (strstr(body, "\"codebase_upload\":true") ||
+      strstr(body, "\"codebase_upload\": true"))
+    return 0;
+  if (!strstr(body, "\"telemetry\":false") &&
+      !strstr(body, "\"telemetry\": false"))
     return 0;
   if (!strstr(body, "state_matrix_only")) return 0;
+  /* Dual-wire + Commander ≠ model honesty on the privacy plate itself. */
+  if (!strstr(body, "\"product_wire\"") || !strstr(body, "smx2")) return 0;
+  if (!strstr(body, "\"peer_http_is_product_bus\"") ||
+      (!strstr(body, "\"peer_http_is_product_bus\":false") &&
+       !strstr(body, "\"peer_http_is_product_bus\": false")))
+    return 0;
+  if (!strstr(body, "\"llm_is_commander\"") ||
+      (!strstr(body, "\"llm_is_commander\":false") &&
+       !strstr(body, "\"llm_is_commander\": false")))
+    return 0;
+  if (!strstr(body, "hold_flash")) return 0;
   return 1;
 }
 
@@ -402,11 +419,47 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
     return -1;
   }
   aggregate_hex(ents, n, agg);
-  root_join(root, "data/integrity/PRIVACY_CANONICAL.json", fullp, sizeof fullp);
-  if (file_sha256_hex(fullp, priv_hex) != 0)
-    snprintf(priv_hex, sizeof priv_hex, "%s", "");
   root_join(root, "data/integrity", path, sizeof path);
   mkdir(path, 0755);
+  /* Canonical privacy plate: hard-off collection + dual-wire honesty. */
+  root_join(root, "data/integrity/PRIVACY_CANONICAL.json", fullp, sizeof fullp);
+  f = fopen(fullp, "w");
+  if (!f) {
+    if (json_out && cap)
+      snprintf(json_out, cap,
+               "{\"schema\":\"grokium.integrity_reseal.v1\",\"ok\":false,"
+               "\"error\":\"write_privacy\",\"share\":\"state_matrix_only\","
+               "\"hold_flash\":1,\"product_wire\":\"smx2\","
+               "\"peer_http_is_product_bus\":false,"
+               "\"llm_is_commander\":false}");
+    return -1;
+  }
+  fprintf(f,
+          "{\n"
+          "  \"schema\": \"grokium.privacy_canonical.v1\",\n"
+          "  \"ok\": true,\n"
+          "  \"product\": \"grokium\",\n"
+          "  \"not\": \"data_collector\",\n"
+          "  \"privacy\": {\n"
+          "    \"telemetry\": false,\n"
+          "    \"usage_stats\": false,\n"
+          "    \"crash_reports\": false,\n"
+          "    \"improve_model_cloud\": false,\n"
+          "    \"codebase_upload\": false\n"
+          "  },\n"
+          "  \"share\": \"state_matrix_only\",\n"
+          "  \"hold_flash\": 1,\n"
+          "  \"product_wire\": \"smx2\",\n"
+          "  \"peer_http\": \"lab_ops_only\",\n"
+          "  \"peer_http_is_product_bus\": false,\n"
+          "  \"llm_is_commander\": false,\n"
+          "  \"model_is_not_commander\": true,\n"
+          "  \"stream\": \"smx_realtime_bits\",\n"
+          "  \"fail_closed\": true\n"
+          "}\n");
+  fclose(f);
+  if (file_sha256_hex(fullp, priv_hex) != 0)
+    snprintf(priv_hex, sizeof priv_hex, "%s", "");
   root_join(root, "data/integrity/CODE_SEAL.json", path, sizeof path);
   f = fopen(path, "w");
   if (!f) {
@@ -448,44 +501,38 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
           (long)now);
   fclose(f);
 
-  /* refresh policy aggregate field (best-effort text replace write) */
+  /* Policy plate always rewritten with dual-wire + privacy seal hash. */
   root_join(root, "data/integrity/POLICY.json", path, sizeof path);
-  {
-    char pol[4096];
-    if (read_file_str(path, pol, sizeof pol) == 0) {
-      f = fopen(path, "w");
-      if (f) {
-        /* On-disk policy plate: dual-wire + Commander ≠ model honesty. */
-        fprintf(f,
-                "{\n"
-                "  \"schema\": \"grokium.integrity_policy.v1\",\n"
-                "  \"law\": \"INTEGRITY_NO_LEAK_LAW\",\n"
-                "  \"product\": \"grokium\",\n"
-                "  \"not\": [\"data_collector\", \"grok_model\", "
-                "\"telemetry_product\"],\n"
-                "  \"privacy_canonical_sha256\": \"%s\",\n"
-                "  \"code_seal_aggregate\": \"%s\",\n"
-                "  \"share_only\": \"state_matrix_only\",\n"
-                "  \"share\": \"state_matrix_only\",\n"
-                "  \"hold_flash\": 1,\n"
-                "  \"product_wire\": \"smx2\",\n"
-                "  \"peer_http\": \"lab_ops_only\",\n"
-                "  \"peer_http_is_product_bus\": false,\n"
-                "  \"llm_is_commander\": false,\n"
-                "  \"model_is_not_commander\": true,\n"
-                "  \"stream\": \"smx_realtime_bits\",\n"
-                "  \"fail_closed\": true,\n"
-                "  \"allowlist\": [\"127.0.0.1\", \"localhost\", \"::1\", "
-                "\"cli-chat-proxy.grok.com\", \"auth.x.ai\", \"accounts.x.ai\"],\n"
-                "  \"ts\": %ld,\n"
-                "  \"code_seal_language\": \"C\",\n"
-                "  \"commander_seal_note\": \"optional Ed25519 seal via "
-                "grokium-commander; model is never commander\"\n"
-                "}\n",
-                priv_hex, agg, (long)now);
-        fclose(f);
-      }
-    }
+  f = fopen(path, "w");
+  if (f) {
+    fprintf(f,
+            "{\n"
+            "  \"schema\": \"grokium.integrity_policy.v1\",\n"
+            "  \"law\": \"INTEGRITY_NO_LEAK_LAW\",\n"
+            "  \"product\": \"grokium\",\n"
+            "  \"not\": [\"data_collector\", \"grok_model\", "
+            "\"telemetry_product\"],\n"
+            "  \"privacy_canonical_sha256\": \"%s\",\n"
+            "  \"code_seal_aggregate\": \"%s\",\n"
+            "  \"share_only\": \"state_matrix_only\",\n"
+            "  \"share\": \"state_matrix_only\",\n"
+            "  \"hold_flash\": 1,\n"
+            "  \"product_wire\": \"smx2\",\n"
+            "  \"peer_http\": \"lab_ops_only\",\n"
+            "  \"peer_http_is_product_bus\": false,\n"
+            "  \"llm_is_commander\": false,\n"
+            "  \"model_is_not_commander\": true,\n"
+            "  \"stream\": \"smx_realtime_bits\",\n"
+            "  \"fail_closed\": true,\n"
+            "  \"allowlist\": [\"127.0.0.1\", \"localhost\", \"::1\", "
+            "\"cli-chat-proxy.grok.com\", \"auth.x.ai\", \"accounts.x.ai\"],\n"
+            "  \"ts\": %ld,\n"
+            "  \"code_seal_language\": \"C\",\n"
+            "  \"commander_seal_note\": \"optional Ed25519 seal via "
+            "grokium-commander; model is never commander\"\n"
+            "}\n",
+            priv_hex, agg, (long)now);
+    fclose(f);
   }
   (void)write_latest(root, 1, agg, privacy_ok(root), 1, n, 0);
   if (json_out && cap)

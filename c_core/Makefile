@@ -146,6 +146,15 @@ test-integrity: $(BUILD)/grokium-integrity
 	echo "$$T" | grep -q '"llm_is_commander":false'; \
 	echo "$$T" | grep -q '"hold_flash":1'; \
 	grep -q '"product_wire": "smx2"' ../data/integrity/LATEST.json; \
+	grep -q '"schema": "grokium.privacy_canonical.v1"' \
+	  ../data/integrity/PRIVACY_CANONICAL.json; \
+	grep -q '"product_wire": "smx2"' ../data/integrity/PRIVACY_CANONICAL.json; \
+	grep -q '"peer_http_is_product_bus": false' \
+	  ../data/integrity/PRIVACY_CANONICAL.json; \
+	grep -q '"llm_is_commander": false' \
+	  ../data/integrity/PRIVACY_CANONICAL.json; \
+	grep -q '"telemetry": false' ../data/integrity/PRIVACY_CANONICAL.json; \
+	echo "$$T" | grep -q '"privacy_ok":true'; \
 	$(BUILD)/grokium-integrity policy .. | grep -q state_matrix_only; \
 	$(BUILD)/grokium-integrity policy .. | grep -q '"product_wire"'; \
 	echo INTEGRITY_OK
