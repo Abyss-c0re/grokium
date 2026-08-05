@@ -179,6 +179,11 @@ static void log_add(const char *line) {
   blk_append_str(ix, line);
 }
 
+/* Dual-wire machine plates from c_core tools stay visible (not chat dumps). */
+static int is_grokium_plate_line(const char *ln) {
+  return ln && ln[0] == '{' && strstr(ln, "\"schema\":\"grokium.");
+}
+
 static void log_add_block(const char *text) {
   if (!text || !text[0]) return;
   char *dup = strdup(text);
@@ -186,7 +191,8 @@ static void log_add_block(const char *text) {
   char *save = NULL;
   for (char *ln = strtok_r(dup, "\n", &save); ln; ln = strtok_r(NULL, "\n", &save)) {
     if (!ln[0]) continue;
-    if (!debug_mode && ln[0] == '{') continue;
+    /* Suppress free-form JSON dumps; keep dual-wire honesty plates. */
+    if (!debug_mode && ln[0] == '{' && !is_grokium_plate_line(ln)) continue;
     log_add(ln);
   }
   free(dup);
@@ -729,10 +735,11 @@ static void cmd_coord_ingest(const char *plate) {
   av[0] = "ingest";
   av[1] = (char *)plate;
   av[2] = NULL;
+  /* CLI prints shared grokium.coord.v1 plate; log_add_block surfaces it. */
   rc = run_c_core_capture("grokium-consolidate", av);
   if (rc == 0)
-    log_add("coord> ok · share=state_matrix_only · hold_flash=1 · "
-            "product_wire=smx2 · peer_http=lab_ops_only");
+    log_add("coord> ok · product_wire=smx2 · peer_http=lab_ops_only · "
+            "share=state_matrix_only");
   else if (rc == 99)
     ; /* already logged missing tool */
   else {
