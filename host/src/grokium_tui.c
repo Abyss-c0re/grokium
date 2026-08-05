@@ -1400,8 +1400,15 @@ static void cmd_fleet(const char *arg) {
     return;
   }
   if (!strcmp(sub, "help") || !strcmp(sub, "?")) {
-    log_add("usage: /fleet [status|defaults|deploy|spawn ID|spawn-all|stop-all|cubalc]");
-    log_add("  pure-C plate · pid/status/offline honest · peer HTTP = lab_ops");
+    /* Machine help plate — dual-wire honesty (no free-text-only usage). */
+    log_add("{\"schema\":\"grokium.fleet.v1\",\"ok\":false,"
+            "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
+            "\"peer_http\":\"lab_ops_only\","
+            "\"peer_http_is_product_bus\":false,"
+            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+            "\"llm_is_commander\":false,"
+            "\"hint\":\"/fleet [status|defaults|deploy|spawn ID|spawn-all|"
+            "stop-all|cubalc] · pid honest\"}");
     return;
   }
   if (!strcmp(sub, "cubalc")) {
