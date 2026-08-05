@@ -5,6 +5,7 @@
 #include "grokium_config.h"
 #include "grokium_version.h"
 #include "grokium_hub.h"
+#include "grokium_session.h"
 #include "grokium_status.h"
 #include <dirent.h>
 #include <stdio.h>
@@ -335,19 +336,6 @@ static int contains_ci(const char *hay, const char *needle) {
   return 0;
 }
 
-static int session_id_safe(const char *id) {
-  size_t i;
-  if (!id || !id[0] || strlen(id) > 80) return 0;
-  for (i = 0; id[i]; i++) {
-    char c = id[i];
-    if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
-        (c >= 'A' && c <= 'F') || c == '-')
-      continue;
-    return 0;
-  }
-  return 1;
-}
-
 static void json_escape(const char *in, char *out, size_t cap) {
   size_t o = 0;
   if (!out || cap < 2) return;
@@ -409,36 +397,24 @@ static int session_resume_available(const char *id, const char *meta,
 }
 
 static int cmd_session_pickup(const char *id) {
-  char path[PATH_MAX], meta[2048], hist[PATH_MAX];
+  char path[PATH_MAX], meta[2048], hist[PATH_MAX], plate[1024];
   char title[96], updated[48], model[96];
   char te[128], ue[64], me[128], he[PATH_MAX * 2];
   FILE *f;
   size_t nread;
   int resume_ok;
-  if (!session_id_safe(id)) {
+  if (!gkx_session_id_safe(id)) {
     /* Machine deny plate (match c_core): no free-text usage on the wire. */
-    printf("{\"schema\":\"grokium.session_pickup.v1\",\"ok\":false,"
-           "\"error\":\"bad_session_id\",\"content\":\"meta_only\","
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"llm_is_commander\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"resume_available\":false,"
-           "\"hint\":\"session id is hex digits and dashes only\"}\n");
+    if (gkx_session_pickup_deny_json(NULL, "bad_session_id", plate,
+                                     sizeof plate) == 0)
+      printf("%s\n", plate);
     return 1;
   }
   snprintf(path, sizeof path, "%s/data/import/%s.meta.json", root, id);
   f = fopen(path, "r");
   if (!f) {
-    printf("{\"schema\":\"grokium.session_pickup.v1\",\"ok\":false,"
-           "\"error\":\"not_found\",\"id\":\"%s\",\"content\":\"meta_only\","
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"llm_is_commander\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"resume_available\":false,"
-           "\"hint\":\"import meta only; TUI /pickup resumes host-local\"}\n",
-           id);
+    if (gkx_session_pickup_deny_json(id, "not_found", plate, sizeof plate) == 0)
+      printf("%s\n", plate);
     return 1;
   }
   nread = fread(meta, 1, sizeof meta - 1, f);
@@ -484,7 +460,10 @@ static int cmd_sessions(int argc, char **argv) {
       (!strcmp(argv[0], "pickup") || !strcmp(argv[0], "load") ||
        !strcmp(argv[0], "get"))) {
     if (argc < 2) {
-      fprintf(stderr, "usage: grokium sessions pickup <id>\n");
+      char plate[768];
+      if (gkx_session_pickup_deny_json(NULL, "need_session_id", plate,
+                                       sizeof plate) == 0)
+        printf("%s\n", plate);
       return 2;
     }
     return cmd_session_pickup(argv[1]);
@@ -504,15 +483,10 @@ static int cmd_sessions(int argc, char **argv) {
   snprintf(dir, sizeof dir, "%s/data/import", root);
   d = opendir(dir);
   if (!d) {
-    printf("{\"schema\":\"grokium.sessions.v1\",\"ok\":true,\"n\":0,"
-           "\"sessions\":[],\"q\":\"%s\",\"import_dir\":\"%s/data/import\","
-           "\"error\":\"no_import_dir\",\"content\":\"meta_only\","
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"llm_is_commander\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"telemetry\":\"off\"}\n",
-           q_esc, root);
+    char plate[1024];
+    if (gkx_session_list_empty_json(q, dir, "no_import_dir", plate,
+                                    sizeof plate) == 0)
+      printf("%s\n", plate);
     return 0;
   }
   printf("{\"schema\":\"grokium.sessions.v1\",\"ok\":true,"
@@ -547,7 +521,7 @@ static int cmd_sessions(int argc, char **argv) {
       tlen = strlen(id);
       if (tlen > 10) id[tlen - 10] = 0;
     }
-    if (!session_id_safe(id)) continue;
+    if (!gkx_session_id_safe(id)) continue;
     if (!title[0]) snprintf(title, sizeof title, "%s", id);
     json_escape(title, te, sizeof te);
     printf("%s{\"id\":\"%s\",\"title\":\"%s\",\"updated_at\":\"%s\","
@@ -800,9 +774,10 @@ int main(int argc, char **argv) {
     return cmd_sessions(argc - ai - 1, argv + ai + 1);
   if (strcmp(cmd, "pickup") == 0 || strcmp(cmd, "load") == 0) {
     if (ai + 1 >= argc) {
-      fprintf(stderr,
-              "usage: grokium pickup|load <session-id>\n"
-              "  meta only · full resume stays host/nanobot path\n");
+      char plate[768];
+      if (gkx_session_pickup_deny_json(NULL, "need_session_id", plate,
+                                       sizeof plate) == 0)
+        printf("%s\n", plate);
       return 2;
     }
     return cmd_session_pickup(argv[ai + 1]);

@@ -31,10 +31,10 @@ endif
 
 SRCS := src/grokium_main.c src/grokium_tui.c src/grokium_chat.c \
 	src/grokium_config.c src/grokium_version.c src/grokium_hub.c \
-	src/grokium_media.c src/grokium_status.c
+	src/grokium_media.c src/grokium_session.c src/grokium_status.c
 
 .PHONY: all clean nanobot install test-status test-version-compat \
-	test-hub-status test-memory-seed test-media-plate test
+	test-hub-status test-memory-seed test-media-plate test-session-plate test
 
 all: nanobot out/grokium
 
@@ -45,7 +45,7 @@ nanobot:
 	  $(MAKE) -C "$(NANOBOT_ROOT)" host; \
 	fi
 
-out/grokium: $(SRCS) include/grokium.h include/grokium_chat.h include/grokium_config.h include/grokium_version.h include/grokium_hub.h include/grokium_media.h include/grokium_status.h
+out/grokium: $(SRCS) include/grokium.h include/grokium_chat.h include/grokium_config.h include/grokium_version.h include/grokium_hub.h include/grokium_media.h include/grokium_session.h include/grokium_status.h
 	@mkdir -p out
 	$(CC) $(CFLAGS) -o $@ $(SRCS) $(LIBS)
 
@@ -80,6 +80,12 @@ out/media_plate_selftest: tests/media_plate_selftest.c src/grokium_media.c \
 	$(CC) $(CFLAGS) -DGKX_MEDIA_NO_NANOBOT -o $@ \
 		tests/media_plate_selftest.c src/grokium_media.c
 
+# Session meta dual-wire honesty plates — no nanobot/ncurses link.
+out/session_plate_selftest: tests/session_plate_selftest.c src/grokium_session.c \
+	include/grokium_session.h
+	@mkdir -p out
+	$(CC) $(CFLAGS) -o $@ tests/session_plate_selftest.c src/grokium_session.c
+
 test-status: out/status_probe_selftest
 	@./out/status_probe_selftest
 
@@ -95,12 +101,16 @@ test-memory-seed: out/memory_seed_selftest
 test-media-plate: out/media_plate_selftest
 	@./out/media_plate_selftest
 
+test-session-plate: out/session_plate_selftest
+	@./out/session_plate_selftest
+
 test: test-status test-version-compat test-hub-status test-memory-seed \
-	test-media-plate
+	test-media-plate test-session-plate
 
 clean:
 	rm -f out/grokium out/status_probe_selftest out/version_compat_selftest \
-		out/hub_status_selftest out/memory_seed_selftest out/media_plate_selftest
+		out/hub_status_selftest out/memory_seed_selftest out/media_plate_selftest \
+		out/session_plate_selftest
 
 install: all
 	install -m755 out/grokium $(HOME)/.local/bin/grokium
