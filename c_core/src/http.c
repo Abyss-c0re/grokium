@@ -606,9 +606,14 @@ static void json_fleet(gk_fleet *F, char *out, size_t cap) {
 static void json_matrix(const gk_consolidator *C, char *out, size_t cap) {
   char hex[65];
   char bits[GROKIUM_CELLS + 1];
+  char host_tok[40], grade_tok[32];
   if (!C || !out || cap < 128) return;
   smx_sha256_hex(&C->matrix, hex);
   smx_bits_ascii(&C->matrix, bits, sizeof bits);
+  machine_token(C->matrix.host_id, host_tok, sizeof host_tok);
+  if (!host_tok[0]) snprintf(host_tok, sizeof host_tok, "unknown");
+  machine_token(C->grade, grade_tok, sizeof grade_tok);
+  if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
   /* Lab/ops SMX snapshot: bits only on wire; dual-wire honesty plate. */
   snprintf(out, cap,
            "{\"schema\":\"grokium.smx.v1\",\"ok\":true,"
@@ -619,8 +624,8 @@ static void json_matrix(const gk_consolidator *C, char *out, size_t cap) {
            "\"peer_http_is_product_bus\":false,"
            "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
            "\"bits\":\"%s\"}",
-           (unsigned long long)C->matrix.seq, C->matrix.bits_set,
-           C->matrix.host_id, hex, C->grade, bits);
+           (unsigned long long)C->matrix.seq, C->matrix.bits_set, host_tok,
+           hex, grade_tok, bits);
 }
 
 /* Count non-dot entries under path; -1 if missing/unreadable. */
@@ -723,7 +728,7 @@ static int session_compact_from_meta(const char *meta, size_t n, char *out,
                                      size_t cap) {
   char id[96], title[96], updated[48], model[48];
   int msgs = 0;
-  char title_esc[128], model_esc[64];
+  char title_esc[128], model_esc[64], updated_esc[96];
   if (!meta || !out || cap < 32) return -1;
   id[0] = title[0] = updated[0] = model[0] = 0;
   json_get_str(meta, n, "id", id, sizeof id);
@@ -738,10 +743,11 @@ static int session_compact_from_meta(const char *meta, size_t n, char *out,
   if (strlen(title) > 48) title[48] = 0;
   json_escape(title, title_esc, sizeof title_esc);
   json_escape(model, model_esc, sizeof model_esc);
+  json_escape(updated, updated_esc, sizeof updated_esc);
   snprintf(out, cap,
            "{\"id\":\"%s\",\"title\":\"%s\",\"updated_at\":\"%s\","
            "\"num_chat_messages\":%d,\"model\":\"%s\"}",
-           id, title_esc, updated, msgs, model_esc);
+           id, title_esc, updated_esc, msgs, model_esc);
   return 0;
 }
 
@@ -929,12 +935,14 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
 
   /* Minimal lab/ops UI — not product chat; dual-wire honesty plate. */
   if (!strcmp(path, "/ui") || !strcmp(path, "/ui/")) {
-    char html[4096];
+    char html[4096], grade_tok[32];
     int n;
     if (strcmp(method, "GET") != 0) {
       http_reply(cfd, 405, "text/plain", "method\n");
       return;
     }
+    machine_token(C ? C->grade : "EMPTY", grade_tok, sizeof grade_tok);
+    if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
     n = snprintf(
         html, sizeof html,
         "<!DOCTYPE html>\n"
@@ -979,7 +987,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
         "(chat-only) and <code>/v1/coord</code>; shell tools remain host TUI / "
         "nanobot. HOLD_FLASH ack_held.</p>\n"
         "</body></html>\n",
-        C ? C->matrix.bits_set : 0, C ? C->grade : "EMPTY", F ? F->n : 0,
+        C ? C->matrix.bits_set : 0, grade_tok, F ? F->n : 0,
         L ? L->hold_flash : 1);
     if (n < 0 || (size_t)n >= sizeof html) {
       http_reply(cfd, 500, "text/plain", "ui_overflow\n");
@@ -1334,8 +1342,10 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     gk_ingest(C, id, body, body_n, now);
     gk_consolidate(C, now);
     {
-      char hex[65];
+      char hex[65], grade_tok[32];
       smx_sha256_hex(&C->matrix, hex);
+      machine_token(C->grade, grade_tok, sizeof grade_tok);
+      if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
       /* Lab/ops ingest plate; product multi-peer bus remains SMX2. */
       snprintf(resp, sizeof resp,
                "{\"schema\":\"grokium.coord.v1\",\"ok\":true,"
@@ -1345,7 +1355,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
                "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
                "\"peer_http_is_product_bus\":false,"
                "\"llm_on_hot_path\":false,\"llm_is_commander\":false}",
-               C->grade, C->matrix.bits_set,
+               grade_tok, C->matrix.bits_set,
                (unsigned long long)C->matrix.seq, hex);
     }
     http_reply(cfd, 200, "application/json", resp);
