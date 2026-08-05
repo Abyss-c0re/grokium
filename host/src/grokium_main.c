@@ -380,17 +380,13 @@ static int cmd_models(gkx_config *cfg) {
   char err[400], tok[64];
   char *body = grokium_models_json(cfg, err, sizeof err);
   if (!body) {
-    /* Dual-wire fail plate — sanitize free-text backend err to machine token. */
+    char plate[512];
+    /* Shared dual-wire fail plate — sanitize free-text backend err token. */
     err_token(err, tok, sizeof tok);
     if (!tok[0]) snprintf(tok, sizeof tok, "models_fail");
-    printf("{\"schema\":\"grokium.models.v1\",\"ok\":false,"
-           "\"error\":\"%s\",\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false,"
-           "\"hint\":\"models · local llama /v1/models\"}\n",
-           tok);
+    grokium_err_json("models", tok, "models local llama /v1/models", plate,
+                     sizeof plate);
+    printf("%s\n", plate);
     return 2;
   }
   printf("%s\n", body);
@@ -792,14 +788,11 @@ int main(int argc, char **argv) {
   }
   if (strcmp(cmd, "run") == 0) {
     if (ai + 1 >= argc) {
-      /* Machine need_path plate — dual-wire honesty (CubalC opt-in). */
-      printf("{\"schema\":\"grokium.run.v1\",\"ok\":false,"
-             "\"error\":\"need_path\",\"product_wire\":\"smx2\","
-             "\"peer_http\":\"lab_ops_only\","
-             "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"llm_is_commander\":false,"
-             "\"hint\":\"run <file.cubalc>\"}\n");
+      char deny[512];
+      /* Shared dual-wire need_path (CubalC opt-in · no free-text-only). */
+      grokium_err_json("run", "need_path", "run <file.cubalc>", deny,
+                       sizeof deny);
+      printf("%s\n", deny);
       return 2;
     }
     char *av[] = {cubalc_bin, "run", argv[ai + 1], NULL};

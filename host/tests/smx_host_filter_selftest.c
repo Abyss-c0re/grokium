@@ -241,11 +241,33 @@ int main(void) {
         !strstr(plate, "\"error\":\"plate_failed\"") ||
         !strstr(plate, "\"llm_is_commander\":false") || strstr(plate, "\"hint\""))
       return fail("status plate_failed dual-wire plate fail");
+    /* TUI shell need_cmd + CLI run need_path share the same err builder. */
+    grokium_err_json("shell", "need_cmd", "! <command> | /shell <command>",
+                     plate, sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.shell.v1\"") ||
+        !strstr(plate, "\"error\":\"need_cmd\"") ||
+        !strstr(plate, "! <command>") ||
+        !strstr(plate, "\"product_wire\":\"smx2\"") ||
+        !strstr(plate, "\"llm_is_commander\":false"))
+      return fail("shell need_cmd dual-wire plate fail");
+    grokium_err_json("run", "need_path", "run <file.cubalc>", plate,
+                     sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.run.v1\"") ||
+        !strstr(plate, "\"error\":\"need_path\"") ||
+        !strstr(plate, "run <file.cubalc>") ||
+        !strstr(plate, "\"hold_flash\":1"))
+      return fail("run need_path dual-wire plate fail");
+    grokium_err_json("models", "models_fail", "models local llama /v1/models",
+                     plate, sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.models.v1\"") ||
+        !strstr(plate, "\"error\":\"models_fail\"") ||
+        !strstr(plate, "\"peer_http_is_product_bus\":false"))
+      return fail("models fail dual-wire plate fail");
   }
 
   printf("HOST_SMX_FILTER_OK external=strict hold_flash=1 dual_wire=gate "
          "allow_plate=1 instinct_plate=1 manager_help_plate=1 license_plate=1 "
          "need_subcmd=1 commander_deny=1 law_help=1 mode_need_subcmd=1 "
-         "err_json=1 settings_attach_viz=1\n");
+         "err_json=1 settings_attach_viz=1 shell_run_models=1\n");
   return 0;
 }

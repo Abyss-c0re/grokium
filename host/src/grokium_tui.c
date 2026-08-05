@@ -438,14 +438,11 @@ static void stream_cb(void *ud, const char *chunk, size_t n) {
 /* Direct shell — run immediately, then ask the agent to present results. */
 static void shell_run_direct(const char *cmd) {
   if (!cmd || !cmd[0]) {
-    /* Machine need_cmd plate — dual-wire honesty (no free-text-only usage). */
-    log_add("{\"schema\":\"grokium.shell.v1\",\"ok\":false,"
-            "\"error\":\"need_cmd\",\"product_wire\":\"smx2\","
-            "\"peer_http\":\"lab_ops_only\","
-            "\"peer_http_is_product_bus\":false,"
-            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-            "\"llm_is_commander\":false,"
-            "\"hint\":\"! <command> | /shell <command>\"}");
+    char plate[512];
+    /* Shared dual-wire need_cmd (no free-text-only usage). */
+    grokium_err_json("shell", "need_cmd", "! <command> | /shell <command>",
+                     plate, sizeof plate);
+    log_add(plate);
     return;
   }
   while (*cmd == ' ') cmd++;
