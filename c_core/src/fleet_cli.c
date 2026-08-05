@@ -40,6 +40,8 @@ static int fleet_selftest(void) {
     fprintf(stderr, "selftest: mkdtemp failed\n");
     return 1;
   }
+  /* Isolate bot homes under temp so PURPOSE plates do not touch data/. */
+  setenv("GROKIUM_HOME_ROOT", td, 1);
   snprintf(path, sizeof path, "%s/FLEET.json", td);
   fleet_default_roles(&F);
   if (F.n < 6) {
@@ -55,6 +57,30 @@ static int fleet_selftest(void) {
   if (fleet_deploy(&F) != 0 || fleet_save(&F, path) != 0) {
     fprintf(stderr, "selftest: deploy/save failed\n");
     return 1;
+  }
+  /* PURPOSE.txt on deploy: dual-wire honesty for each bot home. */
+  {
+    char pp[400], pb[512];
+    FILE *pf;
+    size_t pn;
+    snprintf(pp, sizeof pp, "%s/PURPOSE.txt", F.bots[0].home);
+    pf = fopen(pp, "r");
+    if (!pf) {
+      fprintf(stderr, "selftest: PURPOSE.txt missing after deploy\n");
+      return 1;
+    }
+    pn = fread(pb, 1, sizeof pb - 1, pf);
+    pb[pn] = 0;
+    fclose(pf);
+    if (!strstr(pb, "product_wire=smx2") ||
+        !strstr(pb, "peer_http=lab_ops_only") ||
+        !strstr(pb, "peer_http_is_product_bus=0") ||
+        !strstr(pb, "llm_is_commander=0") ||
+        !strstr(pb, "share=state_matrix_only") ||
+        !strstr(pb, "hold_flash=1")) {
+      fprintf(stderr, "selftest: PURPOSE dual-wire fail: %.200s\n", pb);
+      return 1;
+    }
   }
   self_pid = (int)getpid();
   if (fleet_note_pid(&F, "nb-manager", self_pid) != 0) {
@@ -140,7 +166,7 @@ static int fleet_selftest(void) {
     return 1;
   }
   printf("FLEET_SELFTEST_OK n=%d alive=1 nb_manager=1 product_wire=smx2 "
-         "peer_http=lab_ops_only bot_dual_wire=1\n",
+         "peer_http=lab_ops_only bot_dual_wire=1 purpose=honest\n",
          F.n);
   return 0;
 }

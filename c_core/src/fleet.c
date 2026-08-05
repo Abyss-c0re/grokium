@@ -65,6 +65,26 @@ void fleet_default_roles(gk_fleet *F) {
   F->n = 6;
 }
 
+/* Per-bot purpose plate: dual-wire honesty (SMX2 ≠ peer HTTP lab/ops). */
+static int write_purpose_plate(const gk_bot *b) {
+  char purpose[320];
+  FILE *pf;
+  if (!b || !b->home[0]) return -1;
+  mkdir(b->home, 0755);
+  snprintf(purpose, sizeof purpose, "%s/PURPOSE.txt", b->home);
+  pf = fopen(purpose, "w");
+  if (!pf) return -1;
+  fprintf(pf,
+          "id=%s\npurpose=%s\nwire=%s\nproduct_wire=smx2\nhold_flash=1\n"
+          "share=state_matrix_only\npeer_http=lab_ops_only\n"
+          "peer_http_is_product_bus=0\nllm_is_commander=0\n"
+          "observer=NexusCore\n",
+          b->id, b->purpose,
+          strcmp(b->id, "nb-manager") == 0 ? "smx_motivate" : "smx2");
+  fclose(pf);
+  return 0;
+}
+
 int fleet_deploy(gk_fleet *F) {
   int i;
   if (!F) return -1;
@@ -72,6 +92,7 @@ int fleet_deploy(gk_fleet *F) {
   mkdir(F->home_root, 0755);
   for (i = 0; i < F->n; i++) {
     mkdir(F->bots[i].home, 0755);
+    (void)write_purpose_plate(&F->bots[i]);
     /* deploy = plate homes only; process spawn is host/hub responsibility */
     F->bots[i].running = 0;
     F->bots[i].pid = -1;
@@ -125,23 +146,13 @@ int fleet_spawn(gk_fleet *F, const char *bot_id) {
   (void)fleet_status(F);
   for (i = 0; i < F->n; i++) {
     gk_bot *b = &F->bots[i];
-    char port[16], logpath[320], purpose[320];
-    FILE *pf;
+    char port[16], logpath[320];
     int logfd, devnull;
     if (strcmp(b->id, bot_id) != 0) continue;
     if (b->running && b->pid > 0) return 0; /* already live */
     mkdir(F->home_root, 0755);
     mkdir(b->home, 0755);
-    snprintf(purpose, sizeof purpose, "%s/PURPOSE.txt", b->home);
-    pf = fopen(purpose, "w");
-    if (pf) {
-      fprintf(pf,
-              "id=%s\npurpose=%s\nwire=%s\nhold_flash=1\n"
-              "share=state_matrix_only\npeer_http=lab_ops_only\n",
-              b->id, b->purpose,
-              strcmp(b->id, "nb-manager") == 0 ? "smx_motivate" : "smx2");
-      fclose(pf);
-    }
+    (void)write_purpose_plate(b);
     snprintf(port, sizeof port, "%d", b->port);
     pid = fork();
     if (pid < 0) return -1;
