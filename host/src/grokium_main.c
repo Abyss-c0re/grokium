@@ -659,8 +659,14 @@ int main(int argc, char **argv) {
     return 0;
   }
   if (strcmp(cmd, "version") == 0) {
-    printf("{\"product\":\"grokium\",\"version\":\"%s\",\"core\":\"nanobot\","
-           "\"host\":\"C\",\"python\":0,\"tok\":\"%s\"}\n",
+    /* Machine version plate — dual-wire honesty (lab/ops ≠ product bus). */
+    printf("{\"schema\":\"grokium.version.v1\",\"ok\":true,"
+           "\"product\":\"grokium\",\"version\":\"%s\",\"core\":\"nanobot\","
+           "\"host\":\"C\",\"python\":0,\"tok\":\"%s\","
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false}\n",
            GROKIUM_VERSION, GROKIUM_TOK);
     return 0;
   }
@@ -973,7 +979,14 @@ int main(int argc, char **argv) {
     return grokium_tui(argc, argv);
   }
 
-  fprintf(stderr, "grokium: unknown cmd '%s'\n", cmd);
+  /* Machine need_subcmd — no free-text echo of user argv (dual-wire honesty). */
+  printf("{\"schema\":\"grokium.cli.v1\",\"ok\":false,"
+         "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
+         "\"peer_http\":\"lab_ops_only\","
+         "\"peer_http_is_product_bus\":false,"
+         "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+         "\"llm_is_commander\":false,"
+         "\"hint\":\"help|chat|tui|serve|fleet|coord|status|law|integrity\"}\n");
   usage();
   return 2;
 }

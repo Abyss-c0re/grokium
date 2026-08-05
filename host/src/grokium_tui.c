@@ -1672,7 +1672,17 @@ static void do_command(const char *raw) {
         cfg.ui_composer_max_rows = atoi(v);
       else if (!strcmp(k,"ui.stream_redraw"))
         cfg.ui_stream_redraw = on;
-      else { log_add("unknown key"); return; }
+      else {
+        /* Machine unknown_key plate — dual-wire honesty (no free-text-only). */
+        log_add("{\"schema\":\"grokium.settings.v1\",\"ok\":false,"
+                "\"error\":\"unknown_key\",\"product_wire\":\"smx2\","
+                "\"peer_http\":\"lab_ops_only\","
+                "\"peer_http_is_product_bus\":false,"
+                "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                "\"llm_is_commander\":false,"
+                "\"hint\":\"/settings key=value|save|reload|path|show\"}");
+        return;
+      }
       always_approve = cfg.agent_always_approve;
       ui_apply_colors();
       config_persist();
