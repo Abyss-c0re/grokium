@@ -2,6 +2,8 @@
 #ifndef GROKIUM_LAW_H
 #define GROKIUM_LAW_H
 /* Cube Standards flags — non-verbal hot path */
+#include <stddef.h>
+
 #define GROKIUM_HOLD_FLASH        1
 #define GROKIUM_NO_BRAIN_WIRES    1
 #define GROKIUM_STATE_MATRIX_KEY  1
@@ -20,4 +22,9 @@ typedef struct {
 } grokium_law;
 void grokium_law_default(grokium_law *L);
 int  grokium_law_blocks_flash(const grokium_law *L);
+/*
+ * Dual-wire law plate (schema grokium.law.v1).
+ * Commander = Ed25519 residual; LLM is never commander. NULL L → defaults.
+ */
+void grokium_law_json(const grokium_law *L, char *out, size_t cap);
 #endif

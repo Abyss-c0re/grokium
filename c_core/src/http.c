@@ -518,26 +518,6 @@ static int load_commander(const char *data_root, gk_commander *C) {
   return gk_commander_load_pk_only(C, pk);
 }
 
-static void json_law(const grokium_law *L, char *out, size_t cap) {
-  /* Match host `grokium law` dual-wire honesty plate (Commander ≠ model). */
-  snprintf(out, cap,
-           "{\"schema\":\"grokium.law.v1\",\"ok\":true,"
-           "\"hold_flash\":%d,\"no_brain_wires\":%d,"
-           "\"state_matrix_key\":%d,\"cores_unmixed\":%d,"
-           "\"face_blur\":%d,\"zero_telemetry\":%d,"
-           "\"commander_only_residual\":%d,"
-           "\"share\":\"state_matrix_only\","
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"commander\":\"ed25519\",\"llm_is_commander\":false,"
-           "\"python\":0,\"host\":\"C\",\"product\":\"grokium\","
-           "\"not\":\"grok_model\"}",
-           L ? L->hold_flash : 1, L ? L->no_brain_wires : 1,
-           L ? L->state_matrix_key : 1, L ? L->cores_unmixed : 1,
-           L ? L->face_blur : 1, L ? L->zero_telemetry : 1,
-           L ? L->commander_only_residual : 1);
-}
-
 static void json_status(const grokium_law *L, const gk_consolidator *C,
                         const gk_fleet *F, int alive, char *out, size_t cap) {
   char grade_tok[32];
@@ -856,7 +836,8 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       http_reply_err(cfd, 405, "method");
       return;
     }
-    json_law(L, resp, sizeof resp);
+    /* Shared Cube Standards dual-wire plate (host CLI / TUI same builder). */
+    grokium_law_json(L, resp, sizeof resp);
     http_reply(cfd, 200, "application/json", resp);
     return;
   }

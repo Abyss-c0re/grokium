@@ -1094,19 +1094,15 @@ static void cmd_commander_show(void) {
   (void)run_c_core_capture("grokium-commander", av);
 }
 
-/* Cube law plate (matches c_core grokium_law_default + dual-wire honesty). */
+/* Cube law plate — shared c_core dual-wire builder (Commander ≠ model). */
 static void cmd_law_show(void) {
-  char line[240];
-  log_add("--- law (Cube Standards · pure C defaults) ---");
-  log_add("  hold_flash=1 · no_brain_wires=1 · state_matrix_key=1");
-  log_add("  cores_unmixed=1 · face_blur=1 · zero_telemetry=1");
-  log_add("  commander_only_residual=1 · share=state_matrix_only");
-  log_add("  product_wire=smx2 · peer_http=lab_ops_only · peer_http_is_product_bus=0");
-  log_add("  Commander=Ed25519 (data/law) · LLM is never commander");
+  char plate[768], line[240];
+  log_add("--- law (Cube Standards · shared plate) ---");
+  grokium_law_json(NULL, plate, sizeof plate);
+  log_add(plate);
   snprintf(line, sizeof line, "  agent.tools=%d · agent.braincells=%d · backend=%s",
            cfg.agent_tools, cfg.agent_braincells, cfg.active_backend);
   log_add(line);
-  log_add("  integrity=/integrity · commander=/commander · fleet=/fleet");
 }
 
 /* Dual-wire honesty status plate (shared probes with host CLI). */

@@ -302,15 +302,12 @@ static int cmd_law(int argc, char **argv) {
            "\"hint\":\"law [cubalc] · pure-C Cube Standards plate\"}\n");
     return 0;
   }
-  printf("{\"schema\":\"grokium.law.v1\",\"ok\":true,"
-         "\"hold_flash\":1,\"no_brain_wires\":1,\"state_matrix_key\":1,"
-         "\"cores_unmixed\":1,\"face_blur\":1,\"zero_telemetry\":1,"
-         "\"commander_only_residual\":1,\"share\":\"state_matrix_only\","
-         "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-         "\"peer_http_is_product_bus\":false,"
-         "\"commander\":\"ed25519\",\"llm_is_commander\":false,"
-         "\"python\":0,\"host\":\"C\",\"product\":\"grokium\","
-         "\"not\":\"grok_model\"}\n");
+  {
+    char plate[768];
+    /* Shared c_core dual-wire plate (match GET /v1/law). */
+    grokium_law_json(NULL, plate, sizeof plate);
+    printf("%s\n", plate);
+  }
   return 0;
 }
 
