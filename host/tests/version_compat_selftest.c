@@ -1,0 +1,93 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Pure-C selftest for version_compat plate dual-wire honesty
+ * (no nanobot, no ncurses).
+ */
+#define _POSIX_C_SOURCE 200809L
+#include "grokium_version.h"
+#include "grokium.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/stat.h>
+
+static int fail(const char *msg) {
+  fprintf(stderr, "version_compat_selftest: %s\n", msg);
+  return 1;
+}
+
+static int read_all(const char *path, char *out, size_t n) {
+  FILE *f;
+  size_t got;
+  out[0] = 0;
+  f = fopen(path, "r");
+  if (!f) return -1;
+  got = fread(out, 1, n - 1, f);
+  out[got] = 0;
+  fclose(f);
+  return got > 0 ? 0 : -1;
+}
+
+int main(void) {
+  char tmp[] = "/tmp/gkx_version_compat_XXXXXX";
+  char *root = mkdtemp(tmp);
+  char path[512], plate[1024], meta_dir[512];
+  gkx_version_state st;
+  FILE *mf;
+
+  if (!root) return fail("mkdtemp");
+
+  /* Fake HOME/.grok/.metadata_version so refresh does not need real grok CLI. */
+  snprintf(meta_dir, sizeof meta_dir, "%s/.grok", root);
+  if (mkdir(meta_dir, 0700) != 0) return fail("mkdir .grok");
+  snprintf(path, sizeof path, "%s/.grok/.metadata_version", root);
+  mf = fopen(path, "w");
+  if (!mf) return fail("open metadata");
+  fputs("9.9.9\n", mf);
+  fclose(mf);
+  if (setenv("HOME", root, 1) != 0) return fail("setenv HOME");
+  /* Avoid accidental grok CLI path if metadata parse failed. */
+  unsetenv("GROK_CLI");
+
+  memset(&st, 0, sizeof st);
+  gkx_version_init(&st, root);
+  if (gkx_version_refresh(&st, root) != 0)
+    return fail("refresh expected success with fake metadata");
+  if (strcmp(st.official, "9.9.9") != 0) {
+    fprintf(stderr, "version_compat_selftest: official=%s\n", st.official);
+    return fail("official version expected 9.9.9");
+  }
+
+  snprintf(path, sizeof path, "%s/data/grok_build_compat.json", root);
+  if (read_all(path, plate, sizeof plate) != 0)
+    return fail("read grok_build_compat.json");
+
+  if (!strstr(plate, "\"schema\": \"grokium.version_compat.v1\"") ||
+      !strstr(plate, "\"reported_grok_build_version\": \"9.9.9\"") ||
+      !strstr(plate, "\"grokium_version\": \"" GROKIUM_VERSION "\"") ||
+      !strstr(plate, "\"product_wire\": \"smx2\"") ||
+      !strstr(plate, "\"peer_http\": \"lab_ops_only\"") ||
+      !strstr(plate, "\"peer_http_is_product_bus\": false") ||
+      !strstr(plate, "\"llm_is_commander\": false") ||
+      !strstr(plate, "\"model_is_not_commander\": true") ||
+      !strstr(plate, "\"share\": \"state_matrix_only\"") ||
+      !strstr(plate, "\"hold_flash\": 1")) {
+    fprintf(stderr, "version_compat_selftest: plate honesty fail:\n%s\n", plate);
+    return 1;
+  }
+
+  /* Second refresh with same version: still honest, changed=0. */
+  if (gkx_version_refresh(&st, root) != 0)
+    return fail("second refresh failed");
+  if (st.changed != 0)
+    return fail("same version should not set changed");
+  if (read_all(path, plate, sizeof plate) != 0)
+    return fail("re-read plate");
+  if (!strstr(plate, "\"product_wire\": \"smx2\"") ||
+      !strstr(plate, "\"llm_is_commander\": false"))
+    return fail("plate dual-wire lost on rewrite");
+
+  printf("HOST_VERSION_COMPAT_OK reported=9.9.9 grokium=%s dual_wire=honest\n",
+         GROKIUM_VERSION);
+  return 0;
+}

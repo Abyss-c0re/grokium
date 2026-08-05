@@ -107,13 +107,21 @@ int gkx_version_refresh(gkx_version_state *st, const char *root) {
   snprintf(path, sizeof path, "%s/grok_build_compat.json", dir);
   FILE *f = fopen(path, "w");
   if (f) {
+    /* On-disk compat plate: dual-wire honesty (CLI version watch ≠ product bus). */
     fprintf(f,
             "{\n"
             "  \"schema\": \"grokium.version_compat.v1\",\n"
             "  \"reported_grok_build_version\": \"%s\",\n"
             "  \"grokium_version\": \"%s\",\n"
             "  \"last_source\": \"gkx_version_refresh\",\n"
-            "  \"updated_at\": %ld\n"
+            "  \"updated_at\": %ld,\n"
+            "  \"model_is_not_commander\": true,\n"
+            "  \"llm_is_commander\": false,\n"
+            "  \"share\": \"state_matrix_only\",\n"
+            "  \"hold_flash\": 1,\n"
+            "  \"product_wire\": \"smx2\",\n"
+            "  \"peer_http\": \"lab_ops_only\",\n"
+            "  \"peer_http_is_product_bus\": false\n"
             "}\n",
             ver, GROKIUM_VERSION, (long)time(NULL));
     fclose(f);
