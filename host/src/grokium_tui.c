@@ -434,7 +434,14 @@ static void stream_cb(void *ud, const char *chunk, size_t n) {
 /* Direct shell — run immediately, then ask the agent to present results. */
 static void shell_run_direct(const char *cmd) {
   if (!cmd || !cmd[0]) {
-    log_add("usage: ! <command>   or  /shell <command>");
+    /* Machine need_cmd plate — dual-wire honesty (no free-text-only usage). */
+    log_add("{\"schema\":\"grokium.shell.v1\",\"ok\":false,"
+            "\"error\":\"need_cmd\",\"product_wire\":\"smx2\","
+            "\"peer_http\":\"lab_ops_only\","
+            "\"peer_http_is_product_bus\":false,"
+            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+            "\"llm_is_commander\":false,"
+            "\"hint\":\"! <command> | /shell <command>\"}");
     return;
   }
   while (*cmd == ' ') cmd++;
@@ -1619,7 +1626,17 @@ static void do_command(const char *raw) {
       char *eq = strchr(rest, '=');
       char k[80], v[160];
       int on;
-      if (!eq) { log_add("usage: /settings key=value"); return; }
+      if (!eq) {
+        /* Machine need_key_value plate — dual-wire honesty. */
+        log_add("{\"schema\":\"grokium.settings.v1\",\"ok\":false,"
+                "\"error\":\"need_key_value\",\"product_wire\":\"smx2\","
+                "\"peer_http\":\"lab_ops_only\","
+                "\"peer_http_is_product_bus\":false,"
+                "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                "\"llm_is_commander\":false,"
+                "\"hint\":\"/settings key=value|save|reload|path|show\"}");
+        return;
+      }
       *eq = 0;
       snprintf(k, sizeof k, "%s", rest);
       snprintf(v, sizeof v, "%s", eq + 1);
@@ -1911,19 +1928,47 @@ static void do_command(const char *raw) {
     char sub[32], arg[PATH_MAX];
     sub[0] = arg[0] = 0;
     sscanf(rest, "%31s %511s", sub, arg);
-    if (!sub[0] || !strcmp(sub, "help")) {
+    if (!sub[0] || !strcmp(sub, "help") || !strcmp(sub, "?")) {
       log_add("/viz term <n1,n2,...>   terminal 2D bars");
       log_add("/viz open <path>        desktop viewer (config viz.desktop_cmd)");
       log_add("/viz vr <path>          VR/desktop cmd (viz.vr_cmd or desktop)");
       log_add("No hard-coded VR SDK — set viz.vr_cmd = \"your-viewer %s\"");
+      /* Machine need_subcmd plate — dual-wire honesty (no free-text-only). */
+      log_add("{\"schema\":\"grokium.viz.v1\",\"ok\":false,"
+              "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
+              "\"peer_http\":\"lab_ops_only\","
+              "\"peer_http_is_product_bus\":false,"
+              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+              "\"llm_is_commander\":false,"
+              "\"hint\":\"/viz term|open|vr …\"}");
       return;
     }
-    if (!strcmp(sub, "open") && arg[0]) {
+    if (!strcmp(sub, "open")) {
+      if (!arg[0]) {
+        log_add("{\"schema\":\"grokium.viz.v1\",\"ok\":false,"
+                "\"error\":\"need_path\",\"product_wire\":\"smx2\","
+                "\"peer_http\":\"lab_ops_only\","
+                "\"peer_http_is_product_bus\":false,"
+                "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                "\"llm_is_commander\":false,"
+                "\"hint\":\"/viz open <path>\"}");
+        return;
+      }
       if (gkx_viz_open(&cfg, arg, 0) == 0) log_add("opened (desktop cmd)");
       else log_add("viz open failed");
       return;
     }
-    if (!strcmp(sub, "vr") && arg[0]) {
+    if (!strcmp(sub, "vr")) {
+      if (!arg[0]) {
+        log_add("{\"schema\":\"grokium.viz.v1\",\"ok\":false,"
+                "\"error\":\"need_path\",\"product_wire\":\"smx2\","
+                "\"peer_http\":\"lab_ops_only\","
+                "\"peer_http_is_product_bus\":false,"
+                "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                "\"llm_is_commander\":false,"
+                "\"hint\":\"/viz vr <path>\"}");
+        return;
+      }
       if (gkx_viz_open(&cfg, arg, 1) == 0) log_add("opened (vr/desktop cmd)");
       else log_add("viz vr failed");
       return;
@@ -1954,7 +1999,14 @@ static void do_command(const char *raw) {
       }
       return;
     }
-    log_add("usage: /viz term|open|vr …");
+    /* Unknown subcmd — dual-wire need_subcmd (no free-text-only usage). */
+    log_add("{\"schema\":\"grokium.viz.v1\",\"ok\":false,"
+            "\"error\":\"need_subcmd\",\"product_wire\":\"smx2\","
+            "\"peer_http\":\"lab_ops_only\","
+            "\"peer_http_is_product_bus\":false,"
+            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+            "\"llm_is_commander\":false,"
+            "\"hint\":\"/viz term|open|vr …\"}");
     return;
   }
   if (strcmp(cmd, "board") == 0) {
