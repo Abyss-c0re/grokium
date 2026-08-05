@@ -282,16 +282,12 @@ static int cmd_law(int argc, char **argv) {
     return run_cubalc_program("law.cubalc", NULL);
   if (sub[0] && (!strcmp(sub, "help") || !strcmp(sub, "-h") ||
                  !strcmp(sub, "--help"))) {
-    /* Machine help plate — dual-wire honesty (no free-text-only usage). */
-    printf("{\"schema\":\"grokium.law.v1\",\"ok\":false,"
-           "\"error\":\"need_run_or_cubalc\",\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"commander\":\"ed25519\",\"llm_is_commander\":false,"
-           "\"python\":0,\"host\":\"C\",\"product\":\"grokium\","
-           "\"not\":\"grok_model\","
-           "\"hint\":\"law [cubalc] · pure-C Cube Standards plate\"}\n");
+    char deny[512];
+    /* Shared Commander deny plate (Ed25519 residual · LLM ≠ commander). */
+    grokium_commander_deny_json(
+        "law", "need_run_or_cubalc",
+        "law [cubalc] pure-C Cube Standards plate", deny, sizeof deny);
+    printf("%s\n", deny);
     return 0;
   }
   {

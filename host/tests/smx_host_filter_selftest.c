@@ -159,6 +159,21 @@ int main(void) {
         strstr(plate, "\"evil\"") || !strstr(plate, "\"error\":\"adrop\"") ||
         !strstr(plate, "\"not\":\"grok_model\""))
       return fail("commander deny sanitize fail");
+    /* Host CLI law help shares Commander deny (not free-text-only plate). */
+    grokium_commander_deny_json(
+        "law", "need_run_or_cubalc",
+        "law [cubalc] pure-C Cube Standards plate", plate, sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.law.v1\"") ||
+        !strstr(plate, "\"error\":\"need_run_or_cubalc\"") ||
+        !strstr(plate, "\"commander\":\"ed25519\"") ||
+        !strstr(plate, "\"not\":\"grok_model\"") ||
+        !strstr(plate, "\"commander_is_model\":false") ||
+        !strstr(plate, "\"llm_is_commander\":false") ||
+        !strstr(plate, "\"product_wire\":\"smx2\"") ||
+        !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+        !strstr(plate, "\"hold_flash\":1") ||
+        !strstr(plate, "law [cubalc]"))
+      return fail("law help commander deny dual-wire plate fail");
     /* TUI /mode help/unknown share need_subcmd (resume honesty in hint). */
     grokium_need_subcmd_json(
         "mode", "/mode chat|agent|resume|show resume=host_local_not_smx",
@@ -230,7 +245,7 @@ int main(void) {
 
   printf("HOST_SMX_FILTER_OK external=strict hold_flash=1 dual_wire=gate "
          "allow_plate=1 instinct_plate=1 manager_help_plate=1 license_plate=1 "
-         "need_subcmd=1 commander_deny=1 mode_need_subcmd=1 err_json=1 "
-         "settings_attach_viz=1\n");
+         "need_subcmd=1 commander_deny=1 law_help=1 mode_need_subcmd=1 "
+         "err_json=1 settings_attach_viz=1\n");
   return 0;
 }
