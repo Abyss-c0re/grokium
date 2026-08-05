@@ -141,30 +141,38 @@ int smx_load_bin(grokium_smx *m, const char *path) {
   return 0;
 }
 
-int smx_save_json(const grokium_smx *m, const char *path, int algodigit) {
-  FILE *f;
+int smx_plate_json(const grokium_smx *m, int algodigit, char *out, size_t cap) {
   char bits[GROKIUM_CELLS + 1];
   char hex[65];
-  char host_tok[sizeof m->host_id];
-  if (!m || !path) return -1;
+  char host_tok[32];
+  if (!m || !out || cap < 128) return -1;
   smx_bits_ascii(m, bits, sizeof bits);
   smx_sha256_hex(m, hex);
   host_token(m->host_id, host_tok, sizeof host_tok);
   if (!host_tok[0]) snprintf(host_tok, sizeof host_tok, "host");
+  /* Compact plate: dual-wire honesty; bits truncated (disk/lab inspect). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.smx.v1\",\"ok\":true,"
+           "\"seq\":%llu,\"bits_set\":%u,\"ticks\":%u,"
+           "\"host\":\"%s\",\"digit\":%d,\"sha256\":\"%s\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+           "\"bits\":\"%.64s...\"}",
+           (unsigned long long)m->seq, m->bits_set, m->ticks, host_tok,
+           algodigit, hex, bits);
+  return 0;
+}
+
+int smx_save_json(const grokium_smx *m, const char *path, int algodigit) {
+  FILE *f;
+  char plate[768];
+  if (!m || !path) return -1;
+  if (smx_plate_json(m, algodigit, plate, sizeof plate) != 0) return -1;
   f = fopen(path, "w");
   if (!f) return -1;
-  /* Compact on-disk plate: dual-wire honesty (lab/ops ≠ product bus). */
-  fprintf(f,
-          "{\"schema\":\"grokium.smx.v1\",\"ok\":true,"
-          "\"seq\":%llu,\"bits_set\":%u,\"ticks\":%u,"
-          "\"host\":\"%s\",\"digit\":%d,\"sha256\":\"%s\","
-          "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-          "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-          "\"peer_http_is_product_bus\":false,"
-          "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-          "\"bits\":\"%.64s...\"}\n",
-          (unsigned long long)m->seq, m->bits_set, m->ticks, host_tok,
-          algodigit, hex, bits);
+  fprintf(f, "%s\n", plate);
   fclose(f);
   return 0;
 }

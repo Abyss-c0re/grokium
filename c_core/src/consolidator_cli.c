@@ -237,6 +237,18 @@ int main(int argc, char **argv) {
         fprintf(stderr, "selftest: matrix.json dual-wire fail: %s\n", body);
         return 1;
       }
+      /* Shared compact plate builder must match on-disk matrix.json. */
+      {
+        char plate[768];
+        if (smx_plate_json(&C.matrix, 0, plate, sizeof plate) != 0 ||
+            !strstr(plate, "\"product_wire\":\"smx2\"") ||
+            !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+            !strstr(plate, "\"bits\":\"") || !strstr(plate, "...\"")) {
+          fprintf(stderr, "selftest: smx_plate_json dual-wire fail: %.200s\n",
+                  plate);
+          return 1;
+        }
+      }
       /* Hostile host_id must not break on-disk matrix plate. */
       {
         gk_consolidator H;
