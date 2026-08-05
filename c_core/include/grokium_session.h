@@ -7,10 +7,10 @@
 #include <stddef.h>
 
 #ifndef GK_SESSIONS_MAX
-#define GK_SESSIONS_MAX  8
+#define GK_SESSIONS_MAX  24
 #endif
 #ifndef GK_SESSIONS_SCAN
-#define GK_SESSIONS_SCAN 600
+#define GK_SESSIONS_SCAN 800
 #endif
 
 /* Hex digits + dashes only; length 1..80. */

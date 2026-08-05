@@ -506,25 +506,17 @@ static int cmd_session_pickup(const char *id) {
 }
 
 static int cmd_sessions(int argc, char **argv) {
-  char dir[PATH_MAX], path[PATH_MAX], meta[2048];
-  char id[96], title[96], updated[48], model[96];
-  char te[128], ue[96], me[128], q_esc[128], dir_esc[PATH_MAX + 32];
+  char data_root[PATH_MAX], plate[8192];
   const char *q = "";
-  DIR *d;
-  struct dirent *e;
-  int matched = 0, scanned = 0;
-  FILE *f;
-  size_t nread, tlen;
-  int first = 1;
 
   if (argc >= 1 &&
       (!strcmp(argv[0], "pickup") || !strcmp(argv[0], "load") ||
        !strcmp(argv[0], "get"))) {
     if (argc < 2) {
-      char plate[768];
-      if (gk_session_pickup_deny_json(NULL, "need_session_id", plate,
-                                       sizeof plate) == 0)
-        printf("%s\n", plate);
+      char deny[768];
+      if (gk_session_pickup_deny_json(NULL, "need_session_id", deny,
+                                       sizeof deny) == 0)
+        printf("%s\n", deny);
       return 2;
     }
     return cmd_session_pickup(argv[1]);
@@ -545,65 +537,10 @@ static int cmd_sessions(int argc, char **argv) {
   }
   if (argc >= 1) q = argv[0];
 
-  json_escape(q, q_esc, sizeof q_esc);
-  snprintf(dir, sizeof dir, "%s/data/import", root);
-  d = opendir(dir);
-  if (!d) {
-    char plate[1024];
-    if (gk_session_list_empty_json(q, dir, "no_import_dir", plate,
-                                    sizeof plate) == 0)
-      printf("%s\n", plate);
-    return 0;
-  }
-  /* Match empty-list helper: escape import_dir (root may carry inject chars). */
-  json_escape(dir, dir_esc, sizeof dir_esc);
-  printf("{\"schema\":\"grokium.sessions.v1\",\"ok\":true,"
-         "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
-         "\"peer_http\":\"lab_ops_only\","
-         "\"peer_http_is_product_bus\":false,"
-         "\"llm_is_commander\":false,"
-         "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-         "\"telemetry\":\"off\",\"q\":\"%s\",\"import_dir\":\"%s\","
-         "\"sessions\":[",
-         q_esc, dir_esc);
-  while ((e = readdir(d)) != NULL && matched < 24 && scanned < 800) {
-    size_t len = strlen(e->d_name);
-    if (len < 11 || strcmp(e->d_name + len - 10, ".meta.json") != 0)
-      continue;
-    scanned++;
-    snprintf(path, sizeof path, "%s/%s", dir, e->d_name);
-    f = fopen(path, "r");
-    if (!f) continue;
-    nread = fread(meta, 1, sizeof meta - 1, f);
-    meta[nread] = 0;
-    fclose(f);
-    if (q[0] && !contains_ci(meta, q) && !contains_ci(e->d_name, q))
-      continue;
-    id[0] = title[0] = updated[0] = model[0] = 0;
-    meta_get_str(meta, "id", id, sizeof id);
-    meta_get_str(meta, "title", title, sizeof title);
-    meta_get_str(meta, "updated_at", updated, sizeof updated);
-    meta_get_str(meta, "model", model, sizeof model);
-    if (!id[0]) {
-      snprintf(id, sizeof id, "%s", e->d_name);
-      tlen = strlen(id);
-      if (tlen > 10) id[tlen - 10] = 0;
-    }
-    if (!gk_session_id_safe(id)) continue;
-    if (!title[0]) snprintf(title, sizeof title, "%s", id);
-    json_escape(title, te, sizeof te);
-    json_escape(updated, ue, sizeof ue);
-    json_escape(model, me, sizeof me);
-    printf("%s{\"id\":\"%s\",\"title\":\"%s\",\"updated_at\":\"%s\","
-           "\"model\":\"%s\"}",
-           first ? "" : ",", id, te, ue, me);
-    first = 0;
-    matched++;
-  }
-  closedir(d);
-  printf("],\"n\":%d,\"scanned\":%d,\"limit\":24,"
-         "\"resume\":\"host_path\"}\n",
-         matched, scanned);
+  /* Shared c_core list plate (meta only; import under {root}/data/import). */
+  snprintf(data_root, sizeof data_root, "%s/data", root);
+  gk_session_list_json(data_root, q, plate, sizeof plate);
+  printf("%s\n", plate);
   return 0;
 }
 
