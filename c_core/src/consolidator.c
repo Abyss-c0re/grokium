@@ -3,7 +3,9 @@
  */
 #define _POSIX_C_SOURCE 200809L
 #include "grokium_consolidator.h"
+#include "grokium_algocube.h"
 #include "sha256.h"
+#include <dirent.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -215,6 +217,99 @@ int gk_matrix_json(const gk_consolidator *C, char *out, size_t cap) {
            "\"bits\":\"%s\"}",
            (unsigned long long)C->matrix.seq, C->matrix.bits_set, host_tok,
            hex, grade_tok, bits);
+  return 0;
+}
+
+static void json_escape_path(const char *in, char *out, size_t cap) {
+  size_t o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in) return;
+  for (; *in && o + 2 < cap; in++) {
+    unsigned char c = (unsigned char)*in;
+    if (c == '"' || c == '\\') {
+      if (o + 3 >= cap) break;
+      out[o++] = '\\';
+      out[o++] = (char)c;
+    } else if (c < 0x20) {
+      continue;
+    } else {
+      out[o++] = (char)c;
+    }
+  }
+  out[o] = 0;
+}
+
+static int count_dir_entries(const char *path) {
+  DIR *d;
+  struct dirent *e;
+  int n = 0;
+  if (!path || !path[0]) return -1;
+  d = opendir(path);
+  if (!d) return -1;
+  while ((e = readdir(d)) != NULL) {
+    if (e->d_name[0] == '.') continue;
+    n++;
+  }
+  closedir(d);
+  return n;
+}
+
+int gk_cube_status_json(const gk_consolidator *C, int hold_flash,
+                        const char *data_root, char *out, size_t cap) {
+  char hex[65];
+  uint8_t bp[10];
+  char bp_json[80];
+  char cpath[400], mpath[400], cpath_esc[512], mpath_esc[512], grade_tok[32];
+  int dig = 0, ncont, nmat, i;
+  size_t u = 0;
+  const char *root = data_root && data_root[0] ? data_root : "data";
+
+  if (!out || cap < 128) return -1;
+  hex[0] = 0;
+  memset(bp, 0, sizeof bp);
+  if (C) {
+    smx_sha256_hex(&C->matrix, hex);
+    dig = algocube_digit(&C->matrix, "cube_status");
+    algocube_blueprint10(&C->matrix, bp);
+  }
+  u = 0;
+  u += (size_t)snprintf(bp_json + u, sizeof bp_json - u, "[");
+  for (i = 0; i < 10 && u + 4 < sizeof bp_json; i++)
+    u += (size_t)snprintf(bp_json + u, sizeof bp_json - u, "%s%u",
+                          i ? "," : "", (unsigned)bp[i]);
+  if (u + 2 < sizeof bp_json)
+    snprintf(bp_json + u, sizeof bp_json - u, "]");
+
+  snprintf(cpath, sizeof cpath, "%s/cube_containers", root);
+  snprintf(mpath, sizeof mpath, "%s/matrix", root);
+  ncont = count_dir_entries(cpath);
+  nmat = count_dir_entries(mpath);
+  /* Escape paths/grade so a hostile data_root cannot break the plate. */
+  json_escape_path(cpath, cpath_esc, sizeof cpath_esc);
+  json_escape_path(mpath, mpath_esc, sizeof mpath_esc);
+  plate_token(C ? C->grade : "EMPTY", grade_tok, sizeof grade_tok);
+  if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
+
+  /* Lab/ops cube bridge; product multi-peer bus remains SMX2. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.cube_status.v1\","
+           "\"ok\":true,\"product\":\"grokium\","
+           "\"bridge\":\"algocube\","
+           "\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\","
+           "\"hold_flash\":%d,\"telemetry\":\"off\","
+           "\"matrix_bits\":%u,\"grade\":\"%s\",\"seq\":%llu,"
+           "\"sha256\":\"%s\",\"digit\":%d,\"blueprint\":%s,"
+           "\"containers_path\":\"%s\",\"containers_n\":%d,"
+           "\"matrix_path\":\"%s\",\"matrix_files_n\":%d,"
+           "\"llm_is_commander\":false,\"commander_is_model\":false,"
+           "\"llm_on_hot_path\":false}",
+           hold_flash ? 1 : 0, C ? C->matrix.bits_set : 0, grade_tok,
+           (unsigned long long)(C ? C->matrix.seq : 0), hex, dig, bp_json,
+           cpath_esc, ncont, mpath_esc, nmat);
   return 0;
 }
 

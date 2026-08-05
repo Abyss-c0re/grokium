@@ -176,6 +176,22 @@ int main(int argc, char **argv) {
         return 1;
       }
     }
+    /* Cube bridge plate (same builder as GET /v1/cube/status). */
+    {
+      char cube[1024];
+      if (gk_cube_status_json(&C, 1, "/tmp/gk_consolidate_selftest", cube,
+                             sizeof cube) != 0 ||
+          !strstr(cube, "\"schema\":\"grokium.cube_status.v1\"") ||
+          !strstr(cube, "\"bridge\":\"algocube\"") ||
+          !strstr(cube, "\"product_wire\":\"smx2\"") ||
+          !strstr(cube, "\"peer_http_is_product_bus\":false") ||
+          !strstr(cube, "\"blueprint\"") ||
+          !strstr(cube, "\"llm_is_commander\":false") ||
+          !strstr(cube, "\"commander_is_model\":false")) {
+        fprintf(stderr, "selftest: gk_cube_status_json fail: %.250s\n", cube);
+        return 1;
+      }
+    }
     /* CONSOLIDATE.json on save must carry dual-wire honesty too */
     {
       char body[1024];

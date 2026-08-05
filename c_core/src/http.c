@@ -12,7 +12,6 @@
 #include "grokium_status_plate.h"
 #include "sha256.h"
 #include <arpa/inet.h>
-#include <dirent.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -525,82 +524,6 @@ static void json_status(const grokium_law *L, const gk_consolidator *C,
                              C ? C->grade : "EMPTY", out, cap);
 }
 
-/* Count non-dot entries under path; -1 if missing/unreadable. */
-static int count_dir_entries(const char *path) {
-  DIR *d;
-  struct dirent *e;
-  int n = 0;
-  if (!path || !path[0]) return -1;
-  d = opendir(path);
-  if (!d) return -1;
-  while ((e = readdir(d)) != NULL) {
-    if (e->d_name[0] == '.') continue;
-    n++;
-  }
-  closedir(d);
-  return n;
-}
-
-/*
- * Cube bridge status — AlgoCube digit/blueprint from live matrix.
- * Lab/ops honesty plate; product multi-peer bus remains SMX2.
- */
-static void json_cube_status(const gk_consolidator *C, const grokium_law *L,
-                             const char *root, char *out, size_t cap) {
-  char hex[65];
-  uint8_t bp[10];
-  char bp_json[80];
-  char cpath[400], mpath[400], cpath_esc[512], mpath_esc[512], grade_tok[32];
-  int dig = 0, ncont, nmat, i;
-  size_t u = 0;
-
-  if (!out || cap < 128) return;
-  hex[0] = 0;
-  memset(bp, 0, sizeof bp);
-  if (C) {
-    smx_sha256_hex(&C->matrix, hex);
-    dig = algocube_digit(&C->matrix, "cube_status");
-    algocube_blueprint10(&C->matrix, bp);
-  }
-  u = 0;
-  u += (size_t)snprintf(bp_json + u, sizeof bp_json - u, "[");
-  for (i = 0; i < 10 && u + 4 < sizeof bp_json; i++)
-    u += (size_t)snprintf(bp_json + u, sizeof bp_json - u, "%s%u",
-                          i ? "," : "", (unsigned)bp[i]);
-  if (u + 2 < sizeof bp_json)
-    snprintf(bp_json + u, sizeof bp_json - u, "]");
-
-  snprintf(cpath, sizeof cpath, "%s/cube_containers",
-           root && root[0] ? root : "data");
-  snprintf(mpath, sizeof mpath, "%s/matrix", root && root[0] ? root : "data");
-  ncont = count_dir_entries(cpath);
-  nmat = count_dir_entries(mpath);
-  /* Escape paths/grade so a hostile data_root cannot break the plate. */
-  json_escape(cpath, cpath_esc, sizeof cpath_esc);
-  json_escape(mpath, mpath_esc, sizeof mpath_esc);
-  machine_token(C ? C->grade : "EMPTY", grade_tok, sizeof grade_tok);
-  if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
-
-  snprintf(out, cap,
-           "{\"schema\":\"grokium.cube_status.v1\","
-           "\"ok\":true,\"product\":\"grokium\","
-           "\"bridge\":\"algocube\","
-           "\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\","
-           "\"hold_flash\":%d,\"telemetry\":\"off\","
-           "\"matrix_bits\":%u,\"grade\":\"%s\",\"seq\":%llu,"
-           "\"sha256\":\"%s\",\"digit\":%d,\"blueprint\":%s,"
-           "\"containers_path\":\"%s\",\"containers_n\":%d,"
-           "\"matrix_path\":\"%s\",\"matrix_files_n\":%d,"
-           "\"llm_is_commander\":false,\"commander_is_model\":false,"
-           "\"llm_on_hot_path\":false}",
-           L ? L->hold_flash : 1, C ? C->matrix.bits_set : 0, grade_tok,
-           (unsigned long long)(C ? C->matrix.seq : 0), hex, dig, bp_json,
-           cpath_esc, ncont, mpath_esc, nmat);
-}
-
 static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
                    const char *data_root) {
   char req[GK_HTTP_REQ_MAX];
@@ -724,7 +647,9 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
       http_reply_err(cfd, 405, "method");
       return;
     }
-    json_cube_status(C, L, root, resp, sizeof resp);
+    /* Shared consolidator AlgoCube bridge plate (dual-wire). */
+    (void)gk_cube_status_json(C, L ? L->hold_flash : 1, root, resp,
+                              sizeof resp);
     http_reply(cfd, 200, "application/json", resp);
     return;
   }

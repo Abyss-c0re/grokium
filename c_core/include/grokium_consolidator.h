@@ -58,6 +58,12 @@ int  gk_ability(const gk_consolidator *C, double now_ts,
  * Lab/ops only — product multi-peer bus remains SMX2. Returns 0 ok.
  */
 int  gk_matrix_json(const gk_consolidator *C, char *out, size_t cap);
+/*
+ * Dual-wire AlgoCube bridge plate (schema grokium.cube_status.v1).
+ * Digit/blueprint from matrix; path counts under data_root (lab/ops).
+ */
+int  gk_cube_status_json(const gk_consolidator *C, int hold_flash,
+                         const char *data_root, char *out, size_t cap);
 int  gk_save_dir(const gk_consolidator *C, const char *dir);
 int  gk_load_dir(gk_consolidator *C, const char *dir);
 #endif
