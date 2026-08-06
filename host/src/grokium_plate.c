@@ -151,6 +151,17 @@ int gkx_plate_ui_line(const char *ln, int debug_mode, char *out, size_t cap) {
              has_tok != 1 ? " · /auth import · /login" : "");
     return 0;
   }
+  if (strcmp(short_s, "auth_import") == 0) {
+    {
+      char res[40];
+      res[0] = 0;
+      plate_json_str(ln, "result", res, sizeof res);
+      snprintf(out, cap, "· auth import · %s%s",
+               res[0] ? res : (ok == 1 ? "sealed" : "missing"),
+               has_tok == 1 ? " · token=yes" : " · token=no · /login");
+    }
+    return 0;
+  }
   if (strcmp(short_s, "login") == 0) {
     snprintf(out, cap, "· login · %s · token=%s%s",
              method[0] ? method : "oauth", has_tok == 1 ? "yes" : "no",

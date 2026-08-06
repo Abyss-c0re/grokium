@@ -237,6 +237,27 @@ int main(void) {
   if (!strstr(plate, "\"backend\":\"local\"") || !plate_dual_wire(plate))
     return fail("auth null backend defaults local");
 
+  /* /auth import dual-wire (no free-text ~/.grok path banners). */
+  gkx_auth_import_json("sealed", 1, plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.auth_import.v1\"") ||
+      !strstr(plate, "\"ok\":true") ||
+      !strstr(plate, "\"result\":\"sealed\"") ||
+      !strstr(plate, "\"has_token\":true") ||
+      !strstr(plate, "\"action\":\"import\"") || !plate_dual_wire(plate))
+    return fail("auth import sealed dual-wire plate");
+  gkx_auth_import_json("missing", 0, plate, sizeof plate);
+  if (!strstr(plate, "\"ok\":false") ||
+      !strstr(plate, "\"result\":\"missing\"") ||
+      !strstr(plate, "\"has_token\":false") || !plate_dual_wire(plate))
+    return fail("auth import missing dual-wire plate");
+  gkx_auth_import_json("bad\";drop/x", 0, plate, sizeof plate);
+  if (!strstr(plate, "\"result\":\"bad_drop_x\"") || strstr(plate, "\";drop") ||
+      !plate_dual_wire(plate))
+    return fail("auth import result sanitize dual-wire plate");
+  gkx_auth_import_json(NULL, 0, plate, sizeof plate);
+  if (!strstr(plate, "\"result\":\"missing\"") || !plate_dual_wire(plate))
+    return fail("auth import null result defaults missing");
+
   /* /login|/grok dual-wire (no free-text affiliation / token OK banners). */
   gkx_login_json(1, 0, plate, sizeof plate);
   if (!strstr(plate, "\"schema\":\"grokium.login.v1\"") ||
@@ -399,7 +420,8 @@ int main(void) {
              "\"saved\":true,\"no_config\":true,\"backend\":true,"
              "\"model\":true,\"context\":true,\"multiline\":true,"
              "\"spoilers\":true,\"debug\":true,\"always_approve\":true,"
-             "\"auth\":true,\"login\":true,\"session_clear\":true,"
+             "\"auth\":true,\"auth_import\":true,\"login\":true,"
+             "\"session_clear\":true,"
              "\"interrupt\":true,\"empty_output\":true,\"tui_help\":true,"
              "\"cli_help\":true,\"models_list\":true,\"ready\":true,"
              "\"agents\":true,\"subagent_cancel\":true,"
@@ -410,6 +432,7 @@ int main(void) {
     if (!strstr(okp, "\"schema\":\"grokium.settings_plate_selftest.v1\"") ||
         !strstr(okp, "\"ok\":true") || !strstr(okp, "\"empty_output\":true") ||
         !strstr(okp, "\"ready\":true") || !strstr(okp, "\"agents\":true") ||
+        !strstr(okp, "\"auth_import\":true") ||
         !strstr(okp, "\"subagent_cancel\":true") ||
         !strstr(okp, "\"product_wire\":\"smx2\"") ||
         !strstr(okp, "\"peer_http\":\"lab_ops_only\"") ||

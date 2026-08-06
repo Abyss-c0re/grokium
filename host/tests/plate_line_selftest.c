@@ -152,6 +152,9 @@ int main(void) {
         "{\"schema\":\"grokium.subagent_cancel.v1\",\"ok\":false,"
         "\"action\":\"cancel\",\"id\":\"worker1\","
         "\"error\":\"cancel_failed\"}";
+    const char *ai =
+        "{\"schema\":\"grokium.auth_import.v1\",\"ok\":true,"
+        "\"result\":\"sealed\",\"has_token\":true}";
     gkx_plate_ui_line(ag, 0, out, sizeof out);
     if (!strstr(out, "agents") || !strstr(out, "tools=on") ||
         !strstr(out, "turns=96") || !strstr(out, "sub=1/8") ||
@@ -162,6 +165,10 @@ int main(void) {
         !strstr(out, "worker1") || !strstr(out, "deny") ||
         strstr(out, "\"schema\""))
       return fail("ui_line subagent cancel human");
+    gkx_plate_ui_line(ai, 0, out, sizeof out);
+    if (!strstr(out, "auth import") || !strstr(out, "sealed") ||
+        !strstr(out, "token=yes") || strstr(out, "\"schema\""))
+      return fail("ui_line auth import human");
   }
   /* Integrity / contract / ability / commander human lines. */
   {

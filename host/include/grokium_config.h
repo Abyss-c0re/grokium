@@ -178,6 +178,15 @@ void gkx_always_approve_json(int on, char *out, size_t cap);
 void gkx_auth_json(int has_token, const char *backend, char *out, size_t cap);
 
 /*
+ * Dual-wire auth import plate (schema grokium.auth_import.v1).
+ * Host TUI /auth import|sync|pull and startup ~/.grok seal attempt.
+ * result: sealed|missing|parse_error|detected (machine token only).
+ * Never echoes secrets or free-text path banners.
+ */
+void gkx_auth_import_json(const char *result, int has_token, char *out,
+                          size_t cap);
+
+/*
  * Dual-wire login plate (schema grokium.login.v1).
  * Host TUI /login|/grok [device] — optional cloud opt-in result (never secrets).
  * Replaces free-text /login banners and "token OK" prose.

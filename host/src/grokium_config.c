@@ -663,6 +663,28 @@ void gkx_auth_json(int has_token, const char *backend, char *out, size_t cap) {
            has_token ? "true" : "false", be);
 }
 
+void gkx_auth_import_json(const char *result, int has_token, char *out,
+                          size_t cap) {
+  char res[40];
+  int ok;
+  if (!out || cap < 64) return;
+  settings_token(result, res, sizeof res);
+  if (!res[0]) snprintf(res, sizeof res, "missing");
+  ok = (strcmp(res, "sealed") == 0);
+  /* Shared dual-wire import: /auth import + startup seal (no path free-text). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.auth_import.v1\",\"ok\":%s,"
+           "\"action\":\"import\",\"result\":\"%s\",\"has_token\":%s,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"tools\":false,\"python\":0,"
+           "\"telemetry\":\"off\","
+           "\"hint\":\"%s\"}",
+           ok ? "true" : "false", res, has_token ? "true" : "false",
+           ok ? "/backend_grok" : "/login_or_auth_import");
+}
+
 void gkx_login_json(int has_token, int device, char *out, size_t cap) {
   if (!out || cap < 64) return;
   /* Shared dual-wire login: TUI /login|/grok — cloud opt-in · never secrets. */

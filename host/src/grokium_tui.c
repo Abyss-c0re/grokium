@@ -1770,18 +1770,10 @@ static void do_command(const char *raw) {
       if (irc == 1)
         ng_session_save(&s);
       has = (irc == 1) || (grokium_load_grok_token(tok, sizeof tok) == 0);
-      gkx_auth_json(has, cfg.active_backend, plate, sizeof plate);
+      /* Dual-wire import result — no free-text ~/.grok path banners. */
+      gkx_auth_import_json(irc == 1 ? "sealed" : (irc == 0 ? "missing" : "parse_error"),
+                           has, plate, sizeof plate);
       log_add(plate);
-      if (irc == 1) {
-        char note[160];
-        snprintf(note, sizeof note,
-                 "· auth import · sealed from ~/.grok · /backend grok");
-        log_add(note);
-      } else if (irc == 0) {
-        log_add("· auth import · no usable ~/.grok/auth.json · /login");
-      } else {
-        log_add("· auth import · parse/io error · check ~/.grok/auth.json");
-      }
       ng_session_free(&s);
       return;
     }
@@ -1825,8 +1817,11 @@ static void do_command(const char *raw) {
       gkx_config_save_prefs(&cfg, state_dir);
       gkx_backend_json(cfg.active_backend, 1, plate, sizeof plate);
       log_add(plate);
-      if (!has)
-        log_add("· need auth · /auth import or /login");
+      if (!has) {
+        /* Dual-wire need-auth — no free-text /auth import banner. */
+        gkx_auth_import_json("missing", 0, plate, sizeof plate);
+        log_add(plate);
+      }
     } else {
       char plate[512];
       /* Shared dual-wire need_backend (LLM ≠ commander). */
@@ -2730,10 +2725,16 @@ int grokium_tui(int argc, char **argv) {
         ng_session_init(&s);
         irc = ng_session_try_import_grok_cli(&s);
         if (irc == 1) {
+          char plate[512];
           ng_session_save(&s);
-          log_add("· ~/.grok sealed · /backend grok when you want cloud · /auth");
+          /* Dual-wire startup seal — no free-text ~/.grok path banner. */
+          gkx_auth_import_json("sealed", 1, plate, sizeof plate);
+          log_add(plate);
         } else {
-          log_add("· ~/.grok detected · /auth import · /login · /backend grok");
+          char plate[512];
+          gkx_auth_import_json(irc == 0 ? "detected" : "parse_error", 0, plate,
+                               sizeof plate);
+          log_add(plate);
         }
         ng_session_free(&s);
       }
