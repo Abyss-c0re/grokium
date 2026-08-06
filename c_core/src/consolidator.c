@@ -192,9 +192,13 @@ static void plate_token(const char *in, char *out, size_t cap) {
   "\"llm_on_hot_path\":false,\"llm_is_commander\":false"
 
 void gk_coord_err_json(const char *error, char *out, size_t cap) {
-  const char *err = error && error[0] ? error : "ingest_failed";
+  char err_tok[56];
   if (!out || cap < 64) return;
-  if (!strcmp(err, "need_plate")) {
+  /* Machine token only — no free-text / quote inject on error leaf. */
+  plate_token(error && error[0] ? error : "ingest_failed", err_tok,
+              sizeof err_tok);
+  if (!err_tok[0]) snprintf(err_tok, sizeof err_tok, "ingest_failed");
+  if (!strcmp(err_tok, "need_plate")) {
     snprintf(out, cap,
              "{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
              "\"error\":\"need_plate\",\"content\":\"meta_only\","
@@ -206,7 +210,7 @@ void gk_coord_err_json(const char *error, char *out, size_t cap) {
            "{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
            "\"error\":\"%s\",\"content\":\"meta_only\"," COORD_DUAL_WIRE_TAIL
            "}",
-           err);
+           err_tok);
 }
 
 void gk_coord_json(const gk_consolidator *C, char *out, size_t cap) {

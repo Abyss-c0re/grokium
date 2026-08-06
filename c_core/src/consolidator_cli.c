@@ -76,6 +76,15 @@ int main(int argc, char **argv) {
     fprintf(stderr, "grokium-consolidate: filter deny dual-wire fail\n");
     return 1;
   }
+  /* Error leaf must not accept quote/control inject (match law err plates). */
+  gk_coord_err_json("bad\"err;x", den, sizeof den);
+  if (!plate_dual_wire_ok(den) || strstr(den, "bad\"err") ||
+      !strstr(den, "\"error\":\"bad_err_x\"") ||
+      !strstr(den, "\"schema\":\"grokium.coord.v1\"")) {
+    fprintf(stderr, "grokium-consolidate: coord err sanitize fail: %.200s\n",
+            den);
+    return 1;
+  }
   /* Save ack builder: dual-wire + dir inject sanitize (no free-text-only). */
   {
     gk_consolidator tmp;
