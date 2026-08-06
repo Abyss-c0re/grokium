@@ -1384,29 +1384,37 @@ static void do_login(int device) {
 static void cmd_model_list(void) {
   char err[200];
   char *body = grokium_models_json(&cfg, err, sizeof err);
-  log_add("--- models (live) ---");
   if (!body) {
-    log_add(err[0] ? err : "fetch failed");
+    char plate[512];
+    /* Shared dual-wire models fail (match CLI) — no free-text err dump. */
+    grokium_err_json("models", err[0] ? err : "models_fail",
+                     "models local llama /v1/models", plate, sizeof plate);
+    log_add(plate);
     return;
   }
-  const char *p = body;
-  int count = 0;
-  while ((p = strstr(p, "\"id\"")) != NULL && count < 40) {
-    p += 4;
-    while (*p && *p != '"') p++;
-    if (*p != '"') break;
-    p++;
-    char id[512];
-    size_t i = 0;
-    while (*p && *p != '"' && i + 1 < sizeof id) id[i++] = *p++;
-    id[i] = 0;
-    if (i > 0) {
-      char line[240];
-      const char *show = strrchr(id, '/') ? strrchr(id, '/') + 1 : id;
-      snprintf(line, sizeof line, "  %s %s",
-               strcmp(id, cfg.active_model) == 0 ? "*" : "-", show);
-      log_add(line);
-      count++;
+  /* Human id list is host UX — no free-text dual-wire banner. */
+  {
+    const char *p = body;
+    int count = 0;
+    while ((p = strstr(p, "\"id\"")) != NULL && count < 40) {
+      p += 4;
+      while (*p && *p != '"') p++;
+      if (*p != '"') break;
+      p++;
+      {
+        char id[512];
+        size_t i = 0;
+        while (*p && *p != '"' && i + 1 < sizeof id) id[i++] = *p++;
+        id[i] = 0;
+        if (i > 0) {
+          char line[240];
+          const char *show = strrchr(id, '/') ? strrchr(id, '/') + 1 : id;
+          snprintf(line, sizeof line, "  %s %s",
+                   strcmp(id, cfg.active_model) == 0 ? "*" : "-", show);
+          log_add(line);
+          count++;
+        }
+      }
     }
   }
   free(body);
