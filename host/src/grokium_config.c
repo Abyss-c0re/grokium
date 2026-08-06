@@ -736,6 +736,30 @@ void gkx_cli_help_json(char *out, size_t cap) {
            "llama|integrity|hub|models|compat|board · backend=local\"}");
 }
 
+void gkx_models_list_json(int n, const char *backend, const char *active,
+                          char *out, size_t cap) {
+  char be[48], act[80];
+  if (!out || cap < 64) return;
+  if (n < 0) n = 0;
+  if (n > 9999) n = 9999;
+  settings_token(backend, be, sizeof be);
+  settings_token(active, act, sizeof act);
+  if (!be[0]) snprintf(be, sizeof be, "local");
+  if (!act[0]) snprintf(act, sizeof act, "auto");
+  /* Shared dual-wire models list: TUI /model list (no free-text id dump). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.models.v1\",\"ok\":true,"
+           "\"n\":%d,\"backend\":\"%s\",\"active\":\"%s\","
+           "\"local_first\":true,\"share\":\"state_matrix_only\","
+           "\"hold_flash\":1,\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"commander_is_model\":false,"
+           "\"python\":0,\"telemetry\":\"off\","
+           "\"hint\":\"/model <id> · /backend local\"}",
+           n, be, act);
+}
+
 void gkx_ready_json(int hub, int tools, int multiline, char *out, size_t cap) {
   if (!out || cap < 64) return;
   /* Shared dual-wire ready plate: TUI startup (local-first · py=0). */
