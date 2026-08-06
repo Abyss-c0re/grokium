@@ -129,4 +129,11 @@ void gkx_backend_json(const char *backend, int saved, char *out, size_t cap);
 void gkx_model_json(const char *backend, const char *model, int saved,
                     char *out, size_t cap);
 
+/*
+ * Dual-wire context plate (schema grokium.context.v1).
+ * Host TUI /context|/ctx [N] — context_window honesty (LLM ≠ commander).
+ * saved=1 when N was applied; product bus SMX2; peer HTTP lab/ops only.
+ */
+void gkx_context_json(int context_window, int saved, char *out, size_t cap);
+
 #endif

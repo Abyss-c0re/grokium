@@ -1698,13 +1698,18 @@ static void do_command(const char *raw) {
     return;
   }
   if (strcmp(cmd, "context") == 0 || strcmp(cmd, "ctx") == 0) {
+    char plate[512];
+    int saved = 0;
     if (rest[0]) {
       int n = atoi(rest);
-      if (n > 1024) cfg.context_window = n;
+      if (n > 1024) {
+        cfg.context_window = n;
+        saved = 1;
+      }
     }
-    char line[80];
-    snprintf(line, sizeof line, "context_window=%d", cfg.context_window);
-    log_add(line);
+    /* Dual-wire context plate — no free-text context_window= banner. */
+    gkx_context_json(cfg.context_window, saved, plate, sizeof plate);
+    log_add(plate);
     return;
   }
   if (strcmp(cmd, "status") == 0) {

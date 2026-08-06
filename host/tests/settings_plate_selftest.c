@@ -123,7 +123,26 @@ int main(void) {
       !strstr(plate, "\"model\":\"auto\"") || !plate_dual_wire(plate))
     return fail("model null defaults");
 
+  /* /context|/ctx dual-wire (LLM ≠ commander · no free-text banner). */
+  gkx_context_json(65536, 0, plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.context.v1\"") ||
+      !strstr(plate, "\"ok\":true") ||
+      !strstr(plate, "\"context_window\":65536") ||
+      !strstr(plate, "\"saved\":false") || !strstr(plate, "\"python\":0") ||
+      !plate_dual_wire(plate)) {
+    fprintf(stderr, "settings_plate_selftest: context show fail: %.400s\n",
+            plate);
+    return 1;
+  }
+  gkx_context_json(8192, 1, plate, sizeof plate);
+  if (!strstr(plate, "\"context_window\":8192") ||
+      !strstr(plate, "\"saved\":true") || !plate_dual_wire(plate))
+    return fail("context set dual-wire plate");
+  gkx_context_json(-1, 0, plate, sizeof plate);
+  if (!strstr(plate, "\"context_window\":0") || !plate_dual_wire(plate))
+    return fail("context negative clamps to 0");
+
   printf("HOST_SETTINGS_PLATE_OK dual_wire=honest sanitize=1 saved=1 "
-         "no_config=1 backend=1 model=1\n");
+         "no_config=1 backend=1 model=1 context=1\n");
   return 0;
 }

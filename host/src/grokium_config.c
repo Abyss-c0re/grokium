@@ -524,3 +524,17 @@ void gkx_model_json(const char *backend, const char *model, int saved,
            "\"llm_is_commander\":false,\"tools\":false,\"python\":0}",
            be, mo, saved ? "true" : "false");
 }
+
+void gkx_context_json(int context_window, int saved, char *out, size_t cap) {
+  int ctx = context_window > 0 ? context_window : 0;
+  if (!out || cap < 64) return;
+  /* Shared dual-wire context plate: TUI /context|/ctx (LLM ≠ commander). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.context.v1\",\"ok\":true,"
+           "\"context_window\":%d,\"saved\":%s,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"tools\":false,\"python\":0}",
+           ctx, saved ? "true" : "false");
+}
