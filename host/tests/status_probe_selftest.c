@@ -44,11 +44,16 @@ int main(void) {
   snprintf(path, sizeof path, "%s/data/matrix", root);
   if (mkdir(path, 0700) != 0) return fail("mkdir matrix");
 
-  /* 2 purposes; one live pid (self), one null — honest kill(0). */
+  /*
+   * Real default role ids + id fields (fleet_load overlay). One live pid
+   * (self), one null — honest kill(0). fleet_n is full default role set.
+   */
   snprintf(fleet_json, sizeof fleet_json,
            "{\"schema\":\"grokium.nanobot_fleet.v1\",\"bots\":{"
-           "\"nb-a\":{\"purpose\":\"eval\",\"pid\":%d},"
-           "\"nb-b\":{\"purpose\":\"observe\",\"pid\":null}}}",
+           "\"nb-manager\":{\"id\":\"nb-manager\","
+           "\"purpose\":\"motivate_incomplete_contracts\",\"pid\":%d},"
+           "\"nb-host\":{\"id\":\"nb-host\","
+           "\"purpose\":\"station_peer_cube_control\",\"pid\":null}}}",
            self_pid);
   snprintf(path, sizeof path, "%s/data/home/FLEET.json", root);
   if (write_file(path, fleet_json) != 0) return fail("write fleet");
@@ -56,10 +61,10 @@ int main(void) {
   if (write_file(path, matrix_json) != 0) return fail("write matrix");
 
   gkx_status_fleet_probe(root, &fleet_n, &fleet_alive);
-  if (fleet_n != 2)
-    return fail("fleet_n expected 2");
+  if (fleet_n != 6)
+    return fail("fleet_n expected 6 (default roles via fleet_load)");
   if (fleet_alive != 1)
-    return fail("fleet_alive expected 1 (self pid)");
+    return fail("fleet_alive expected 1 (self pid on nb-manager)");
 
   gkx_status_matrix_probe(root, &bits, grade, sizeof grade);
   if (bits != 8)
@@ -77,7 +82,7 @@ int main(void) {
       !strstr(plate, "\"llm_is_commander\":false") ||
       !strstr(plate, "\"commander\":\"ed25519\"") ||
       !strstr(plate, "\"python\":0") ||
-      !strstr(plate, "\"fleet_n\":2") ||
+      !strstr(plate, "\"fleet_n\":6") ||
       !strstr(plate, "\"fleet_alive\":1") ||
       !strstr(plate, "\"matrix_bits\":8") ||
       !strstr(plate, "\"grade\":\"SPARSE\"")) {
@@ -114,7 +119,7 @@ int main(void) {
     return 1;
   }
 
-  printf("HOST_STATUS_PROBE_OK fleet_n=2 fleet_alive=1 matrix_bits=8 "
-         "grade=SPARSE dual_wire=honest healthz=1\n");
+  printf("HOST_STATUS_PROBE_OK fleet_n=6 fleet_alive=1 matrix_bits=8 "
+         "grade=SPARSE dual_wire=honest fleet_load=1 healthz=1\n");
   return 0;
 }

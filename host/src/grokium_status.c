@@ -4,11 +4,9 @@
 #define _POSIX_C_SOURCE 200809L
 #include "grokium_status.h"
 #include "grokium_status_plate.h"
-#include <errno.h>
+#include "grokium_fleet.h"
 #include <limits.h>
-#include <signal.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -17,38 +15,20 @@
 #endif
 
 void gkx_status_fleet_probe(const char *repo_root, int *n_out, int *alive_out) {
-  char path[PATH_MAX], body[16384];
-  FILE *f;
-  size_t nread;
-  const char *p;
+  char path[PATH_MAX];
+  gk_fleet F;
   const char *root = (repo_root && repo_root[0]) ? repo_root : ".";
-  int n = 0, alive = 0;
+  int alive;
   if (n_out) *n_out = 0;
   if (alive_out) *alive_out = 0;
   snprintf(path, sizeof path, "%s/data/home/FLEET.json", root);
-  f = fopen(path, "r");
-  if (!f) return;
-  nread = fread(body, 1, sizeof body - 1, f);
-  body[nread] = 0;
-  fclose(f);
-  for (p = body; (p = strstr(p, "\"purpose\"")) != NULL; p += 9)
-    n++;
-  for (p = body; (p = strstr(p, "\"pid\"")) != NULL;) {
-    const char *q = p + 5;
-    long pid;
-    p = q;
-    while (*q == ' ' || *q == '\t' || *q == '\n' || *q == '\r') q++;
-    if (*q != ':') continue;
-    q++;
-    while (*q == ' ' || *q == '\t') q++;
-    if (*q == 'n' || *q == 'N' || *q == '"') continue;
-    pid = strtol(q, NULL, 10);
-    if (pid > 1) {
-      if (kill((pid_t)pid, 0) == 0 || errno == EPERM)
-        alive++;
-    }
-  }
-  if (n_out) *n_out = n;
+  /* No plate → no claimed fleet (do not invent default roles as live counts). */
+  if (access(path, R_OK) != 0) return;
+  memset(&F, 0, sizeof F);
+  if (fleet_load(&F, path) != 0) return;
+  alive = fleet_status(&F);
+  if (alive < 0) alive = 0;
+  if (n_out) *n_out = F.n > 0 ? F.n : 0;
   if (alive_out) *alive_out = alive;
 }
 

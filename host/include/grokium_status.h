@@ -11,7 +11,10 @@
 extern "C" {
 #endif
 
-/* Honest fleet counts from {repo_root}/data/home/FLEET.json + kill(0). */
+/*
+ * Honest fleet counts from {repo_root}/data/home/FLEET.json via fleet_load
+ * + fleet_status (kill(0)); missing plate → 0/0.
+ */
 void gkx_status_fleet_probe(const char *repo_root, int *n_out, int *alive_out);
 
 /* Count SMX 01 bits from {repo_root}/data/matrix/LATEST.json when present. */
