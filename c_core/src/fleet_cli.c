@@ -208,6 +208,34 @@ static int fleet_selftest(void) {
     fprintf(stderr, "selftest: plate missing dual-wire honesty fields\n");
     return 1;
   }
+  /* On-disk FLEET.json must JSON-escape path inject (home_root/binary). */
+  {
+    char inj_path[512], inj_body[4096];
+    FILE *injf;
+    snprintf(F.home_root, sizeof F.home_root, "data/h\"ome");
+    snprintf(F.binary, sizeof F.binary, "nano\\bot");
+    snprintf(inj_path, sizeof inj_path, "%s/FLEET_inj.json", td);
+    if (fleet_save(&F, inj_path) != 0) {
+      fprintf(stderr, "selftest: inject save failed\n");
+      return 1;
+    }
+    injf = fopen(inj_path, "r");
+    if (!injf) {
+      fprintf(stderr, "selftest: inject plate open failed\n");
+      return 1;
+    }
+    n = fread(inj_body, 1, sizeof inj_body - 1, injf);
+    inj_body[n] = 0;
+    fclose(injf);
+    if (!strstr(inj_body, "data/h\\\"ome") ||
+        !strstr(inj_body, "nano\\\\bot") ||
+        strstr(inj_body, "\"home_root\": \"data/h\"ome\"") ||
+        !strstr(inj_body, "\"product_wire\": \"smx2\"")) {
+      fprintf(stderr, "selftest: FLEET path inject not escaped: %.300s\n",
+              inj_body);
+      return 1;
+    }
+  }
   /* Fleet root + every bot object must carry product_wire (not wire alone). */
   {
     int pw = 0, ph = 0;

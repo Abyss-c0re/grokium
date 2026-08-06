@@ -573,10 +573,16 @@ int fleet_post_raw_bits(const gk_fleet *F, const char *bot_id,
 int fleet_save(gk_fleet *F, const char *path) {
   FILE *f;
   int i;
+  char home_root_esc[320], binary_esc[320], base_esc[192], model_esc[96];
   if (!F || !path) return -1;
   (void)fleet_status(F); /* plate must match live process reality */
   f = fopen(path, "w");
   if (!f) return -1;
+  /* Escape path/model strings so hostile env cannot break on-disk JSON. */
+  path_escape(F->home_root, home_root_esc, sizeof home_root_esc);
+  path_escape(F->binary, binary_esc, sizeof binary_esc);
+  path_escape(F->base_url, base_esc, sizeof base_esc);
+  path_escape(F->model, model_esc, sizeof model_esc);
   fprintf(f,
           "{\n  \"schema\": \"grokium.nanobot_fleet.v1\",\n"
           "  \"home_root\": \"%s\",\n"
@@ -592,14 +598,17 @@ int fleet_save(gk_fleet *F, const char *path) {
           "  \"commander_is_model\": false,\n"
           "  \"observer\": \"NexusCore\",\n"
           "  \"bots\": {\n",
-          F->home_root, F->binary, F->base_url, F->model);
+          home_root_esc, binary_esc, base_esc, model_esc);
   for (i = 0; i < F->n; i++) {
     const gk_bot *b = &F->bots[i];
-    char pid_buf[24];
+    char pid_buf[24], id_esc[48], purpose_esc[96], home_esc[320];
     if (b->pid > 0)
       snprintf(pid_buf, sizeof pid_buf, "%d", b->pid);
     else
       snprintf(pid_buf, sizeof pid_buf, "null");
+    path_escape(b->id, id_esc, sizeof id_esc);
+    path_escape(b->purpose, purpose_esc, sizeof purpose_esc);
+    path_escape(b->home, home_esc, sizeof home_esc);
     /* Per-bot dual-wire honesty: role wire (smx2 / smx_motivate) ≠ peer HTTP. */
     fprintf(f,
             "    \"%s\": {\n"
@@ -622,9 +631,9 @@ int fleet_save(gk_fleet *F, const char *path) {
             "      \"peer_http_is_product_bus\": false,\n"
             "      \"llm_is_commander\": false\n"
             "    }%s\n",
-            b->id, b->id, b->purpose, b->shell ? "true" : "false", b->port,
-            pid_buf, b->home, F->binary, b->running ? "false" : "true",
-            F->base_url, F->model, b->running ? "running" : "separated",
+            id_esc, id_esc, purpose_esc, b->shell ? "true" : "false", b->port,
+            pid_buf, home_esc, binary_esc, b->running ? "false" : "true",
+            base_esc, model_esc, b->running ? "running" : "separated",
             b->separated ? "true" : "false",
             strcmp(b->id, "nb-manager") == 0 ? "smx_motivate" : "smx2",
             i + 1 < F->n ? "," : "");
