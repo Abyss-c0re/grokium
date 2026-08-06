@@ -716,18 +716,13 @@ static void cmd_coord_ingest(const char *plate) {
     log_add(deny);
     return;
   }
-  log_add("coord> sanitize+ingest (SMX filter)…");
   av[0] = "ingest";
   av[1] = (char *)plate;
   av[2] = NULL;
-  /* CLI prints shared grokium.coord.v1 plate; log_add_block surfaces it. */
+  /* Capture prints shared grokium.coord.v1 — no free-text ok banner. */
   rc = run_c_core_capture("grokium-consolidate", av);
-  if (rc == 0)
-    log_add("coord> ok · product_wire=smx2 · peer_http=lab_ops_only · "
-            "share=state_matrix_only");
-  else if (rc == 99)
-    ; /* already logged missing tool */
-  else {
+  if (rc != 0 && rc != 99) {
+    /* 99 = missing tool already logged; other failures get dual-wire deny. */
     gk_coord_err_json("ingest_failed", deny, sizeof deny);
     log_add(deny);
   }
@@ -1311,14 +1306,10 @@ static void cmd_fleet(const char *arg) {
   /* note-pid ID PID [path] needs three args after subcmd. */
   sscanf(p, "%63s %511s %63s %511s", sub, a1, a2, a3);
   if (!sub[0]) {
-    /* default: live status probe */
-    log_add("--- fleet status (pure-C · kill(0) honest) ---");
+    /* default: live status probe — dual-wire plate only (no free-text banner). */
     av[0] = "status";
     av[1] = NULL;
     (void)run_c_core_capture("grokium-fleet", av);
-    log_add("  product_wire=smx2 · peer_http=lab_ops_only · nb-manager on plate");
-    log_add("  subs: defaults|status|deploy|save|spawn <id>|spawn-all|"
-            "note-pid <id> <pid>|separate <id>|stop-all|cubalc");
     return;
   }
   if (!strcmp(sub, "help") || !strcmp(sub, "?")) {
@@ -1333,7 +1324,6 @@ static void cmd_fleet(const char *arg) {
     return;
   }
   if (!strcmp(sub, "cubalc")) {
-    log_add("--- fleet (CubalC board opt-in) ---");
     run_prog_capture("fleet.cubalc");
     return;
   }
@@ -1343,7 +1333,7 @@ static void cmd_fleet(const char *arg) {
   if (a2[0]) av[n++] = a2;
   if (a3[0]) av[n++] = a3;
   av[n] = NULL;
-  log_add("--- fleet (pure-C) ---");
+  /* Capture prints shared nanobot_* plates — no free-text dual-wire banner. */
   (void)run_c_core_capture("grokium-fleet", av);
 }
 
