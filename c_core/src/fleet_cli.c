@@ -145,6 +145,42 @@ static int fleet_selftest(void) {
               den);
       return 1;
     }
+    /* Error leaves must sanitize quote/control inject (match coord/law). */
+    fleet_spawn_err_json("bad\"err;x", den, sizeof den);
+    if (!plate_dual_wire_ok(den) || strstr(den, "bad\"err") ||
+        !strstr(den, "\"error\":\"bad_err_x\"") ||
+        !strstr(den, "\"schema\":\"grokium.nanobot_spawn.v1\"")) {
+      fprintf(stderr, "selftest: spawn err sanitize fail: %.200s\n", den);
+      return 1;
+    }
+    fleet_stop_err_json("stop\"bad;y", den, sizeof den);
+    if (!plate_dual_wire_ok(den) || strstr(den, "stop\"bad") ||
+        !strstr(den, "\"error\":\"stop_bad_y\"") ||
+        !strstr(den, "\"schema\":\"grokium.nanobot_stop.v1\"")) {
+      fprintf(stderr, "selftest: stop err sanitize fail: %.200s\n", den);
+      return 1;
+    }
+    fleet_save_err_json("save\"bad;z", den, sizeof den);
+    if (!plate_dual_wire_ok(den) || strstr(den, "save\"bad") ||
+        !strstr(den, "\"error\":\"save_bad_z\"") ||
+        !strstr(den, "\"schema\":\"grokium.nanobot_save.v1\"")) {
+      fprintf(stderr, "selftest: save err sanitize fail: %.200s\n", den);
+      return 1;
+    }
+    fleet_separate_err_json("sep\"bad;w", den, sizeof den);
+    if (!plate_dual_wire_ok(den) || strstr(den, "sep\"bad") ||
+        !strstr(den, "\"error\":\"sep_bad_w\"") ||
+        !strstr(den, "\"schema\":\"grokium.nanobot_separate.v1\"")) {
+      fprintf(stderr, "selftest: separate err sanitize fail: %.200s\n", den);
+      return 1;
+    }
+    fleet_note_pid_err_json("note\"bad;v", den, sizeof den);
+    if (!plate_dual_wire_ok(den) || strstr(den, "note\"bad") ||
+        !strstr(den, "\"error\":\"note_bad_v\"") ||
+        !strstr(den, "\"schema\":\"grokium.nanobot_note_pid.v1\"")) {
+      fprintf(stderr, "selftest: note_pid err sanitize fail: %.200s\n", den);
+      return 1;
+    }
   }
   self_pid = (int)getpid();
   if (fleet_note_pid(&F, "nb-manager", self_pid) != 0) {

@@ -190,6 +190,24 @@ static void path_escape(const char *in, char *out, size_t cap) {
   out[o] = 0;
 }
 
+/* Machine token for deny error leaves (no free-text / quote inject). */
+static void err_token(const char *in, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in || !in[0]) return;
+  for (i = 0; in[i] && o + 1 < cap && o < 48; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.')
+      out[o++] = (char)c;
+    else if (c == ' ' || c == '/' || c == ':' || c == '"' || c == '\\' ||
+             c == '\'' || c == ',' || c == ';')
+      out[o++] = '_';
+  }
+  out[o] = 0;
+}
+
 void fleet_deploy_json(gk_fleet *F, const char *path, char *out, size_t cap) {
   char path_esc[640];
   int alive;
@@ -227,9 +245,12 @@ void fleet_deploy_json(gk_fleet *F, const char *path, char *out, size_t cap) {
   "\"llm_is_commander\":false"
 
 void fleet_spawn_err_json(const char *error, char *out, size_t cap) {
-  const char *err = error && error[0] ? error : "spawn_failed";
+  char err_tok[56];
   if (!out || cap < 64) return;
-  if (!strcmp(err, "need_bot_id")) {
+  err_token(error && error[0] ? error : "spawn_failed", err_tok,
+            sizeof err_tok);
+  if (!err_tok[0]) snprintf(err_tok, sizeof err_tok, "spawn_failed");
+  if (!strcmp(err_tok, "need_bot_id")) {
     snprintf(out, cap,
              "{\"schema\":\"grokium.nanobot_spawn.v1\",\"ok\":false,"
              "\"error\":\"need_bot_id\"," FLEET_DUAL_WIRE_TAIL ","
@@ -239,7 +260,7 @@ void fleet_spawn_err_json(const char *error, char *out, size_t cap) {
   snprintf(out, cap,
            "{\"schema\":\"grokium.nanobot_spawn.v1\",\"ok\":false,"
            "\"error\":\"%s\"," FLEET_DUAL_WIRE_TAIL "}",
-           err);
+           err_tok);
 }
 
 void fleet_spawn_json(gk_fleet *F, const char *id, int spawned,
@@ -285,9 +306,12 @@ void fleet_spawn_json(gk_fleet *F, const char *id, int spawned,
 }
 
 void fleet_separate_err_json(const char *error, char *out, size_t cap) {
-  const char *err = error && error[0] ? error : "unknown_bot";
+  char err_tok[56];
   if (!out || cap < 64) return;
-  if (!strcmp(err, "need_bot_id")) {
+  err_token(error && error[0] ? error : "unknown_bot", err_tok,
+            sizeof err_tok);
+  if (!err_tok[0]) snprintf(err_tok, sizeof err_tok, "unknown_bot");
+  if (!strcmp(err_tok, "need_bot_id")) {
     snprintf(out, cap,
              "{\"schema\":\"grokium.nanobot_separate.v1\",\"ok\":false,"
              "\"error\":\"need_bot_id\"," FLEET_DUAL_WIRE_TAIL ","
@@ -297,7 +321,7 @@ void fleet_separate_err_json(const char *error, char *out, size_t cap) {
   snprintf(out, cap,
            "{\"schema\":\"grokium.nanobot_separate.v1\",\"ok\":false,"
            "\"error\":\"%s\"," FLEET_DUAL_WIRE_TAIL "}",
-           err);
+           err_tok);
 }
 
 void fleet_separate_json(const char *id, const char *path, char *out,
@@ -320,9 +344,12 @@ void fleet_separate_json(const char *id, const char *path, char *out,
 }
 
 void fleet_note_pid_err_json(const char *error, char *out, size_t cap) {
-  const char *err = error && error[0] ? error : "unknown_bot";
+  char err_tok[56];
   if (!out || cap < 64) return;
-  if (!strcmp(err, "need_bot_id_pid")) {
+  err_token(error && error[0] ? error : "unknown_bot", err_tok,
+            sizeof err_tok);
+  if (!err_tok[0]) snprintf(err_tok, sizeof err_tok, "unknown_bot");
+  if (!strcmp(err_tok, "need_bot_id_pid")) {
     snprintf(out, cap,
              "{\"schema\":\"grokium.nanobot_note_pid.v1\",\"ok\":false,"
              "\"error\":\"need_bot_id_pid\"," FLEET_DUAL_WIRE_TAIL ","
@@ -332,7 +359,7 @@ void fleet_note_pid_err_json(const char *error, char *out, size_t cap) {
   snprintf(out, cap,
            "{\"schema\":\"grokium.nanobot_note_pid.v1\",\"ok\":false,"
            "\"error\":\"%s\"," FLEET_DUAL_WIRE_TAIL "}",
-           err);
+           err_tok);
 }
 
 void fleet_note_pid_json(gk_fleet *F, const char *id, const char *path,
@@ -371,12 +398,14 @@ void fleet_note_pid_json(gk_fleet *F, const char *id, const char *path,
 }
 
 void fleet_stop_err_json(const char *error, char *out, size_t cap) {
-  const char *err = error && error[0] ? error : "no_fleet";
+  char err_tok[56];
   if (!out || cap < 64) return;
+  err_token(error && error[0] ? error : "no_fleet", err_tok, sizeof err_tok);
+  if (!err_tok[0]) snprintf(err_tok, sizeof err_tok, "no_fleet");
   snprintf(out, cap,
            "{\"schema\":\"grokium.nanobot_stop.v1\",\"ok\":false,"
            "\"error\":\"%s\"," FLEET_DUAL_WIRE_TAIL "}",
-           err);
+           err_tok);
 }
 
 void fleet_stop_json(gk_fleet *F, const char *path, char *out, size_t cap) {
@@ -398,12 +427,14 @@ void fleet_stop_json(gk_fleet *F, const char *path, char *out, size_t cap) {
 }
 
 void fleet_save_err_json(const char *error, char *out, size_t cap) {
-  const char *err = error && error[0] ? error : "no_fleet";
+  char err_tok[56];
   if (!out || cap < 64) return;
+  err_token(error && error[0] ? error : "no_fleet", err_tok, sizeof err_tok);
+  if (!err_tok[0]) snprintf(err_tok, sizeof err_tok, "no_fleet");
   snprintf(out, cap,
            "{\"schema\":\"grokium.nanobot_save.v1\",\"ok\":false,"
            "\"error\":\"%s\"," FLEET_DUAL_WIRE_TAIL "}",
-           err);
+           err_tok);
 }
 
 void fleet_save_json(gk_fleet *F, const char *path, char *out, size_t cap) {
