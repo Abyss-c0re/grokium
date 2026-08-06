@@ -701,3 +701,20 @@ void gkx_tui_help_json(char *out, size_t cap) {
            "/commander|/attach|/viz|/model|/shell|/q · multiline "
            "Alt+Enter/Ctrl+S · spoilers Tab\"}");
 }
+
+void gkx_ready_json(int hub, int tools, int multiline, char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Shared dual-wire ready plate: TUI startup (local-first · py=0). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.ready.v1\",\"ok\":true,"
+           "\"surface\":\"host_tui\",\"local_first\":true,"
+           "\"hub\":%s,\"tools\":%s,\"multiline\":%s,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"commander_is_model\":false,"
+           "\"python\":0,\"telemetry\":\"off\","
+           "\"hint\":\"/help · /settings\"}",
+           hub ? "true" : "false", tools ? "true" : "false",
+           multiline ? "true" : "false");
+}

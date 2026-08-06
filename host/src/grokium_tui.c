@@ -2355,12 +2355,13 @@ int grokium_tui(int argc, char **argv) {
   ui_apply_colors();
   curs_set(1);
 
-  if (cfg.ui_welcome_line[0])
-    log_add(cfg.ui_welcome_line);
-  else
-    log_add("local-first · pure C · /settings");
-  if (cfg.ui_show_status_hints)
-    log_add(cfg.ui_send_hint[0] ? cfg.ui_send_hint : "/help · /settings");
+  {
+    char plate[640];
+    /* Dual-wire ready plate — no free-text welcome/send-hint dump. */
+    gkx_ready_json(cfg.hub_enabled, cfg.agent_tools, cfg.ui_multiline, plate,
+                   sizeof plate);
+    log_add(plate);
+  }
 
   input[0] = 0;
   in_len = in_cur = 0;

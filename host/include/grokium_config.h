@@ -202,4 +202,11 @@ void gkx_empty_output_json(char *out, size_t cap);
  */
 void gkx_tui_help_json(char *out, size_t cap);
 
+/*
+ * Dual-wire TUI ready plate (schema grokium.ready.v1).
+ * Host TUI startup — local-first honesty; replaces free-text welcome dump.
+ * hub/tools/multiline are machine flags from config.
+ */
+void gkx_ready_json(int hub, int tools, int multiline, char *out, size_t cap);
+
 #endif
