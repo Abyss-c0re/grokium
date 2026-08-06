@@ -193,8 +193,38 @@ int main(void) {
   if (!strstr(plate, "\"always_approve\":false") || !plate_dual_wire(plate))
     return fail("always_approve off dual-wire plate");
 
+  /* /auth dual-wire (has_token only · never secrets · no free-text banner). */
+  gkx_auth_json(1, "local", plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.auth.v1\"") ||
+      !strstr(plate, "\"ok\":true") || !strstr(plate, "\"has_token\":true") ||
+      !strstr(plate, "\"backend\":\"local\"") ||
+      !strstr(plate, "\"telemetry\":\"off\"") || !plate_dual_wire(plate))
+    return fail("auth has_token dual-wire plate");
+  gkx_auth_json(0, "grok", plate, sizeof plate);
+  if (!strstr(plate, "\"has_token\":false") ||
+      !strstr(plate, "\"backend\":\"grok\"") || !plate_dual_wire(plate))
+    return fail("auth no_token dual-wire plate");
+  gkx_auth_json(1, "loc\"al;x", plate, sizeof plate);
+  if (strstr(plate, "loc\"al") || strstr(plate, ";x") ||
+      !strstr(plate, "\"backend\":\"loc_alx\"") || !plate_dual_wire(plate))
+    return fail("auth backend inject sanitize");
+  gkx_auth_json(0, NULL, plate, sizeof plate);
+  if (!strstr(plate, "\"backend\":\"local\"") || !plate_dual_wire(plate))
+    return fail("auth null backend defaults local");
+
+  /* /clear|/cls|/new dual-wire (no free-text (cleared)/(new session)). */
+  gkx_session_clear_json(0, plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.session_clear.v1\"") ||
+      !strstr(plate, "\"ok\":true") || !strstr(plate, "\"action\":\"clear\"") ||
+      !strstr(plate, "\"content\":\"host_local\"") || !plate_dual_wire(plate))
+    return fail("session clear dual-wire plate");
+  gkx_session_clear_json(1, plate, sizeof plate);
+  if (!strstr(plate, "\"action\":\"new\"") ||
+      !strstr(plate, "\"content\":\"host_local\"") || !plate_dual_wire(plate))
+    return fail("session new dual-wire plate");
+
   printf("HOST_SETTINGS_PLATE_OK dual_wire=honest sanitize=1 saved=1 "
          "no_config=1 backend=1 model=1 context=1 multiline=1 spoilers=1 "
-         "debug=1 always_approve=1 python=0\n");
+         "debug=1 always_approve=1 auth=1 session_clear=1 python=0\n");
   return 0;
 }

@@ -1598,8 +1598,12 @@ static void do_command(const char *raw) {
     return;
   }
   if (strcmp(cmd, "clear") == 0 || strcmp(cmd, "cls") == 0 || strcmp(cmd, "new") == 0) {
+    char plate[512];
+    int is_new = strcmp(cmd, "new") == 0;
     blk_free_all();
-    log_add(strcmp(cmd, "new") == 0 ? "(new session)" : "(cleared)");
+    /* Dual-wire session clear plate — no free-text (cleared)/(new session). */
+    gkx_session_clear_json(is_new, plate, sizeof plate);
+    log_add(plate);
     return;
   }
   if (strcmp(cmd, "expand") == 0 || strcmp(cmd, "open") == 0) {
@@ -1650,11 +1654,11 @@ static void do_command(const char *raw) {
     return;
   }
   if (strcmp(cmd, "auth") == 0) {
-    char tok[64], line[160];
-    snprintf(line, sizeof line, "auth=%s backend=%s",
-             grokium_load_grok_token(tok, sizeof tok) == 0 ? "yes" : "no",
-             cfg.active_backend);
-    log_add(line);
+    char tok[64], plate[512];
+    int has = (grokium_load_grok_token(tok, sizeof tok) == 0);
+    /* Dual-wire auth plate — has_token only · never free-text token/banner. */
+    gkx_auth_json(has, cfg.active_backend, plate, sizeof plate);
+    log_add(plate);
     return;
   }
   if (strcmp(cmd, "backend") == 0) {

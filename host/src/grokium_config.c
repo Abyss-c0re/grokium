@@ -593,3 +593,33 @@ void gkx_always_approve_json(int on, char *out, size_t cap) {
            "\"llm_is_commander\":false,\"tools\":false,\"python\":0}",
            on ? "true" : "false");
 }
+
+void gkx_auth_json(int has_token, const char *backend, char *out, size_t cap) {
+  char be[48];
+  if (!out || cap < 64) return;
+  settings_token(backend, be, sizeof be);
+  if (!be[0]) snprintf(be, sizeof be, "local");
+  /* Shared dual-wire auth plate: TUI /auth — never echoes token secrets. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.auth.v1\",\"ok\":true,"
+           "\"has_token\":%s,\"backend\":\"%s\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"tools\":false,\"python\":0,"
+           "\"telemetry\":\"off\"}",
+           has_token ? "true" : "false", be);
+}
+
+void gkx_session_clear_json(int is_new, char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Shared dual-wire clear plate: TUI /clear|/cls|/new (host-local UX). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.session_clear.v1\",\"ok\":true,"
+           "\"action\":\"%s\",\"content\":\"host_local\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"tools\":false,\"python\":0}",
+           is_new ? "new" : "clear");
+}

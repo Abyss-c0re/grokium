@@ -163,4 +163,18 @@ void gkx_debug_json(int on, char *out, size_t cap);
  */
 void gkx_always_approve_json(int on, char *out, size_t cap);
 
+/*
+ * Dual-wire auth plate (schema grokium.auth.v1).
+ * Host TUI /auth — has_token only (never echoes secrets); backend tokenized.
+ * Replaces free-text auth=yes backend=… banner.
+ */
+void gkx_auth_json(int has_token, const char *backend, char *out, size_t cap);
+
+/*
+ * Dual-wire session clear plate (schema grokium.session_clear.v1).
+ * Host TUI /clear|/cls|/new — action=clear|new; host-local UX only.
+ * Replaces free-text (cleared)/(new session) banners.
+ */
+void gkx_session_clear_json(int is_new, char *out, size_t cap);
+
 #endif
