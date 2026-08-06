@@ -1470,17 +1470,35 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
   http_reply_not_found(cfd);
 }
 
+/* Dual-wire listen ack after bind (no free-text "listen=…" banner). */
+static void serve_listen_plate(int port, char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  if (port <= 0) port = 17444;
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.serve.v1\",\"ok\":true,"
+           "\"action\":\"listen\",\"host\":\"127.0.0.1\",\"port\":%d,"
+           "\"control_plane\":\"loopback_http\","
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"telemetry\":\"off\","
+           "\"llm_is_commander\":false,\"python\":0}",
+           port);
+}
+
 int grokium_serve(const char *host, int port, gk_consolidator *C, gk_fleet *F,
                   grokium_law *L, const char *data_root) {
   int sfd, cfd, on = 1, max_req = 0, served = 0;
   struct sockaddr_in addr;
   const char *max_env;
   const char *bind_host = host && host[0] ? host : "127.0.0.1";
+  char plate[512];
 
   if (!host_is_loopback(bind_host)) {
-    fprintf(stderr,
-            "grokium_serve: refuse non-loopback bind '%s' (law: loopback only)\n",
-            bind_host);
+    /* Machine token only — never echo host free-text / path inject. */
+    grokium_err_json("serve", "non_loopback_bind", "loopback_only", plate,
+                     sizeof plate);
+    fprintf(stderr, "%s\n", plate);
     return -1;
   }
   if (port <= 0) port = 17444;
@@ -1506,6 +1524,10 @@ int grokium_serve(const char *host, int port, gk_consolidator *C, gk_fleet *F,
     close(sfd);
     return -1;
   }
+
+  /* Announce only after listen succeeds (fleet-honest control plane). */
+  serve_listen_plate(port, plate, sizeof plate);
+  fprintf(stderr, "%s\n", plate);
 
   for (;;) {
     cfd = accept(sfd, NULL, NULL);

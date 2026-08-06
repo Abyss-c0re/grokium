@@ -134,6 +134,23 @@ static int selftest(void) {
     }
     setenv("GROKIUM_LAW_DIR", law, 1);
   }
+  /* Law: non-loopback bind refused (dual-wire plate on stderr; no free-text). */
+  {
+    gk_consolidator C;
+    gk_fleet F;
+    grokium_law L;
+    gk_init(&C, "serve-selftest");
+    fleet_default_roles(&F);
+    grokium_law_default(&L);
+    if (grokium_serve("0.0.0.0", port, &C, &F, &L, "data") != -1) {
+      fprintf(stderr, "selftest: non_loopback 0.0.0.0 must refuse\n");
+      fails++;
+    }
+    if (grokium_serve("8.8.8.8", port, &C, &F, &L, "data") != -1) {
+      fprintf(stderr, "selftest: non_loopback 8.8.8.8 must refuse\n");
+      fails++;
+    }
+  }
   child = fork();
   if (child < 0) return 1;
   if (child == 0) {
@@ -1020,7 +1037,8 @@ static int selftest(void) {
   }
   printf("LOOPBACK_HTTP_OK port=%d dual_wire=honest smx_filter=on "
          "contracts=on commander=on llama_probe=on smx_sse=on chat=on "
-         "cube_status=on sessions=on ui=on agent=on integrity=on\n",
+         "cube_status=on sessions=on ui=on agent=on integrity=on "
+         "non_loopback_refuse=1\n",
          port);
   return 0;
 }
@@ -1142,6 +1160,23 @@ int main(int argc, char **argv) {
       return 1;
     }
   }
+  {
+    char den[512];
+    /* Non-loopback bind refuse plate (same builder as grokium_serve gate). */
+    grokium_err_json("serve", "non_loopback_bind", "loopback_only", den,
+                     sizeof den);
+    if (!plate_dual_wire_ok(den) ||
+        !strstr(den, "\"schema\":\"grokium.serve.v1\"") ||
+        !strstr(den, "\"error\":\"non_loopback_bind\"") ||
+        !strstr(den, "\"ok\":false") ||
+        !strstr(den, "\"hint\":\"loopback_only\"") ||
+        !strstr(den, "\"peer_http_is_product_bus\":false") ||
+        !strstr(den, "\"python\":0")) {
+      fprintf(stderr,
+              "grokium-serve: non_loopback_bind dual-wire fail: %.200s\n", den);
+      return 1;
+    }
+  }
 
   if (argc >= 2 && !strcmp(argv[1], "selftest"))
     return selftest();
@@ -1203,9 +1238,6 @@ int main(int argc, char **argv) {
   gk_init(&C, "grokium-core");
   fleet_default_roles(&F);
   grokium_law_default(&L);
-  fprintf(stderr,
-          "grokium-serve listen=127.0.0.1:%d product_wire=smx2 "
-          "peer_http=lab_ops_only telemetry=off\n",
-          port);
+  /* Listen dual-wire plate is emitted by grokium_serve after bind succeeds. */
   return grokium_serve("127.0.0.1", port, &C, &F, &L, root) == 0 ? 0 : 1;
 }
