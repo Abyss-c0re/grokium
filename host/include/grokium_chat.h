@@ -13,7 +13,9 @@ typedef void (*gkx_stream_fn)(void *userdata, const char *chunk, size_t n);
 
 /* backend: "local" | "grok"
  * model: "auto"/"local" resolves via llama /v1/models
- * Returns 0 ok with text, 1 empty, 2 hard fail
+ * Returns 0 ok with text, 1 empty, 2 hard fail.
+ * out_err is a machine token only (need_auth|empty_reply|agent_failed|
+ * bad_args) — never free-text prose; dual-wire via grokium_chat_err_json.
  */
 int grokium_chat_request(const char *backend, const char *model,
                          const char *msg,
@@ -21,14 +23,16 @@ int grokium_chat_request(const char *backend, const char *model,
                          char *out_reply, size_t reply_n,
                          char *out_err, size_t err_n);
 
-/* Streaming variant (final answer text via on_delta when possible). */
+/* Streaming variant (final answer text via on_delta when possible).
+ * out_err machine tokens same as grokium_chat_request. */
 int grokium_chat_request_ex(const gkx_config *cfg,
                             const char *msg,
                             gkx_stream_fn on_delta, void *userdata,
                             char *out_reply, size_t reply_n,
                             char *out_err, size_t err_n);
 
-/* GET live models JSON (malloc'd) for active backend; caller frees. */
+/* GET live models JSON (malloc'd) for active backend; caller frees.
+ * out_err machine token only: no_config|models_fail (never raw body dump). */
 char *grokium_models_json(const gkx_config *cfg, char *out_err, size_t err_n);
 
 /* Resolve "auto"/"local" to first live model id into buf. */

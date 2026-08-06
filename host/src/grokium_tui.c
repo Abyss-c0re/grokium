@@ -591,11 +591,13 @@ static void chat_send(const char *msg) {
       blk_append_str(a, reply);
     } else {
       char plate[512];
-      /* Shared dual-wire chat deny (CLI -p / serve) — no free-text err dump. */
-      grokium_chat_err_json(err[0] ? err
-                                   : (rc == 1 ? "empty_reply" : "chat_fail"),
-                            "chat · check local llama / hub", plate,
-                            sizeof plate);
+      const char *etok =
+          err[0] ? err : (rc == 1 ? "empty_reply" : "chat_fail");
+      const char *hint = "chat · check local llama / hub";
+      /* Shared dual-wire chat deny — machine err token · no free-text dump. */
+      if (!strcmp(etok, "need_auth"))
+        hint = "chat · /login or XAI_API_KEY · cloud opt-in";
+      grokium_chat_err_json(etok, hint, plate, sizeof plate);
       log_add(plate);
     }
   }

@@ -262,7 +262,8 @@ int grokium_resolve_model(const gkx_config *cfg, char *buf, size_t n) {
 char *grokium_models_json(const gkx_config *cfg, char *out_err, size_t err_n) {
   if (out_err && err_n) out_err[0] = 0;
   if (!cfg) {
-    if (out_err) snprintf(out_err, err_n, "no config");
+    /* Machine token only — dual-wire plates sanitize via err_token. */
+    if (out_err) snprintf(out_err, err_n, "no_config");
     return NULL;
   }
   ensure_nanobot_home(state_dir);
@@ -282,8 +283,8 @@ char *grokium_models_json(const gkx_config *cfg, char *out_err, size_t err_n) {
   }
   char *body = ng_agent_fetch_models_json(&c);
   if (!body || (body[0] == '{' && strstr(body, "\"error\""))) {
-    if (out_err)
-      snprintf(out_err, err_n, "%s", body ? body : "models fetch failed");
+    /* Never dump raw JSON body into out_err (free-text / inject surface). */
+    if (out_err) snprintf(out_err, err_n, "models_fail");
     free(body);
     body = NULL;
   }
@@ -327,7 +328,8 @@ static int chat_core(const gkx_config *cfg, const char *msg,
   if (out_reply && reply_n) out_reply[0] = 0;
   if (out_err && err_n) out_err[0] = 0;
   if (!cfg || !msg) {
-    if (out_err) snprintf(out_err, err_n, "bad args");
+    /* Machine tokens only — host dual-wire chat plates (no free-text err). */
+    if (out_err) snprintf(out_err, err_n, "bad_args");
     return 2;
   }
   ensure_nanobot_home(state_dir);
@@ -419,8 +421,8 @@ static int chat_core(const gkx_config *cfg, const char *msg,
                  : cfg->grok_model);
     ng_agent_set_grok_backend(&c, model);
     if (ng_agent_needs_browser_session(&c) && !ng_session_valid(&s)) {
-      if (out_err)
-        snprintf(out_err, err_n, "cloud needs auth: /login or XAI_API_KEY");
+      /* Cloud opt-in missing — machine token; hint lives on dual-wire plate. */
+      if (out_err) snprintf(out_err, err_n, "need_auth");
       ng_agent_cfg_free(&c);
       ng_session_free(&s);
       return 2;
@@ -439,10 +441,9 @@ static int chat_core(const gkx_config *cfg, const char *msg,
     rc = 0;
   } else if (reply) {
     rc = 1;
-    if (out_err) snprintf(out_err, err_n, "empty reply");
+    if (out_err) snprintf(out_err, err_n, "empty_reply");
   } else {
-    if (out_err) snprintf(out_err, err_n, "agent failed (backend=%s model=%s)",
-                          cfg->active_backend, model);
+    if (out_err) snprintf(out_err, err_n, "agent_failed");
   }
   free(reply);
   ng_agent_cfg_free(&c);

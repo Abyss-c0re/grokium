@@ -418,11 +418,13 @@ static int cmd_prompt(gkx_config *cfg, const char *msg) {
   }
   {
     char tok[64], plate[512];
-    /* Shared dual-wire fail plate — sanitize free-text err (LLM ≠ commander). */
+    const char *hint = "chat · check local llama / hub";
+    /* Shared dual-wire fail plate — machine err token (LLM ≠ commander). */
     err_token(err, tok, sizeof tok);
     if (!tok[0]) snprintf(tok, sizeof tok, "chat_fail");
-    grokium_chat_err_json(tok, "chat · check local llama / hub", plate,
-                          sizeof plate);
+    if (!strcmp(tok, "need_auth"))
+      hint = "chat · /login or XAI_API_KEY · cloud opt-in";
+    grokium_chat_err_json(tok, hint, plate, sizeof plate);
     printf("%s\n", plate);
   }
   return 2;
