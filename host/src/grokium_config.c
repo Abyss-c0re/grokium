@@ -720,6 +720,22 @@ void gkx_tui_help_json(char *out, size_t cap) {
            "Alt+Enter/Ctrl+S · spoilers Tab\"}");
 }
 
+void gkx_cli_help_json(char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Shared dual-wire host CLI help: command index · SMX2≠peer HTTP · py=0. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.cli_help.v1\",\"ok\":true,"
+           "\"surface\":\"host_cli\",\"local_first\":true,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"commander_is_model\":false,"
+           "\"python\":0,\"telemetry\":\"off\","
+           "\"hint\":\"help|chat|tui|-p|serve|fleet|filter|coord|contract|"
+           "manager-tick|commander|sessions|pickup|law|license|status|"
+           "llama|integrity|hub|models|compat|board · backend=local\"}");
+}
+
 void gkx_ready_json(int hub, int tools, int multiline, char *out, size_t cap) {
   if (!out || cap < 64) return;
   /* Shared dual-wire ready plate: TUI startup (local-first · py=0). */

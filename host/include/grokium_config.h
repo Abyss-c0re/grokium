@@ -212,6 +212,13 @@ void gkx_empty_output_json(char *out, size_t cap);
 void gkx_tui_help_json(char *out, size_t cap);
 
 /*
+ * Dual-wire host CLI help plate (schema grokium.cli_help.v1).
+ * Host CLI help|-h|--help — command index + dual-wire honesty (no free-text
+ * multi-line usage dump). local_first · SMX2 ≠ peer HTTP · py=0.
+ */
+void gkx_cli_help_json(char *out, size_t cap);
+
+/*
  * Dual-wire TUI ready plate (schema grokium.ready.v1).
  * Host TUI startup — local-first honesty; replaces free-text welcome dump.
  * hub/tools/multiline are machine flags from config.

@@ -297,6 +297,20 @@ int main(void) {
     return 1;
   }
 
+  /* Host CLI help|-h dual-wire (no free-text multi-line usage dump). */
+  gkx_cli_help_json(plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.cli_help.v1\"") ||
+      !strstr(plate, "\"ok\":true") ||
+      !strstr(plate, "\"surface\":\"host_cli\"") ||
+      !strstr(plate, "\"local_first\":true") ||
+      !strstr(plate, "help|chat|tui") || !strstr(plate, "coord") ||
+      !strstr(plate, "manager-tick") || !strstr(plate, "backend=local") ||
+      !strstr(plate, "\"commander_is_model\":false") ||
+      !strstr(plate, "\"telemetry\":\"off\"") || !plate_dual_wire(plate)) {
+    fprintf(stderr, "settings_plate_selftest: cli help fail: %.500s\n", plate);
+    return 1;
+  }
+
   /* TUI startup ready dual-wire (no free-text welcome/send-hint dump). */
   gkx_ready_json(1, 1, 1, plate, sizeof plate);
   if (!strstr(plate, "\"schema\":\"grokium.ready.v1\"") ||
@@ -319,6 +333,6 @@ int main(void) {
   printf("HOST_SETTINGS_PLATE_OK dual_wire=honest sanitize=1 saved=1 "
          "no_config=1 backend=1 model=1 context=1 multiline=1 spoilers=1 "
          "debug=1 always_approve=1 auth=1 login=1 session_clear=1 interrupt=1 "
-         "empty_output=1 tui_help=1 ready=1 python=0\n");
+         "empty_output=1 tui_help=1 cli_help=1 ready=1 python=0\n");
   return 0;
 }

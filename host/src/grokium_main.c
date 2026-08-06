@@ -245,33 +245,10 @@ static int run_c_core(const char *name, int argc, char **argv) {
 }
 
 static void usage(void) {
-  fprintf(stderr,
-          "grokium %s  core=nanobot host=C py=0 tok=%s\n"
-          "  (default)              fullscreen TUI\n"
-          "  -p|--single PROMPT     one-shot chat (stdout)\n"
-          "  --model ID             model id or auto\n"
-          "  --backend local|grok   default local (llama.cpp)\n"
-          "  models                 list live models\n"
-          "  chat <text>            non-TUI chat (streamed)\n"
-          "  hub [start|stop|status]  LLM request hub (nanobot peer)\n"
-          "  compat                 refresh official CLI version track\n"
-          "  serve [port]           loopback control plane (c_core, :17444)\n"
-          "  fleet [defaults|deploy|status|…]  c_core plate (or fleet cubalc)\n"
-          "  filter <allow-check|…> SMX / NEXUS_COORD sanitize gate\n"
-          "  coord|ingest <plate>   fold SMX/NEXUS_COORD via filter (fail-closed)\n"
-          "  contract form|validate|…  external cell contracts (c_core)\n"
-          "  manager-tick [DIR]     motivate incomplete contracts\n"
-          "  commander show|sign|verify|…  Ed25519 law (≠ model)\n"
-          "  sessions [q]           import session metas only (no transcripts)\n"
-          "  pickup|load <id>       session meta pickup (resume msgs = host)\n"
-          "  law [cubalc]           Cube Standards plate (pure C; cubalc opt-in)\n"
-          "  license                Apache-2.0 / not xAI dual-wire plate (pure C)\n"
-          "  status [cubalc|board]  dual-wire honesty plate (pure C; cubalc opt-in)\n"
-          "  llama|llama-probe      local llama.cpp reachability\n"
-          "  integrity tick|policy|reseal  code seal / privacy fail-closed\n"
-          "  board|selftest         CubalC board (optional)\n"
-          "  product_wire=smx2  peer_http=lab_ops_only  Not affiliated with xAI.\n",
-          GROKIUM_VERSION, GROKIUM_TOK);
+  char plate[768];
+  /* Dual-wire CLI help plate — no free-text multi-line usage dump. */
+  gkx_cli_help_json(plate, sizeof plate);
+  printf("%s\n", plate);
 }
 
 /* Pure-C law plate — matches c_core grokium_law_default + dual-wire honesty.
@@ -823,7 +800,7 @@ int main(int argc, char **argv) {
     return grokium_tui(argc, argv);
   }
 
-  /* Shared dual-wire need_subcmd — no free-text echo of user argv. */
+  /* Shared dual-wire need_subcmd — no free-text echo of user argv / usage. */
   {
     char plate[512];
     grokium_need_subcmd_json(
@@ -831,6 +808,5 @@ int main(int argc, char **argv) {
         sizeof plate);
     printf("%s\n", plate);
   }
-  usage();
   return 2;
 }
