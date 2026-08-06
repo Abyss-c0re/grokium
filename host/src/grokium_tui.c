@@ -1811,49 +1811,59 @@ static void do_command(const char *raw) {
       log_add(plate);
       return;
     }
-    const char *mime = gkx_mime_guess(path);
-    char line[240];
-    snprintf(line, sizeof line, "file %s (%zu bytes, %s)", path, raw_n, mime);
-    log_add(line);
+    {
+      char plate[512];
+      /* Meta-only dual-wire media plate — no free-text path dump on log wire. */
+      if (gkx_media_plate_json(path, 1, NULL, plate, sizeof plate) == 0)
+        log_add(plate);
+    }
     if (gkx_path_is_image(path)) {
       char reply[16384], err[400], plate[512];
       reply[0] = err[0] = plate[0] = 0;
-      log_add("vision… · product_wire=smx2 · peer_http=lab_ops_only");
+      /* Vision runs quietly; result honesty stays on the media plate. */
       draw();
       int rc = gkx_chat_vision(&cfg, prompt[0] ? prompt : "Describe this image in detail.",
                                path, reply, sizeof reply, err, sizeof err);
       int a = blk_push(BK_ASST, NULL);
-      if (rc == 0 && reply[0]) blk_append_str(a, reply);
-      else blk_append_str(a, err[0] ? err : "vision_failed");
-      /* Meta-only dual-wire plate (no image bytes on the log wire). */
+      if (rc == 0 && reply[0]) {
+        blk_append_str(a, reply);
+      } else {
+        /* Machine token only — free-text backend err stays off chat wire. */
+        blk_append_str(a, "vision_failed");
+      }
+      /* Final dual-wire media plate (ok/error; no image bytes). */
       if (gkx_media_plate_json(path, rc == 0 && reply[0],
                                rc == 0 ? NULL : (err[0] ? err : "vision_failed"),
                                plate, sizeof plate) == 0)
         log_add(plate);
-    } else if (!strncmp(mime, "text/", 5) || strstr(mime, "json") || strstr(mime, "xml")) {
-      /* raw text — inject into chat as user attachment context */
-      size_t cap = raw_n > 12000 ? 12000 : raw_n;
-      char *msg = malloc(cap + 200);
-      if (msg) {
-        snprintf(msg, cap + 200,
-                 "File `%s` (raw, first %zu bytes):\n```\n%.*s\n```\n%s",
-                 path, cap, (int)cap, (char *)raw,
-                 prompt[0] ? prompt : "Summarize or act on this file.");
-        chat_send(msg);
-        free(msg);
-      }
     } else {
-      /* binary raw hex preview + optional external viz */
-      char *hex = malloc(200);
-      size_t i, h = 0;
-      if (hex) {
-        h = snprintf(hex, 200, "raw binary %zu bytes, head:", raw_n);
-        for (i = 0; i < raw_n && i < 24 && h + 4 < 200; i++)
-          h += (size_t)snprintf(hex + h, 200 - h, " %02x", raw[i]);
-        log_add(hex);
-        free(hex);
+      const char *mime = gkx_mime_guess(path);
+      if (!strncmp(mime, "text/", 5) || strstr(mime, "json") ||
+          strstr(mime, "xml")) {
+        /* raw text — inject into chat as user attachment context */
+        size_t cap = raw_n > 12000 ? 12000 : raw_n;
+        char *msg = malloc(cap + 200);
+        if (msg) {
+          snprintf(msg, cap + 200,
+                   "File `%s` (raw, first %zu bytes):\n```\n%.*s\n```\n%s",
+                   path, cap, (int)cap, (char *)raw,
+                   prompt[0] ? prompt : "Summarize or act on this file.");
+          chat_send(msg);
+          free(msg);
+        }
+      } else {
+        /* binary raw hex preview + optional external viz */
+        char *hex = malloc(200);
+        size_t i, h = 0;
+        if (hex) {
+          h = snprintf(hex, 200, "raw binary %zu bytes, head:", raw_n);
+          for (i = 0; i < raw_n && i < 24 && h + 4 < 200; i++)
+            h += (size_t)snprintf(hex + h, 200 - h, " %02x", raw[i]);
+          log_add(hex);
+          free(hex);
+        }
+        log_add("use /viz open <path> for desktop viewer, /viz vr <path> for VR cmd");
       }
-      log_add("use /viz open <path> for desktop viewer, /viz vr <path> for VR cmd");
     }
     free(raw);
     return;
