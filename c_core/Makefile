@@ -287,6 +287,7 @@ test-fleet: $(BUILD)/grokium-fleet
 	echo "$$H" | grep -q '"peer_http_is_product_bus":false'; \
 	echo "$$H" | grep -q '"llm_is_commander":false'; \
 	echo "$$H" | grep -q '"hold_flash":1'; \
+	echo "$$H" | grep -q '"python":0'; \
 	D=$(BUILD)/fleet_ack_test; rm -rf $$D; mkdir -p $$D; \
 	P=$$D/FLEET.json; \
 	OUT=$$($(BUILD)/grokium-fleet deploy $$P); \
@@ -295,6 +296,7 @@ test-fleet: $(BUILD)/grokium-fleet
 	echo "$$OUT" | grep -q '"product_wire":"smx2"'; \
 	echo "$$OUT" | grep -q '"peer_http_is_product_bus":false'; \
 	echo "$$OUT" | grep -q '"llm_is_commander":false'; \
+	echo "$$OUT" | grep -q '"python":0'; \
 	OUT=$$($(BUILD)/grokium-fleet save $$P); \
 	echo "$$OUT" | grep -q '"schema":"grokium.nanobot_save.v1"'; \
 	echo "$$OUT" | grep -q '"saved":'; \

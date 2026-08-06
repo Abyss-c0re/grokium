@@ -100,7 +100,7 @@ static int write_purpose_plate(const gk_bot *b) {
           "id=%s\npurpose=%s\nwire=%s\nproduct_wire=smx2\nhold_flash=1\n"
           "share=state_matrix_only\npeer_http=lab_ops_only\n"
           "peer_http_is_product_bus=0\nllm_is_commander=0\n"
-          "observer=NexusCore\n",
+          "python=0\nobserver=NexusCore\n",
           b->id, b->purpose,
           strcmp(b->id, "nb-manager") == 0 ? "smx_motivate" : "smx2");
   fclose(pf);
@@ -153,7 +153,7 @@ void fleet_status_json(gk_fleet *F, char *out, size_t cap) {
              "\"peer_http_is_product_bus\":false,"
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"bots\":[]}");
+             "\"python\":0,\"bots\":[]}");
     return;
   }
   alive = fleet_status(F);
@@ -168,7 +168,7 @@ void fleet_status_json(gk_fleet *F, char *out, size_t cap) {
                           "\"llm_is_commander\":false,"
                           "\"commander_is_model\":false,"
                           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                          "\"bots\":[",
+                          "\"python\":0,\"bots\":[",
                           alive, F->n);
   for (i = 0; i < F->n && used + 128 < cap; i++) {
     const gk_bot *b = &F->bots[i];
@@ -225,7 +225,7 @@ void fleet_deploy_json(gk_fleet *F, const char *path, char *out, size_t cap) {
              "\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"llm_is_commander\":false}");
+             "\"llm_is_commander\":false,\"python\":0}");
     return;
   }
   alive = fleet_status(F);
@@ -239,16 +239,16 @@ void fleet_deploy_json(gk_fleet *F, const char *path, char *out, size_t cap) {
            "\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false}",
+           "\"llm_is_commander\":false,\"python\":0}",
            F->n, path_esc, alive);
 }
 
-/* Shared dual-wire tails — CLI + HTTP use identical product honesty. */
+/* Shared dual-wire tails — CLI + HTTP use identical product honesty (py=0). */
 #define FLEET_DUAL_WIRE_TAIL                                               \
   "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","              \
   "\"peer_http_is_product_bus\":false,"                                    \
   "\"share\":\"state_matrix_only\",\"hold_flash\":1,"                      \
-  "\"llm_is_commander\":false"
+  "\"llm_is_commander\":false,\"python\":0"
 
 void fleet_spawn_err_json(const char *error, char *out, size_t cap) {
   char err_tok[56];
@@ -641,6 +641,7 @@ int fleet_save(gk_fleet *F, const char *path) {
           "  \"peer_http_is_product_bus\": false,\n"
           "  \"llm_is_commander\": false,\n"
           "  \"commander_is_model\": false,\n"
+          "  \"python\": 0,\n"
           "  \"observer\": \"NexusCore\",\n"
           "  \"bots\": {\n",
           home_root_esc, binary_esc, base_esc, model_esc);
@@ -674,7 +675,8 @@ int fleet_save(gk_fleet *F, const char *path) {
             "      \"product_wire\": \"smx2\",\n"
             "      \"peer_http\": \"lab_ops_only\",\n"
             "      \"peer_http_is_product_bus\": false,\n"
-            "      \"llm_is_commander\": false\n"
+            "      \"llm_is_commander\": false,\n"
+            "      \"python\": 0\n"
             "    }%s\n",
             id_esc, id_esc, purpose_esc, b->shell ? "true" : "false", b->port,
             pid_buf, home_esc, binary_esc, b->running ? "false" : "true",

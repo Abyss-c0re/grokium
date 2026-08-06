@@ -18,7 +18,7 @@ static const char k_unknown_bot[] =
     "\"error\":\"unknown_bot\",\"product_wire\":\"smx2\","
     "\"peer_http\":\"lab_ops_only\",\"peer_http_is_product_bus\":false,"
     "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-    "\"llm_is_commander\":false}";
+    "\"llm_is_commander\":false,\"python\":0}";
 
 static int plate_dual_wire_ok(const char *p) {
   return p && strstr(p, "\"product_wire\":\"smx2\"") &&
@@ -26,7 +26,8 @@ static int plate_dual_wire_ok(const char *p) {
          strstr(p, "\"peer_http_is_product_bus\":false") &&
          strstr(p, "\"llm_is_commander\":false") &&
          strstr(p, "\"hold_flash\":1") &&
-         strstr(p, "\"share\":\"state_matrix_only\"");
+         strstr(p, "\"share\":\"state_matrix_only\"") &&
+         strstr(p, "\"python\":0");
 }
 
 static void usage(void) {
@@ -87,6 +88,7 @@ static int fleet_selftest(void) {
         !strstr(pb, "peer_http=lab_ops_only") ||
         !strstr(pb, "peer_http_is_product_bus=0") ||
         !strstr(pb, "llm_is_commander=0") ||
+        !strstr(pb, "python=0") ||
         !strstr(pb, "share=state_matrix_only") ||
         !strstr(pb, "hold_flash=1")) {
       fprintf(stderr, "selftest: PURPOSE dual-wire fail: %.200s\n", pb);
@@ -410,7 +412,7 @@ static int fleet_selftest(void) {
     }
   }
   printf("FLEET_SELFTEST_OK n=%d alive=0 nb_manager=1 product_wire=smx2 "
-         "peer_http=lab_ops_only bot_dual_wire=1 purpose=honest "
+         "peer_http=lab_ops_only bot_dual_wire=1 purpose=honest python=0 "
          "status_plate=nanobot_status_v1 deploy_plate=nanobot_deploy_v1 "
          "spawn_plate=nanobot_spawn_v1 separate_plate=nanobot_separate_v1 "
          "note_pid_plate=nanobot_note_pid_v1 stop_plate=nanobot_stop_v1 "
