@@ -17,7 +17,10 @@ extern "C" {
  */
 void gkx_status_fleet_probe(const char *repo_root, int *n_out, int *alive_out);
 
-/* Count SMX 01 bits from {repo_root}/data/matrix/LATEST.json when present. */
+/*
+ * Count SMX 01 bits from {repo_root}/data/matrix/LATEST.json when present.
+ * Prefers dual-wire bits_set / bits (smx_plate_json); legacy sot_bits last.
+ */
 void gkx_status_matrix_probe(const char *repo_root, unsigned *bits_out,
                              char *grade, size_t gcap);
 

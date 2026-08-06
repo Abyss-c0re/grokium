@@ -32,14 +32,39 @@ void gkx_status_fleet_probe(const char *repo_root, int *n_out, int *alive_out) {
   if (alive_out) *alive_out = alive;
 }
 
+/* Count 01-bits until closing quote (dual-wire bits / legacy sot_bits). */
+static unsigned count_bitstring(const char *s) {
+  unsigned cnt = 0;
+  if (!s) return 0;
+  for (; *s && *s != '"'; s++)
+    if (*s == '1') cnt++;
+  return cnt;
+}
+
+/* After "key", skip to value start (post-colon whitespace). */
+static const char *json_value_after_key(const char *body, const char *key) {
+  char pat[48];
+  const char *p;
+  if (!body || !key || !key[0]) return NULL;
+  snprintf(pat, sizeof pat, "\"%s\"", key);
+  p = strstr(body, pat);
+  if (!p) return NULL;
+  p = strchr(p + strlen(pat), ':');
+  if (!p) return NULL;
+  p++;
+  while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
+  return p;
+}
+
 void gkx_status_matrix_probe(const char *repo_root, unsigned *bits_out,
                              char *grade, size_t gcap) {
   char path[PATH_MAX], body[8192];
   FILE *f;
   size_t nread;
-  const char *p, *bits;
+  const char *v;
   const char *root = (repo_root && repo_root[0]) ? repo_root : ".";
   unsigned cnt = 0;
+  int have = 0;
   if (bits_out) *bits_out = 0;
   if (grade && gcap) snprintf(grade, gcap, "EMPTY");
   snprintf(path, sizeof path, "%s/data/matrix/LATEST.json", root);
@@ -48,18 +73,31 @@ void gkx_status_matrix_probe(const char *repo_root, unsigned *bits_out,
   nread = fread(body, 1, sizeof body - 1, f);
   body[nread] = 0;
   fclose(f);
-  bits = strstr(body, "\"sot_bits\"");
-  if (bits) {
-    bits = strchr(bits, ':');
-    if (bits) {
-      bits++;
-      while (*bits == ' ' || *bits == '\t') bits++;
-      if (*bits == '"') {
-        bits++;
-        for (p = bits; *p && *p != '"'; p++)
-          if (*p == '1') cnt++;
-      }
+  /*
+   * Prefer dual-wire honesty fields (smx_plate_json / gk_matrix_json):
+   * bits_set first, then bits string; legacy sot_bits last.
+   */
+  v = json_value_after_key(body, "bits_set");
+  if (v && *v >= '0' && *v <= '9') {
+    unsigned long u = 0;
+    while (*v >= '0' && *v <= '9' && u < 1000000UL) {
+      u = u * 10UL + (unsigned long)(*v - '0');
+      v++;
     }
+    cnt = (unsigned)u;
+    have = 1;
+  }
+  if (!have) {
+    v = json_value_after_key(body, "bits");
+    if (v && *v == '"') {
+      cnt = count_bitstring(v + 1);
+      have = 1;
+    }
+  }
+  if (!have) {
+    v = json_value_after_key(body, "sot_bits");
+    if (v && *v == '"')
+      cnt = count_bitstring(v + 1);
   }
   if (bits_out) *bits_out = cnt;
   if (grade && gcap) {

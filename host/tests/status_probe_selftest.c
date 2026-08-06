@@ -90,6 +90,33 @@ int main(void) {
     return 1;
   }
 
+  /* Dual-wire smx_plate_json shape: bits_set preferred over bit string. */
+  {
+    const char *dual =
+        "{\"schema\":\"grokium.smx.v1\",\"ok\":true,"
+        "\"bits_set\":24,\"bits\":\"11110000...\","
+        "\"product_wire\":\"smx2\",\"python\":0}";
+    if (write_file(path, dual) != 0) return fail("write dual matrix");
+    gkx_status_matrix_probe(root, &bits, grade, sizeof grade);
+    if (bits != 24)
+      return fail("dual-wire bits_set expected 24");
+    if (strcmp(grade, "OK") != 0)
+      return fail("dual-wire bits_set grade expected OK");
+  }
+  /* Dual-wire bits string only (no bits_set) — count 1s until quote. */
+  {
+    const char *dual_bits =
+        "{\"schema\":\"grokium.smx.v1\",\"ok\":true,"
+        "\"bits\":\"1111111111111111\",\"product_wire\":\"smx2\","
+        "\"python\":0}";
+    if (write_file(path, dual_bits) != 0) return fail("write dual bits");
+    gkx_status_matrix_probe(root, &bits, grade, sizeof grade);
+    if (bits != 16)
+      return fail("dual-wire bits string expected 16");
+    if (strcmp(grade, "OK") != 0)
+      return fail("dual-wire bits grade expected OK");
+  }
+
   /* Missing tree → empty probes, still dual-wire honest plate. */
   gkx_status_fleet_probe("/no/such/gkx_root", &fleet_n, &fleet_alive);
   if (fleet_n != 0 || fleet_alive != 0)
@@ -120,6 +147,6 @@ int main(void) {
   }
 
   printf("HOST_STATUS_PROBE_OK fleet_n=6 fleet_alive=1 matrix_bits=8 "
-         "grade=SPARSE dual_wire=honest fleet_load=1 healthz=1\n");
+         "grade=SPARSE dual_wire=honest fleet_load=1 dual_bits=1 healthz=1\n");
   return 0;
 }
