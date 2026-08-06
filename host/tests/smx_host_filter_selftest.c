@@ -206,6 +206,19 @@ int main(void) {
         !strstr(plate, "\"resume\":\"host_local_not_smx\"") ||
         !strstr(plate, "\"peer_http\":\"lab_ops_only\""))
       return fail("mode agent dual-wire plate fail");
+    /* TUI /mode resume dual-wire (no free-text mode> resume banner). */
+    grokium_mode_resume_json(plate, sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.mode.v1\"") ||
+        !strstr(plate, "\"ok\":true") || !strstr(plate, "\"mode\":\"resume\"") ||
+        !strstr(plate, "\"tools\":0") ||
+        !strstr(plate, "\"resume\":\"host_local_not_smx\"") ||
+        !strstr(plate, "/pickup <id>") ||
+        !strstr(plate, "\"product_wire\":\"smx2\"") ||
+        !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+        !strstr(plate, "\"llm_is_commander\":false") ||
+        !strstr(plate, "\"hold_flash\":1") ||
+        !strstr(plate, "\"python\":0"))
+      return fail("mode resume dual-wire plate fail");
     /* Generic dual-wire err (host cubalc/tool denials same builder). */
     grokium_err_json("cubalc", "missing_program", "cubalc/programs/<name.cubalc>",
                      plate, sizeof plate);
@@ -300,7 +313,7 @@ int main(void) {
   printf("HOST_SMX_FILTER_OK external=strict hold_flash=1 dual_wire=gate "
          "allow_plate=1 instinct_plate=1 manager_help_plate=1 license_plate=1 "
          "need_subcmd=1 commander_deny=1 law_help=1 mode_need_subcmd=1 "
-         "mode_ok=1 err_json=1 settings_attach_viz=1 shell_run_models=1 "
-         "shell_present_exit=1 python=0\n");
+         "mode_ok=1 mode_resume=1 err_json=1 settings_attach_viz=1 "
+         "shell_run_models=1 shell_present_exit=1 python=0\n");
   return 0;
 }

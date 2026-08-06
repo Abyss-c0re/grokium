@@ -77,6 +77,20 @@ void grokium_mode_json(int agent_tools, char *out, size_t cap) {
            tools ? "agent" : "chat", tools);
 }
 
+void grokium_mode_resume_json(char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Shared dual-wire mode=resume: TUI /mode resume (host-local · not SMX). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.mode.v1\",\"ok\":true,"
+           "\"mode\":\"resume\",\"tools\":0,"
+           "\"resume\":\"host_local_not_smx\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"python\":0,"
+           "\"hint\":\"/pickup <id> loads host-local chat_history\"}");
+}
+
 /* Machine token for schema leaf / short fields (no free-text inject). */
 static void leaf_token(const char *in, char *out, size_t cap) {
   size_t i, o = 0;

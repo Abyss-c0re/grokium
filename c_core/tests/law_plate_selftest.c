@@ -66,6 +66,15 @@ int main(void) {
       !strstr(plate, "\"python\":0") || !plate_dual_wire(plate))
     return fail("mode agent dual-wire plate");
 
+  grokium_mode_resume_json(plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.mode.v1\"") ||
+      !strstr(plate, "\"ok\":true") || !strstr(plate, "\"mode\":\"resume\"") ||
+      !strstr(plate, "\"tools\":0") ||
+      !strstr(plate, "\"resume\":\"host_local_not_smx\"") ||
+      !strstr(plate, "/pickup <id>") || !strstr(plate, "\"python\":0") ||
+      !plate_dual_wire(plate))
+    return fail("mode resume dual-wire plate");
+
   grokium_need_subcmd_json(
       "mode", "/mode chat|agent|resume|show resume=host_local_not_smx", plate,
       sizeof plate);
@@ -116,6 +125,6 @@ int main(void) {
     return fail("commander reject dual-wire py=0");
 
   printf("C_CORE_LAW_PLATE_OK dual_wire=honest law=1 license=1 mode=1 "
-         "need_subcmd=1 inject=1 python=0 commander_ok=1\n");
+         "mode_resume=1 need_subcmd=1 inject=1 python=0 commander_ok=1\n");
   return 0;
 }

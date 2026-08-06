@@ -52,4 +52,13 @@ void gk_session_list_json(const char *data_root, const char *q, char *out,
 int gk_session_pickup_json(const char *data_root, const char *id, char *out,
                            size_t cap);
 
+/*
+ * Dual-wire host-local resume result after TUI /pickup (never transcripts).
+ * loaded > 0 → content=host_local · loaded_msgs · cap; else meta_only.
+ * cap_msgs is the host ring cap (machine int). Not SMX product bus.
+ * Replaces free-text resume> loaded / meta only banners.
+ */
+int gk_session_resume_local_json(int loaded, int cap_msgs, char *out,
+                                 size_t cap);
+
 #endif

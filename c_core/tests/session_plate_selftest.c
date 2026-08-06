@@ -87,7 +87,35 @@ int main(void) {
       !strstr(plate, "no transcripts") || !plate_dual_wire(plate))
     return fail("session help dual-wire plate");
 
+  /* TUI /pickup host-local resume result (no free-text resume> banner). */
+  if (gk_session_resume_local_json(12, 48, plate, sizeof plate) != 0)
+    return fail("resume local loaded");
+  if (!strstr(plate, "\"schema\":\"grokium.session_resume.v1\"") ||
+      !strstr(plate, "\"ok\":true") ||
+      !strstr(plate, "\"content\":\"host_local\"") ||
+      !strstr(plate, "\"loaded_msgs\":12") || !strstr(plate, "\"cap\":48") ||
+      !strstr(plate, "\"resume\":\"host_tui_pickup\"") ||
+      !strstr(plate, "\"product_wire\":\"smx2\"") ||
+      !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+      !strstr(plate, "\"llm_is_commander\":false") ||
+      !strstr(plate, "\"python\":0") ||
+      !strstr(plate, "\"share\":\"state_matrix_only\"") ||
+      !strstr(plate, "\"hold_flash\":1"))
+    return fail("resume local loaded dual-wire plate");
+  if (gk_session_resume_local_json(0, 48, plate, sizeof plate) != 0)
+    return fail("resume local meta only");
+  if (!strstr(plate, "\"schema\":\"grokium.session_resume.v1\"") ||
+      !strstr(plate, "\"content\":\"meta_only\"") ||
+      !strstr(plate, "\"loaded_msgs\":0") ||
+      !strstr(plate, "\"error\":\"no_chat_history\"") ||
+      !strstr(plate, "\"python\":0") || !plate_dual_wire(plate))
+    return fail("resume local meta_only dual-wire plate");
+  if (gk_session_resume_local_json(-3, 0, plate, sizeof plate) != 0)
+    return fail("resume local clamp");
+  if (!strstr(plate, "\"loaded_msgs\":0") || !strstr(plate, "\"python\":0"))
+    return fail("resume local negative clamp");
+
   printf("C_CORE_SESSION_PLATE_OK dual_wire=honest id_safe=ok meta_only=1 "
-         "help=1 python=0\n");
+         "help=1 resume_local=1 python=0\n");
   return 0;
 }

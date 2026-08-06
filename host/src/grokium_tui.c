@@ -998,20 +998,12 @@ static int session_resume_local(const char *id, const char *meta) {
       }
     }
     if (pairs > 0) {
-      char note[160];
+      /* Memory seed is silent host-local side-effect (no free-text banner). */
       seeded = gkx_memory_seed_pairs(pair_u, pair_a, pairs);
       older = pairs - seeded;
       if (older < 0) older = 0;
-      if (older > 0)
-        snprintf(note, sizeof note,
-                 "resume> seeded %d recent pair(s) + %d older in summary "
-                 "(host-local)",
-                 seeded, older);
-      else
-        snprintf(note, sizeof note,
-                 "resume> seeded %d host-local memory pair(s) for next turns",
-                 seeded);
-      log_add(note);
+      (void)seeded;
+      (void)older;
     }
   }
 
@@ -1031,7 +1023,7 @@ static int session_resume_local(const char *id, const char *meta) {
 }
 
 static void cmd_session_pickup(const char *id) {
-  char data_root[PATH_MAX], path[PATH_MAX], meta[2048], line[320], plate[2048];
+  char data_root[PATH_MAX], path[PATH_MAX], meta[2048], plate[2048];
   FILE *f;
   size_t nread;
   int rc, resumed = 0;
@@ -1045,7 +1037,7 @@ static void cmd_session_pickup(const char *id) {
   }
   snprintf(data_root, sizeof data_root, "%s/data", root);
   rc = gk_session_pickup_json(data_root, id, plate, sizeof plate);
-  /* Shared dual-wire plate only — resume lines below stay host-local UX. */
+  /* Shared dual-wire plate only — resume plate below is host-local UX. */
   log_add(plate);
   if (rc != 0) return;
 
@@ -1057,14 +1049,10 @@ static void cmd_session_pickup(const char *id) {
   meta[nread] = 0;
   fclose(f);
   resumed = session_resume_local(id, meta);
-  if (resumed > 0) {
-    snprintf(line, sizeof line,
-             "resume> loaded %d host-local msgs (user/asst, last %d cap)",
-             resumed, RESUME_MAX_MSGS);
-    log_add(line);
-  } else {
-    log_add("resume> meta only · no host-local chat_history.jsonl");
-  }
+  /* Dual-wire resume result — no free-text resume> loaded/meta banner. */
+  if (gk_session_resume_local_json(resumed, RESUME_MAX_MSGS, plate,
+                                   sizeof plate) == 0)
+    log_add(plate);
 }
 
 static void cmd_integrity_tick(void) {
@@ -1155,10 +1143,9 @@ static void cmd_mode(const char *arg) {
     return;
   }
   if (!strcmp(a, "resume")) {
-    /* Host-local resume UX only (not SMX product bus). */
-    log_add("mode> resume · /pickup <id> loads host-local chat_history");
-    log_add("  last user/asst turns into TUI (not SMX product bus)");
-    log_add("  /sessions [q] then /pickup <id> · share=state_matrix_only");
+    /* Shared dual-wire mode=resume plate — no free-text mode> banner. */
+    grokium_mode_resume_json(plate, sizeof plate);
+    log_add(plate);
     return;
   }
   /* Unknown mode — shared dual-wire need_subcmd. */

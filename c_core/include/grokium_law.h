@@ -44,6 +44,13 @@ void grokium_license_json(char *out, size_t cap);
 void grokium_mode_json(int agent_tools, char *out, size_t cap);
 
 /*
+ * Dual-wire mode=resume plate (schema grokium.mode.v1).
+ * Host TUI /mode resume — host-local pickup honesty · not SMX product bus.
+ * Replaces free-text mode> resume banners; /pickup loads chat_history only.
+ */
+void grokium_mode_resume_json(char *out, size_t cap);
+
+/*
  * Dual-wire machine deny plate (generic).
  * schema_leaf → "schema":"grokium.<leaf>.v1"; error → machine token.
  * Optional hint is machine-sanitized (no JSON inject).

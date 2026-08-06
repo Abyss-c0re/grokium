@@ -420,3 +420,36 @@ int gk_session_pickup_json(const char *data_root, const char *id, char *out,
            resume_ok ? "true" : "false", entry);
   return 0;
 }
+
+int gk_session_resume_local_json(int loaded, int cap_msgs, char *out,
+                                 size_t cap) {
+  int n = loaded > 0 ? loaded : 0;
+  int cap_n = cap_msgs > 0 ? cap_msgs : 0;
+  if (!out || cap < 64) return -1;
+  /* Host-local TUI resume only — never transcripts · not SMX product bus. */
+  if (n > 0) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.session_resume.v1\",\"ok\":true,"
+             "\"content\":\"host_local\",\"loaded_msgs\":%d,\"cap\":%d,"
+             "\"resume\":\"host_tui_pickup\","
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"python\":0,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"telemetry\":\"off\"}",
+             n, cap_n);
+  } else {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.session_resume.v1\",\"ok\":true,"
+             "\"content\":\"meta_only\",\"loaded_msgs\":0,"
+             "\"resume\":\"host_tui_pickup\","
+             "\"error\":\"no_chat_history\","
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"python\":0,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"telemetry\":\"off\","
+             "\"hint\":\"meta only · no host-local chat_history\"}");
+  }
+  return 0;
+}
