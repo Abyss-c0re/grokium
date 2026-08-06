@@ -148,6 +148,20 @@ int main(int argc, char **argv) {
     fprintf(stderr, "grokium-commander: reject allow dual-wire fail\n");
     return 1;
   }
+  /* Crypto/load fail plates — machine tokens only (no free-text banners). */
+  grokium_commander_deny_json("commander", "need_sk", "commander_sk", plate,
+                              sizeof plate);
+  if (!plate_dual_wire_ok(plate) || !strstr(plate, "\"error\":\"need_sk\"")) {
+    fprintf(stderr, "grokium-commander: need_sk dual-wire fail\n");
+    return 1;
+  }
+  grokium_commander_deny_json("commander", "load_failed", "law_dir", plate,
+                              sizeof plate);
+  if (!plate_dual_wire_ok(plate) ||
+      !strstr(plate, "\"error\":\"load_failed\"")) {
+    fprintf(stderr, "grokium-commander: load_failed dual-wire fail\n");
+    return 1;
+  }
 
   if (argc < 2 || !strcmp(argv[1], "help") || !strcmp(argv[1], "-h") ||
       !strcmp(argv[1], "--help")) {
@@ -174,8 +188,14 @@ int main(int argc, char **argv) {
       emit_deny("commander", "need_law_dir", k_hint_law_dir);
       return 2;
     }
-    if (gk_commander_generate(&C) != 0) { fprintf(stderr, "keygen failed\n"); return 1; }
-    if (gk_commander_save(&C, law_dir) != 0) { fprintf(stderr, "save failed\n"); return 1; }
+    if (gk_commander_generate(&C) != 0) {
+      emit_deny("commander", "keygen_failed", NULL);
+      return 1;
+    }
+    if (gk_commander_save(&C, law_dir) != 0) {
+      emit_deny("commander", "save_failed", "law_dir");
+      return 1;
+    }
     /* Shared dual-wire success (path-sanitized law_dir · LLM ≠ commander). */
     grokium_commander_ok_json(C.fingerprint_hex, law_dir, NULL, -1, plate,
                               sizeof plate);
@@ -188,7 +208,10 @@ int main(int argc, char **argv) {
       emit_deny("commander", "need_law_dir", k_hint_law_dir);
       return 2;
     }
-    if (gk_commander_load(&C, law_dir) != 0) { fprintf(stderr, "load failed\n"); return 1; }
+    if (gk_commander_load(&C, law_dir) != 0) {
+      emit_deny("commander", "load_failed", "law_dir");
+      return 1;
+    }
     /* Shared dual-wire show (domain + has_sk · match GET /v1/commander). */
     grokium_commander_ok_json(C.fingerprint_hex, law_dir, GK_CMD_DOMAIN,
                               C.has_sk ? 1 : 0, plate, sizeof plate);
@@ -204,12 +227,15 @@ int main(int argc, char **argv) {
       return 2;
     }
     if (gk_commander_load(&C, law_dir) != 0 || !C.has_sk) {
-      fprintf(stderr, "need commander.sk in law-dir\n"); return 1;
+      emit_deny("commander", "need_sk", "commander_sk");
+      return 1;
     }
     if (body_path) read_all(body_path, &body, &blen);
     if (gk_commander_sign_override(&C, device, action, body, blen,
                                    nonce_hex, &ts, sig_hex) != 0) {
-      fprintf(stderr, "sign failed\n"); free(body); return 1;
+      free(body);
+      emit_deny("commander", "sign_failed", NULL);
+      return 1;
     }
     gk_commander_envelope_json(&C, device, action, nonce_hex, ts, sig_hex, NULL, env, sizeof env);
     puts(env);
@@ -225,9 +251,15 @@ int main(int argc, char **argv) {
       return 2;
     }
     if (law_dir) {
-      if (gk_commander_load(&C, law_dir) != 0) { fprintf(stderr, "load failed\n"); return 1; }
+      if (gk_commander_load(&C, law_dir) != 0) {
+        emit_deny("commander_verify", "load_failed", "law_dir");
+        return 1;
+      }
     } else {
-      if (gk_commander_load_pk_only(&C, pk) != 0) { fprintf(stderr, "pk load failed\n"); return 1; }
+      if (gk_commander_load_pk_only(&C, pk) != 0) {
+        emit_deny("commander_verify", "pk_load_failed", "pk");
+        return 1;
+      }
     }
     if (body_path) read_all(body_path, &body, &blen);
     ok = gk_commander_verify_override(&C, device, action, nonce, ts, body, blen, sig);
@@ -243,9 +275,14 @@ int main(int argc, char **argv) {
       emit_deny("commander", "need_install_args", k_hint_install);
       return 2;
     }
-    if (gk_commander_load(&C, law_dir) != 0) { fprintf(stderr, "load failed\n"); return 1; }
-    if (gk_commander_install_nanobot_law(&C, home, bot ? bot : "nb", purpose ? purpose : "assigned") != 0) {
-      fprintf(stderr, "install failed\n"); return 1;
+    if (gk_commander_load(&C, law_dir) != 0) {
+      emit_deny("commander", "load_failed", "law_dir");
+      return 1;
+    }
+    if (gk_commander_install_nanobot_law(&C, home, bot ? bot : "nb",
+                                         purpose ? purpose : "assigned") != 0) {
+      emit_deny("commander", "install_failed", "home");
+      return 1;
     }
     /* Shared dual-wire install ack (home/bot path-sanitized). */
     grokium_commander_install_json(home, bot ? bot : "nb", C.fingerprint_hex,

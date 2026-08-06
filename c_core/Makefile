@@ -92,6 +92,11 @@ test-commander: $(BIN_CMD)
 	S=$$($(BIN_CMD) show --law-dir $$D); \
 	echo "$$S" | grep -q '"not":"grok_model"'; \
 	echo "$$S" | grep -q '"peer_http_is_product_bus":false'; \
+	LF=$$($(BIN_CMD) show --law-dir $$D/missing 2>/dev/null || true); \
+	echo "$$LF" | grep -q '"error":"load_failed"'; \
+	echo "$$LF" | grep -q '"product_wire":"smx2"'; \
+	echo "$$LF" | grep -q '"commander_is_model":false'; \
+	echo "$$LF" | grep -qv 'load failed'; \
 	ENV=$$($(BIN_CMD) sign --law-dir $$D --device nb-test --action override_rules); \
 	echo "$$ENV" | grep -q grokium; \
 	echo "$$ENV" | grep -q '"product_wire":"smx2"'; \
