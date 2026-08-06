@@ -447,13 +447,35 @@ static int fleet_selftest(void) {
       return 1;
     }
   }
-  printf("FLEET_SELFTEST_OK n=%d alive=0 nb_manager=1 product_wire=smx2 "
-         "peer_http=lab_ops_only bot_dual_wire=1 purpose=honest python=0 "
-         "status_plate=nanobot_status_v1 deploy_plate=nanobot_deploy_v1 "
-         "spawn_plate=nanobot_spawn_v1 separate_plate=nanobot_separate_v1 "
-         "note_pid_plate=nanobot_note_pid_v1 stop_plate=nanobot_stop_v1 "
-         "save_plate=nanobot_save_v1\n",
-         F.n);
+  /* Dual-wire selftest success — no free-text FLEET_SELFTEST_OK banner. */
+  {
+    char okp[768];
+    snprintf(okp, sizeof okp,
+             "{\"schema\":\"grokium.fleet_selftest.v1\",\"ok\":true,"
+             "\"n\":%d,\"alive\":0,\"nb_manager\":true,"
+             "\"bot_dual_wire\":true,\"purpose\":\"honest\","
+             "\"status_plate\":\"nanobot_status_v1\","
+             "\"deploy_plate\":\"nanobot_deploy_v1\","
+             "\"spawn_plate\":\"nanobot_spawn_v1\","
+             "\"separate_plate\":\"nanobot_separate_v1\","
+             "\"note_pid_plate\":\"nanobot_note_pid_v1\","
+             "\"stop_plate\":\"nanobot_stop_v1\","
+             "\"save_plate\":\"nanobot_save_v1\","
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"hold_flash\":1,"
+             "\"share\":\"state_matrix_only\",\"python\":0}",
+             F.n);
+    if (!plate_dual_wire_ok(okp) ||
+        !strstr(okp, "\"schema\":\"grokium.fleet_selftest.v1\"") ||
+        !strstr(okp, "\"ok\":true") || !strstr(okp, "\"nb_manager\":true") ||
+        !strstr(okp, "\"bot_dual_wire\":true") ||
+        !strstr(okp, "\"alive\":0")) {
+      fprintf(stderr, "selftest: fleet_selftest plate fail: %.200s\n", okp);
+      return 1;
+    }
+    printf("%s\n", okp);
+  }
   return 0;
 }
 

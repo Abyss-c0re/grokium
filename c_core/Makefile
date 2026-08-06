@@ -324,8 +324,15 @@ test-integrity: $(BUILD)/grokium-integrity
 	echo INTEGRITY_OK
 
 test-fleet: $(BUILD)/grokium-fleet
-	@$(BUILD)/grokium-fleet selftest
 	@set -e; \
+	ST=$$($(BUILD)/grokium-fleet selftest); \
+	echo "$$ST" | grep -q '"schema":"grokium.fleet_selftest.v1"'; \
+	echo "$$ST" | grep -q '"ok":true'; \
+	echo "$$ST" | grep -q '"nb_manager":true'; \
+	echo "$$ST" | grep -q '"bot_dual_wire":true'; \
+	echo "$$ST" | grep -q '"product_wire":"smx2"'; \
+	echo "$$ST" | grep -q '"python":0'; \
+	echo "$$ST" | grep -qv FLEET_SELFTEST_OK; \
 	H=$$($(BUILD)/grokium-fleet help || true); \
 	echo "$$H" | grep -q '"schema":"grokium.fleet.v1"'; \
 	echo "$$H" | grep -q '"error":"need_subcmd"'; \
