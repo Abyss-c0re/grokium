@@ -131,23 +131,27 @@ void gkx_version_json(char *out, size_t cap) {
            GROKIUM_VERSION, GROKIUM_TOK);
 }
 
+/* Sanitize official version token (no free-text / inject). */
+static void official_token(const gkx_version_state *st, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!st) return;
+  for (i = 0; st->official[i] && o + 1 < cap && o < 48; i++) {
+    unsigned char c = (unsigned char)st->official[i];
+    if (isalnum(c) || c == '.' || c == '-' || c == '_')
+      out[o++] = (char)c;
+  }
+  out[o] = 0;
+}
+
 void gkx_version_compat_json(const gkx_version_state *st, int ok, char *out,
                              size_t cap) {
   char official[64];
-  size_t i, o = 0;
   int changed = 0;
   if (!out || cap < 64) return;
-  official[0] = 0;
-  if (st) {
-    changed = st->changed ? 1 : 0;
-    /* Sanitize version token for JSON (no free-text / inject). */
-    for (i = 0; st->official[i] && o + 1 < sizeof official; i++) {
-      unsigned char c = (unsigned char)st->official[i];
-      if (isalnum(c) || c == '.' || c == '-' || c == '_')
-        official[o++] = (char)c;
-    }
-    official[o] = 0;
-  }
+  official_token(st, official, sizeof official);
+  if (st) changed = st->changed ? 1 : 0;
   if (!official[0]) snprintf(official, sizeof official, "none");
   /* Shared dual-wire compat plate (CLI compat + on-disk refresh · py=0). */
   snprintf(out, cap,
@@ -163,16 +167,39 @@ void gkx_version_compat_json(const gkx_version_state *st, int ok, char *out,
            changed ? "true" : "false");
 }
 
+void gkx_version_restart_json(const gkx_version_state *st, char *out,
+                              size_t cap) {
+  char official[64];
+  if (!out || cap < 64) return;
+  official_token(st, official, sizeof official);
+  if (!official[0]) snprintf(official, sizeof official, "none");
+  /* Seamless restart notice — dual-wire only (no free-text banner). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.version_restart.v1\",\"ok\":true,"
+           "\"action\":\"restart\",\"reason\":\"upstream_version\","
+           "\"reported_grok_build_version\":\"%s\","
+           "\"grokium_version\":\"%s\",\"changed\":true,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false,\"model_is_not_commander\":true,"
+           "\"python\":0}",
+           official, GROKIUM_VERSION);
+}
+
 int gkx_version_maybe_restart(const gkx_version_state *st, int argc, char **argv) {
+  char plate[640], official[64];
   (void)argc;
   if (!st || !st->changed) return 0;
-  fprintf(stderr,
-          "grokium: official CLI version now %s — seamless restart\n",
-          st->official);
+  /* Dual-wire restart plate — no free-text "grokium: …" inject. */
+  gkx_version_restart_json(st, plate, sizeof plate);
+  fprintf(stderr, "%s\n", plate);
   fflush(stderr);
-  /* Mark env so we don't loop immediately */
+  /* Mark env so we don't loop immediately (token only, not free-text). */
+  official_token(st, official, sizeof official);
+  if (!official[0]) snprintf(official, sizeof official, "none");
   setenv("GROKIUM_RESTART_REASON", "upstream_version", 1);
-  setenv("GROKIUM_COMPAT_VERSION", st->official, 1);
+  setenv("GROKIUM_COMPAT_VERSION", official, 1);
   execv(argv[0], argv);
   /* try via /proc/self/exe */
   char self[PATH_MAX];

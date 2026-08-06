@@ -119,8 +119,29 @@ int main(void) {
       !strstr(plate, "\"python\":0"))
     return fail("plate dual-wire lost on rewrite");
 
+  /* Seamless-restart plate (maybe_restart stderr · no free-text banner). */
+  {
+    char rst[768];
+    gkx_version_state ch = st;
+    ch.changed = 1;
+    snprintf(ch.official, sizeof ch.official, "10.0.0\";drop");
+    gkx_version_restart_json(&ch, rst, sizeof rst);
+    if (!strstr(rst, "\"schema\":\"grokium.version_restart.v1\"") ||
+        !strstr(rst, "\"ok\":true") ||
+        !strstr(rst, "\"action\":\"restart\"") ||
+        !strstr(rst, "\"reason\":\"upstream_version\"") ||
+        !strstr(rst, "\"reported_grok_build_version\":\"10.0.0drop\"") ||
+        !strstr(rst, "\"changed\":true") ||
+        !strstr(rst, "\"product_wire\":\"smx2\"") ||
+        !strstr(rst, "\"peer_http_is_product_bus\":false") ||
+        !strstr(rst, "\"llm_is_commander\":false") ||
+        !strstr(rst, "\"python\":0") || strstr(rst, "\";drop") ||
+        strstr(rst, "seamless restart"))
+      return fail("restart plate dual-wire/sanitize fail");
+  }
+
   printf("HOST_VERSION_COMPAT_OK reported=9.9.9 grokium=%s dual_wire=honest "
-         "version_plate=1 python=0\n",
+         "version_plate=1 restart_plate=1 python=0\n",
          GROKIUM_VERSION);
   return 0;
 }

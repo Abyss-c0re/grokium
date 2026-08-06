@@ -31,4 +31,12 @@ void gkx_version_json(char *out, size_t cap);
 void gkx_version_compat_json(const gkx_version_state *st, int ok, char *out,
                              size_t cap);
 
+/*
+ * Dual-wire seamless-restart plate (schema grokium.version_restart.v1).
+ * Emitted on stderr before execve when official CLI version changed.
+ * Replaces free-text "grokium: official CLI version now …" banner.
+ */
+void gkx_version_restart_json(const gkx_version_state *st, char *out,
+                              size_t cap);
+
 #endif
