@@ -112,7 +112,15 @@ test-version-compat: out/version_compat_selftest
 	@./out/version_compat_selftest
 
 test-hub-status: out/hub_status_selftest
-	@./out/hub_status_selftest
+	@set -e; \
+	ST=$$(./out/hub_status_selftest); \
+	echo "$$ST" | grep -q '"schema":"grokium.hub_status_selftest.v1"'; \
+	echo "$$ST" | grep -q '"ok":true'; \
+	echo "$$ST" | grep -q '"peer_http":"lab_ops_only"'; \
+	echo "$$ST" | grep -q '"lock_slots_sanitize":true'; \
+	echo "$$ST" | grep -q '"product_wire":"smx2"'; \
+	echo "$$ST" | grep -q '"python":0'; \
+	echo "$$ST" | grep -qv HOST_HUB_STATUS_OK
 
 test-memory-seed: out/memory_seed_selftest
 	@./out/memory_seed_selftest

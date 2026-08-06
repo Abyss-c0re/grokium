@@ -154,7 +154,31 @@ int main(void) {
     return 1;
   }
 
-  printf("HOST_HUB_STATUS_OK dual_wire=honest peer_http=lab_ops_only stop=1 "
-         "wait=1 managed=1 lock_slots_sanitize=1 python=0\n");
+  /* Dual-wire selftest success — no free-text HOST_HUB_STATUS_OK. */
+  {
+    char okp[512];
+    snprintf(okp, sizeof okp,
+             "{\"schema\":\"grokium.hub_status_selftest.v1\",\"ok\":true,"
+             "\"dual_wire\":true,\"stop\":true,\"wait\":true,"
+             "\"managed\":true,\"lock_slots_sanitize\":true,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"hold_flash\":1,"
+             "\"share\":\"state_matrix_only\",\"python\":0}");
+    if (!strstr(okp, "\"schema\":\"grokium.hub_status_selftest.v1\"") ||
+        !strstr(okp, "\"ok\":true") ||
+        !strstr(okp, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(okp, "\"lock_slots_sanitize\":true") ||
+        !strstr(okp, "\"product_wire\":\"smx2\"") ||
+        !strstr(okp, "\"peer_http_is_product_bus\":false") ||
+        !strstr(okp, "\"llm_is_commander\":false") ||
+        !strstr(okp, "\"hold_flash\":1") ||
+        !strstr(okp, "\"share\":\"state_matrix_only\"") ||
+        !strstr(okp, "\"python\":0")) {
+      fprintf(stderr, "hub_status_selftest: ok plate fail: %.200s\n", okp);
+      return 1;
+    }
+    printf("%s\n", okp);
+  }
   return 0;
 }
