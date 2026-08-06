@@ -114,4 +114,11 @@ void gkx_config_summary(const gkx_config *c, char *out, size_t n);
  */
 void gkx_settings_json(const gkx_config *c, int saved, char *out, size_t cap);
 
+/*
+ * Dual-wire backend plate (schema grokium.backend.v1).
+ * Host TUI /backend [local|grok] and /logout — backend machine-tokenized.
+ * saved=1 after prefs persist; LLM ≠ commander; product bus SMX2.
+ */
+void gkx_backend_json(const char *backend, int saved, char *out, size_t cap);
+
 #endif

@@ -71,7 +71,32 @@ int main(void) {
     return 1;
   }
 
+  /* /backend show|set dual-wire (LLM ≠ commander · no free-text banner). */
+  gkx_backend_json("local", 0, plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.backend.v1\"") ||
+      !strstr(plate, "\"ok\":true") || !strstr(plate, "\"backend\":\"local\"") ||
+      !strstr(plate, "\"saved\":false") || !strstr(plate, "\"python\":0") ||
+      !plate_dual_wire(plate)) {
+    fprintf(stderr, "settings_plate_selftest: backend show fail: %.400s\n",
+            plate);
+    return 1;
+  }
+  gkx_backend_json("grok", 1, plate, sizeof plate);
+  if (!strstr(plate, "\"backend\":\"grok\"") ||
+      !strstr(plate, "\"saved\":true") || !plate_dual_wire(plate))
+    return fail("backend set dual-wire plate");
+  gkx_backend_json("loc\"al;x", 1, plate, sizeof plate);
+  if (strstr(plate, "loc\"al") || strstr(plate, ";x") ||
+      !strstr(plate, "\"backend\":\"loc_alx\"") || !plate_dual_wire(plate)) {
+    fprintf(stderr, "settings_plate_selftest: backend inject fail: %.400s\n",
+            plate);
+    return 1;
+  }
+  gkx_backend_json(NULL, 0, plate, sizeof plate);
+  if (!strstr(plate, "\"backend\":\"local\"") || !plate_dual_wire(plate))
+    return fail("backend null defaults to local");
+
   printf("HOST_SETTINGS_PLATE_OK dual_wire=honest sanitize=1 saved=1 "
-         "no_config=1\n");
+         "no_config=1 backend=1\n");
   return 0;
 }

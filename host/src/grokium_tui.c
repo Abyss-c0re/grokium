@@ -1623,10 +1623,13 @@ static void do_command(const char *raw) {
     return;
   }
   if (strcmp(cmd, "logout") == 0) {
+    char plate[512];
     snprintf(cfg.active_backend, sizeof cfg.active_backend, "local");
     snprintf(cfg.active_model, sizeof cfg.active_model, "%s", cfg.local_model);
     gkx_config_save_prefs(&cfg, state_dir);
-    log_add("backend=local");
+    /* Dual-wire backend plate — no free-text backend= banner. */
+    gkx_backend_json(cfg.active_backend, 1, plate, sizeof plate);
+    log_add(plate);
     return;
   }
   if (strcmp(cmd, "auth") == 0) {
@@ -1639,21 +1642,26 @@ static void do_command(const char *raw) {
   }
   if (strcmp(cmd, "backend") == 0) {
     if (!rest[0]) {
-      char line[120];
-      snprintf(line, sizeof line, "backend=%s", cfg.active_backend);
-      log_add(line);
+      char plate[512];
+      /* Dual-wire show (saved=false) — no free-text backend= banner. */
+      gkx_backend_json(cfg.active_backend, 0, plate, sizeof plate);
+      log_add(plate);
       return;
     }
     for (char *p = rest; *p; p++) *p = (char)tolower((unsigned char)*p);
     if (strcmp(rest, "local") == 0 || strcmp(rest, "llama") == 0) {
+      char plate[512];
       snprintf(cfg.active_backend, sizeof cfg.active_backend, "local");
       gkx_config_save_prefs(&cfg, state_dir);
-      log_add("backend=local");
+      gkx_backend_json(cfg.active_backend, 1, plate, sizeof plate);
+      log_add(plate);
     } else if (strcmp(rest, "grok") == 0 || strcmp(rest, "cloud") == 0) {
+      char plate[512];
       snprintf(cfg.active_backend, sizeof cfg.active_backend, "grok");
       snprintf(cfg.active_model, sizeof cfg.active_model, "%s", cfg.grok_model);
       gkx_config_save_prefs(&cfg, state_dir);
-      log_add("backend=grok");
+      gkx_backend_json(cfg.active_backend, 1, plate, sizeof plate);
+      log_add(plate);
     } else {
       char plate[512];
       /* Shared dual-wire need_backend (LLM ≠ commander). */

@@ -489,3 +489,19 @@ void gkx_settings_json(const gkx_config *c, int saved, char *out, size_t cap) {
            c->agent_braincells ? 1 : 0, c->ui_multiline ? 1 : 0,
            c->hub_enabled ? 1 : 0, c->agent_max_turns, backend, theme);
 }
+
+void gkx_backend_json(const char *backend, int saved, char *out, size_t cap) {
+  char be[48];
+  if (!out || cap < 64) return;
+  settings_token(backend, be, sizeof be);
+  if (!be[0]) snprintf(be, sizeof be, "local");
+  /* Shared dual-wire backend plate: TUI /backend · /logout (LLM ≠ commander). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.backend.v1\",\"ok\":true,"
+           "\"backend\":\"%s\",\"saved\":%s,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"tools\":false,\"python\":0}",
+           be, saved ? "true" : "false");
+}
