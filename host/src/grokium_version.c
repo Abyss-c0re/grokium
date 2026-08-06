@@ -149,7 +149,7 @@ void gkx_version_compat_json(const gkx_version_state *st, int ok, char *out,
     official[o] = 0;
   }
   if (!official[0]) snprintf(official, sizeof official, "none");
-  /* Shared dual-wire compat plate (CLI compat + on-disk refresh). */
+  /* Shared dual-wire compat plate (CLI compat + on-disk refresh · py=0). */
   snprintf(out, cap,
            "{\"schema\":\"grokium.version_compat.v1\",\"ok\":%s,"
            "\"reported_grok_build_version\":\"%s\","
@@ -157,7 +157,8 @@ void gkx_version_compat_json(const gkx_version_state *st, int ok, char *out,
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false,\"model_is_not_commander\":true}",
+           "\"llm_is_commander\":false,\"model_is_not_commander\":true,"
+           "\"python\":0}",
            ok ? "true" : "false", official, GROKIUM_VERSION,
            changed ? "true" : "false");
 }

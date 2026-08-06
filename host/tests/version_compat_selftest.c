@@ -72,6 +72,7 @@ int main(void) {
       !strstr(plate, "\"model_is_not_commander\":true") ||
       !strstr(plate, "\"share\":\"state_matrix_only\"") ||
       !strstr(plate, "\"hold_flash\":1") ||
+      !strstr(plate, "\"python\":0") ||
       !strstr(plate, "\"ok\":true")) {
     fprintf(stderr, "version_compat_selftest: plate honesty fail:\n%s\n", plate);
     return 1;
@@ -83,6 +84,7 @@ int main(void) {
     gkx_version_compat_json(&st, 1, built, sizeof built);
     if (!strstr(built, "\"reported_grok_build_version\":\"9.9.9\"") ||
         !strstr(built, "\"product_wire\":\"smx2\"") ||
+        !strstr(built, "\"python\":0") ||
         !strstr(built, "\"changed\":false"))
       return fail("compat builder dual-wire fail");
   }
@@ -110,11 +112,12 @@ int main(void) {
   if (read_all(path, plate, sizeof plate) != 0)
     return fail("re-read plate");
   if (!strstr(plate, "\"product_wire\":\"smx2\"") ||
-      !strstr(plate, "\"llm_is_commander\":false"))
+      !strstr(plate, "\"llm_is_commander\":false") ||
+      !strstr(plate, "\"python\":0"))
     return fail("plate dual-wire lost on rewrite");
 
   printf("HOST_VERSION_COMPAT_OK reported=9.9.9 grokium=%s dual_wire=honest "
-         "version_plate=1\n",
+         "version_plate=1 python=0\n",
          GROKIUM_VERSION);
   return 0;
 }
