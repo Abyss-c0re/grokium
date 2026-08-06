@@ -140,8 +140,32 @@ int main(void) {
       return fail("restart plate dual-wire/sanitize fail");
   }
 
-  printf("HOST_VERSION_COMPAT_OK reported=9.9.9 grokium=%s dual_wire=honest "
-         "version_plate=1 restart_plate=1 python=0\n",
-         GROKIUM_VERSION);
+  /* Dual-wire selftest success — no free-text HOST_VERSION_COMPAT_OK. */
+  {
+    char okp[640];
+    snprintf(okp, sizeof okp,
+             "{\"schema\":\"grokium.version_compat_selftest.v1\",\"ok\":true,"
+             "\"reported\":\"9.9.9\",\"grokium\":\"%s\","
+             "\"dual_wire\":true,\"version_plate\":true,"
+             "\"restart_plate\":true,\"product_wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"hold_flash\":1,"
+             "\"share\":\"state_matrix_only\",\"python\":0}",
+             GROKIUM_VERSION);
+    if (!strstr(okp, "\"schema\":\"grokium.version_compat_selftest.v1\"") ||
+        !strstr(okp, "\"ok\":true") ||
+        !strstr(okp, "\"reported\":\"9.9.9\"") ||
+        !strstr(okp, "\"restart_plate\":true") ||
+        !strstr(okp, "\"product_wire\":\"smx2\"") ||
+        !strstr(okp, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(okp, "\"peer_http_is_product_bus\":false") ||
+        !strstr(okp, "\"llm_is_commander\":false") ||
+        !strstr(okp, "\"hold_flash\":1") ||
+        !strstr(okp, "\"share\":\"state_matrix_only\"") ||
+        !strstr(okp, "\"python\":0"))
+      return fail("version_compat_selftest plate");
+    printf("%s\n", okp);
+  }
   return 0;
 }

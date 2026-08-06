@@ -117,7 +117,15 @@ test-status: out/status_probe_selftest
 	echo "$$ST" | grep -qv HOST_STATUS_PROBE_OK
 
 test-version-compat: out/version_compat_selftest
-	@./out/version_compat_selftest
+	@set -e; \
+	ST=$$(./out/version_compat_selftest); \
+	echo "$$ST" | grep -q '"schema":"grokium.version_compat_selftest.v1"'; \
+	echo "$$ST" | grep -q '"ok":true'; \
+	echo "$$ST" | grep -q '"reported":"9.9.9"'; \
+	echo "$$ST" | grep -q '"restart_plate":true'; \
+	echo "$$ST" | grep -q '"product_wire":"smx2"'; \
+	echo "$$ST" | grep -q '"python":0'; \
+	echo "$$ST" | grep -qv HOST_VERSION_COMPAT_OK
 
 test-hub-status: out/hub_status_selftest
 	@set -e; \
