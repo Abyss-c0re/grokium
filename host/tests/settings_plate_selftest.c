@@ -311,14 +311,14 @@ int main(void) {
     return 1;
   }
 
-  /* TUI /model list dual-wire (no free-text * id lines). */
+  /* TUI /model list + CLI models dual-wire (no free-text / raw OpenAI body). */
   gkx_models_list_json(3, "local", "auto", plate, sizeof plate);
   if (!strstr(plate, "\"schema\":\"grokium.models.v1\"") ||
       !strstr(plate, "\"ok\":true") || !strstr(plate, "\"n\":3") ||
       !strstr(plate, "\"backend\":\"local\"") ||
       !strstr(plate, "\"active\":\"auto\"") ||
       !strstr(plate, "\"local_first\":true") ||
-      !strstr(plate, "/model") ||
+      !strstr(plate, "/model") || !strstr(plate, "models ·") ||
       !strstr(plate, "\"commander_is_model\":false") ||
       !plate_dual_wire(plate)) {
     fprintf(stderr, "settings_plate_selftest: models list fail: %.400s\n", plate);

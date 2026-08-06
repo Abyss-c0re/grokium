@@ -351,11 +351,11 @@ static int cmd_sessions(int argc, char **argv) {
 }
 
 static int cmd_models(gkx_config *cfg) {
-  char err[400], tok[64];
+  char err[400], tok[64], plate[512];
   char *body = grokium_models_json(cfg, err, sizeof err);
+  int count = 0;
   if (!body) {
-    char plate[512];
-    /* Shared dual-wire fail plate — sanitize free-text backend err token. */
+    /* Shared dual-wire fail plate — machine err token only. */
     err_token(err, tok, sizeof tok);
     if (!tok[0]) snprintf(tok, sizeof tok, "models_fail");
     grokium_err_json("models", tok, "models local llama /v1/models", plate,
@@ -363,8 +363,22 @@ static int cmd_models(gkx_config *cfg) {
     printf("%s\n", plate);
     return 2;
   }
-  printf("%s\n", body);
+  /* Count model ids — dual-wire plate only (no raw upstream OpenAI dump). */
+  {
+    const char *p = body;
+    while ((p = strstr(p, "\"id\"")) != NULL && count < 9999) {
+      p += 4;
+      while (*p && *p != '"') p++;
+      if (*p != '"') break;
+      p++;
+      if (*p && *p != '"') count++;
+      while (*p && *p != '"') p++;
+    }
+  }
   free(body);
+  gkx_models_list_json(count, cfg->active_backend, cfg->active_model, plate,
+                       sizeof plate);
+  printf("%s\n", plate);
   return 0;
 }
 

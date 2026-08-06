@@ -760,7 +760,7 @@ void gkx_models_list_json(int n, const char *backend, const char *active,
   settings_token(active, act, sizeof act);
   if (!be[0]) snprintf(be, sizeof be, "local");
   if (!act[0]) snprintf(act, sizeof act, "auto");
-  /* Shared dual-wire models list: TUI /model list (no free-text id dump). */
+  /* Shared dual-wire models list: TUI /model list + CLI models (no raw body). */
   snprintf(out, cap,
            "{\"schema\":\"grokium.models.v1\",\"ok\":true,"
            "\"n\":%d,\"backend\":\"%s\",\"active\":\"%s\","
@@ -770,7 +770,7 @@ void gkx_models_list_json(int n, const char *backend, const char *active,
            "\"peer_http_is_product_bus\":false,"
            "\"llm_is_commander\":false,\"commander_is_model\":false,"
            "\"python\":0,\"telemetry\":\"off\","
-           "\"hint\":\"/model <id> · /backend local\"}",
+           "\"hint\":\"models · /model <id> · --backend local\"}",
            n, be, act);
 }
 

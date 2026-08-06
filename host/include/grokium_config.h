@@ -220,7 +220,8 @@ void gkx_cli_help_json(char *out, size_t cap);
 
 /*
  * Dual-wire models list plate (schema grokium.models.v1, ok=true).
- * Host TUI /model list — n + active/backend tokens; no free-text id dump.
+ * Host TUI /model list and CLI `models` — n + active/backend tokens.
+ * No free-text id dump or raw upstream OpenAI body on the product surface.
  * Fail path still uses grokium_err_json("models", …) (ok=false).
  */
 void gkx_models_list_json(int n, const char *backend, const char *active,
