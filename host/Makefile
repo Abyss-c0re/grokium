@@ -139,7 +139,15 @@ test-hub-status: out/hub_status_selftest
 	echo "$$ST" | grep -qv HOST_HUB_STATUS_OK
 
 test-memory-seed: out/memory_seed_selftest
-	@./out/memory_seed_selftest
+	@set -e; \
+	ST=$$(./out/memory_seed_selftest); \
+	echo "$$ST" | grep -q '"schema":"grokium.memory_seed_selftest.v1"'; \
+	echo "$$ST" | grep -q '"ok":true'; \
+	echo "$$ST" | grep -q '"host_local":true'; \
+	echo "$$ST" | grep -q '"product_bus":false'; \
+	echo "$$ST" | grep -q '"workdir_bound":true'; \
+	echo "$$ST" | grep -q '"python":0'; \
+	echo "$$ST" | grep -qv HOST_MEMORY_SEED_OK
 
 test-media-plate: out/media_plate_selftest
 	@set -e; \

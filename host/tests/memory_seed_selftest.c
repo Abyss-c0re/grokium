@@ -90,8 +90,36 @@ int main(void) {
   if (gkx_memory_seed_pairs(u, NULL, 3) != 0) return fail("null assts");
   if (gkx_memory_seed_pairs(u, a, 0) != 0) return fail("zero pairs");
 
-  printf("HOST_MEMORY_SEED_OK seeded=%d keep=%d workdir_bound=1 "
-         "older_in_summary=1 host_local=1 smx=0\n",
-         n, keep);
+  /* Dual-wire selftest success — no free-text HOST_MEMORY_SEED_OK.
+   * Seed path is host-local (not product SMX bus traffic). */
+  {
+    char okp[640];
+    snprintf(okp, sizeof okp,
+             "{\"schema\":\"grokium.memory_seed_selftest.v1\",\"ok\":true,"
+             "\"seeded\":%d,\"keep\":%d,\"workdir_bound\":true,"
+             "\"older_in_summary\":true,\"host_local\":true,"
+             "\"product_bus\":false,\"dual_wire\":true,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"hold_flash\":1,"
+             "\"share\":\"state_matrix_only\",\"python\":0}",
+             n, keep);
+    if (!strstr(okp, "\"schema\":\"grokium.memory_seed_selftest.v1\"") ||
+        !strstr(okp, "\"ok\":true") ||
+        !strstr(okp, "\"workdir_bound\":true") ||
+        !strstr(okp, "\"older_in_summary\":true") ||
+        !strstr(okp, "\"host_local\":true") ||
+        !strstr(okp, "\"product_bus\":false") ||
+        !strstr(okp, "\"dual_wire\":true") ||
+        !strstr(okp, "\"product_wire\":\"smx2\"") ||
+        !strstr(okp, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(okp, "\"peer_http_is_product_bus\":false") ||
+        !strstr(okp, "\"llm_is_commander\":false") ||
+        !strstr(okp, "\"hold_flash\":1") ||
+        !strstr(okp, "\"share\":\"state_matrix_only\"") ||
+        !strstr(okp, "\"python\":0"))
+      return fail("memory_seed_selftest plate");
+    printf("%s\n", okp);
+  }
   return 0;
 }
