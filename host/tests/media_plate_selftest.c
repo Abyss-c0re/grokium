@@ -100,7 +100,34 @@ int main(void) {
       strstr(plate, "open/failed"))
     return fail("viz error token sanitize");
 
-  printf("HOST_MEDIA_PLATE_OK dual_wire=honest mime=ok size_bytes=1 "
-         "viz=1 py=0\n");
+  /* Dual-wire selftest success — no free-text HOST_MEDIA_PLATE_OK. */
+  {
+    char okp[640];
+    snprintf(okp, sizeof okp,
+             "{\"schema\":\"grokium.media_plate_selftest.v1\",\"ok\":true,"
+             "\"dual_wire\":true,\"mime\":true,\"size_bytes\":true,"
+             "\"viz\":true,\"error_sanitize\":true,\"py_not_text\":true,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"hold_flash\":1,"
+             "\"share\":\"state_matrix_only\",\"python\":0}");
+    if (!strstr(okp, "\"schema\":\"grokium.media_plate_selftest.v1\"") ||
+        !strstr(okp, "\"ok\":true") ||
+        !strstr(okp, "\"dual_wire\":true") ||
+        !strstr(okp, "\"mime\":true") ||
+        !strstr(okp, "\"size_bytes\":true") ||
+        !strstr(okp, "\"viz\":true") ||
+        !strstr(okp, "\"error_sanitize\":true") ||
+        !strstr(okp, "\"py_not_text\":true") ||
+        !strstr(okp, "\"product_wire\":\"smx2\"") ||
+        !strstr(okp, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(okp, "\"peer_http_is_product_bus\":false") ||
+        !strstr(okp, "\"llm_is_commander\":false") ||
+        !strstr(okp, "\"hold_flash\":1") ||
+        !strstr(okp, "\"share\":\"state_matrix_only\"") ||
+        !strstr(okp, "\"python\":0"))
+      return fail("media_plate_selftest plate");
+    printf("%s\n", okp);
+  }
   return 0;
 }

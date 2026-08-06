@@ -142,7 +142,15 @@ test-memory-seed: out/memory_seed_selftest
 	@./out/memory_seed_selftest
 
 test-media-plate: out/media_plate_selftest
-	@./out/media_plate_selftest
+	@set -e; \
+	ST=$$(./out/media_plate_selftest); \
+	echo "$$ST" | grep -q '"schema":"grokium.media_plate_selftest.v1"'; \
+	echo "$$ST" | grep -q '"ok":true'; \
+	echo "$$ST" | grep -q '"mime":true'; \
+	echo "$$ST" | grep -q '"viz":true'; \
+	echo "$$ST" | grep -q '"product_wire":"smx2"'; \
+	echo "$$ST" | grep -q '"python":0'; \
+	echo "$$ST" | grep -qv HOST_MEDIA_PLATE_OK
 
 test-session-plate: out/session_plate_selftest
 	@set -e; \
