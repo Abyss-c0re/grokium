@@ -28,6 +28,25 @@ static void root_join(const char *root, const char *rel, char *out, size_t cap) 
     snprintf(out, cap, "%s", rel);
 }
 
+/* Path token for plate leaves (bad_prefix) — no free-text quote/control inject. */
+static void path_token(const char *in, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in || !in[0]) return;
+  for (i = 0; in[i] && o + 1 < cap && o < 96; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.' ||
+        c == '/' || c == '+')
+      out[o++] = (char)c;
+    else if (c == ' ' || c == ':' || c == '\\' || c == '"' || c == '\'' ||
+             c == ',' || c == ';' || c == '\n' || c == '\r' || c == '\t')
+      out[o++] = '_';
+  }
+  out[o] = 0;
+}
+
 static int file_sha256_hex(const char *path, char hex[65]) {
   FILE *f;
   uint8_t *buf = NULL;
@@ -321,7 +340,7 @@ int gk_integrity_tick(const char *repo_root, char *json_out, size_t cap) {
       snprintf(json_out, cap,
                "{\"schema\":\"grokium.integrity_report.v1\",\"ok\":false,"
                "\"error\":\"no_code_seal\","
-               "\"hint\":\"grokium integrity reseal\","
+               "\"hint\":\"reseal\","
                "\"fail_closed\":true,\"share\":\"state_matrix_only\","
                "\"hold_flash\":1,\"product_wire\":\"smx2\","
                "\"peer_http\":\"lab_ops_only\","
@@ -331,14 +350,16 @@ int gk_integrity_tick(const char *repo_root, char *json_out, size_t cap) {
   }
   lines[0] = 0;
   for (i = 0; i < n; i++) {
-    char full[512];
+    char full[512], path_tok[100];
     root_join(root, exp[i].path, full, sizeof full);
     if (file_sha256_hex(full, got.hex) != 0 ||
         strcmp(got.hex, exp[i].hex) != 0) {
       bad++;
-      if (used + 80 < sizeof lines)
+      /* Machine-token paths only on dual-wire plate (sanitize inject). */
+      path_token(exp[i].path, path_tok, sizeof path_tok);
+      if (path_tok[0] && used + strlen(path_tok) + 2 < sizeof lines)
         used += (size_t)snprintf(lines + used, sizeof lines - used, "%s,",
-                                 exp[i].path);
+                                 path_tok);
     } else {
       /* rebuild live aggregate from expected paths with live hashes */
       snprintf(exp[i].hex, sizeof exp[i].hex, "%s", got.hex);
@@ -365,6 +386,9 @@ int gk_integrity_tick(const char *repo_root, char *json_out, size_t cap) {
   ok = priv && seal_ok;
   (void)write_latest(root, ok, live_agg, priv, seal_ok, n, bad);
   if (json_out && cap) {
+    char bad_esc[128];
+    /* Final cap + re-token so plate leaf never carries free-text inject. */
+    path_token(lines[0] ? lines : "", bad_esc, sizeof bad_esc);
     snprintf(json_out, cap,
              "{\"schema\":\"grokium.integrity_report.v1\",\"ok\":%s,"
              "\"fail_closed\":true,\"privacy_ok\":%s,\"code_seal_ok\":%s,"
@@ -375,10 +399,9 @@ int gk_integrity_tick(const char *repo_root, char *json_out, size_t cap) {
              "\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"llm_is_commander\":false,\"python\":0,"
-             "\"bad_prefix\":\"%.120s\"}",
+             "\"bad_prefix\":\"%s\"}",
              ok ? "true" : "false", priv ? "true" : "false",
-             seal_ok ? "true" : "false", n, bad, live_agg, exp_agg,
-             lines[0] ? lines : "");
+             seal_ok ? "true" : "false", n, bad, live_agg, exp_agg, bad_esc);
   }
   return ok ? 1 : 0;
 }

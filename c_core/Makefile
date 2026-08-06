@@ -295,6 +295,12 @@ test-integrity: $(BUILD)/grokium-integrity
 	echo "$$T" | grep -q '"llm_is_commander":false'; \
 	echo "$$T" | grep -q '"hold_flash":1'; \
 	echo "$$T" | grep -q '"python":0'; \
+	echo "$$T" | grep -q '"bad_prefix":"'; \
+	NS=$$($(BUILD)/grokium-integrity tick /tmp/gk_no_seal_$$$$ 2>/dev/null || true); \
+	echo "$$NS" | grep -q '"error":"no_code_seal"'; \
+	echo "$$NS" | grep -q '"hint":"reseal"'; \
+	echo "$$NS" | grep -q '"product_wire":"smx2"'; \
+	echo "$$NS" | grep -qv 'grokium integrity reseal'; \
 	grep -q '"product_wire": "smx2"' ../data/integrity/LATEST.json; \
 	grep -q '"python": 0' ../data/integrity/LATEST.json; \
 	grep -q '"schema": "grokium.privacy_canonical.v1"' \
