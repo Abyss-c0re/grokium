@@ -18,7 +18,7 @@ HTTP_SRC := src/http_cli.c src/http.c src/llama.c src/session.c \
 INT_SRC := src/integrity_cli.c src/integrity.c src/law.c src/sha256.c
 
 .PHONY: all clean test-commander test-filter hive test-consolidate test-serve \
-	test-integrity test-fleet test-session-plate
+	test-integrity test-fleet test-session-plate test-law-plate
 
 all: $(BIN_CMD) $(BIN_FILTER) $(BUILD)/grokium-fleet $(BUILD)/grokium-consolidate \
 	$(BUILD)/grokium-serve $(BUILD)/grokium-integrity
@@ -53,10 +53,19 @@ $(BUILD)/session_plate_selftest: tests/session_plate_selftest.c src/session.c \
 test-session-plate: $(BUILD)/session_plate_selftest
 	@$(BUILD)/session_plate_selftest
 
+# Law / license / mode dual-wire plates — pure C, no HTTP/nanobot.
+$(BUILD)/law_plate_selftest: tests/law_plate_selftest.c src/law.c \
+	include/grokium_law.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ tests/law_plate_selftest.c src/law.c
+
+test-law-plate: $(BUILD)/law_plate_selftest
+	@$(BUILD)/law_plate_selftest
+
 clean:
 	rm -f $(BIN_CMD) $(BIN_FILTER) $(BUILD)/grokium-fleet \
 		$(BUILD)/grokium-consolidate $(BUILD)/grokium-serve \
-		$(BUILD)/grokium-integrity $(BUILD)/session_plate_selftest
+		$(BUILD)/grokium-integrity $(BUILD)/session_plate_selftest \
+		$(BUILD)/law_plate_selftest
 
 test-commander: $(BIN_CMD)
 	@set -e; \
@@ -312,7 +321,7 @@ test-fleet: $(BUILD)/grokium-fleet
 	echo FLEET_ACK_DUAL_WIRE_OK
 
 hive: test-filter test-consolidate test-serve test-commander test-integrity \
-	test-fleet test-session-plate $(BUILD)/grokium-fleet
+	test-fleet test-session-plate test-law-plate $(BUILD)/grokium-fleet
 	@$(BUILD)/grokium-fleet defaults | grep -q nb-manager
 	@set -e; \
 	grep -q 'product_wire=smx2' ../compat/nexus_coord.v1.plate; \
