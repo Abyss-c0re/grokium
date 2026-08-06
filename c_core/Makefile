@@ -242,7 +242,16 @@ test-consolidate: $(BUILD)/grokium-consolidate
 	echo "$$H" | grep -q '"hold_flash":1'; \
 	echo "$$H" | grep -q '"share":"state_matrix_only"'; \
 	echo "$$H" | grep -q '"python":0'; \
-	$(BUILD)/grokium-consolidate selftest
+	$(BUILD)/grokium-consolidate selftest; \
+	rm -f /tmp/gk_cons_save_as_file; touch /tmp/gk_cons_save_as_file; \
+	SF=$$($(BUILD)/grokium-consolidate save /tmp/gk_cons_save_as_file 2>/dev/null || true); \
+	echo "$$SF" | grep -q '"schema":"grokium.consolidator_save.v1"'; \
+	echo "$$SF" | grep -q '"ok":false'; \
+	echo "$$SF" | grep -q '"error":"save_failed"'; \
+	echo "$$SF" | grep -q '"product_wire":"smx2"'; \
+	echo "$$SF" | grep -q '"python":0'; \
+	rm -f /tmp/gk_cons_save_as_file; \
+	echo CONSOLIDATE_SAVE_DENY_OK
 
 test-serve: $(BUILD)/grokium-serve
 	@set -e; \

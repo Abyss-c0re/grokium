@@ -313,6 +313,39 @@ void gk_save_json(const gk_consolidator *C, const char *dir, char *out,
            dir_esc, grade_tok);
 }
 
+void gk_save_err_json(const char *error, const char *dir, char *out,
+                      size_t cap) {
+  char err_tok[56], dir_esc[256];
+  if (!out || cap < 64) return;
+  plate_token(error && error[0] ? error : "save_failed", err_tok,
+              sizeof err_tok);
+  if (!err_tok[0]) snprintf(err_tok, sizeof err_tok, "save_failed");
+  /* Optional dir context (escaped); omit free-text path inject. */
+  if (dir && dir[0]) {
+    json_escape_path(dir, dir_esc, sizeof dir_esc);
+    if (!dir_esc[0]) snprintf(dir_esc, sizeof dir_esc, "unknown");
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.consolidator_save.v1\",\"ok\":false,"
+             "\"error\":\"%s\",\"dir\":\"%s\","
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"llm_on_hot_path\":false,"
+             "\"python\":0}",
+             err_tok, dir_esc);
+  } else {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.consolidator_save.v1\",\"ok\":false,"
+             "\"error\":\"%s\","
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"llm_on_hot_path\":false,"
+             "\"python\":0}",
+             err_tok);
+  }
+}
+
 static int count_dir_entries(const char *path) {
   DIR *d;
   struct dirent *e;

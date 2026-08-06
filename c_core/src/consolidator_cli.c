@@ -102,6 +102,25 @@ int main(int argc, char **argv) {
               savep);
       return 1;
     }
+    /* Save deny builder: machine token + dir escape (CLI save fail path). */
+    gk_save_err_json("save_failed", "data/kn\"ow;x", savep, sizeof savep);
+    if (!plate_dual_wire_ok(savep) ||
+        !strstr(savep, "\"schema\":\"grokium.consolidator_save.v1\"") ||
+        !strstr(savep, "\"ok\":false") ||
+        !strstr(savep, "\"error\":\"save_failed\"") ||
+        !strstr(savep, "data/kn\\\"ow;x") || strstr(savep, "kn\"ow")) {
+      fprintf(stderr,
+              "grokium-consolidate: save err plate dual-wire fail: %.200s\n",
+              savep);
+      return 1;
+    }
+    gk_save_err_json("bad\"err;x", NULL, savep, sizeof savep);
+    if (!plate_dual_wire_ok(savep) || strstr(savep, "bad\"err") ||
+        !strstr(savep, "\"error\":\"bad_err_x\"")) {
+      fprintf(stderr, "grokium-consolidate: save err sanitize fail: %.200s\n",
+              savep);
+      return 1;
+    }
   }
   if (argc < 2 || !strcmp(argv[1], "help") || !strcmp(argv[1], "-h") ||
       !strcmp(argv[1], "--help")) {
@@ -142,7 +161,7 @@ int main(int argc, char **argv) {
     }
     /* ep3 dedups with ep1 */
     if (C.n_items != 2) {
-      fprintf(stderr, "dedup fail n=%d\n", C.n_items);
+      fprintf(stderr, "selftest: dedup fail n=%d\n", C.n_items);
       return 1;
     }
     /* need_subcmd dual-wire (coord deny plates checked at main entry). */
@@ -442,7 +461,12 @@ int main(int argc, char **argv) {
     if (argc > 2) dir = argv[2];
     gk_ingest(&C, "boot", boot, strlen(boot), now);
     gk_consolidate(&C, now);
-    if (gk_save_dir(&C, dir) != 0) return 1;
+    if (gk_save_dir(&C, dir) != 0) {
+      /* Dual-wire save deny — no silent free-text exit. */
+      gk_save_err_json("save_failed", dir, plate, sizeof plate);
+      printf("%s\n", plate);
+      return 1;
+    }
     /* Shared dual-wire save ack (dir JSON-escaped · grade machine-token). */
     gk_save_json(&C, dir, plate, sizeof plate);
     printf("%s\n", plate);
