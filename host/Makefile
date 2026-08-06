@@ -171,7 +171,15 @@ out/plate_line_selftest: tests/plate_line_selftest.c src/grokium_plate.c \
 	$(CC) $(CFLAGS) -o $@ tests/plate_line_selftest.c src/grokium_plate.c
 
 test-plate-line: out/plate_line_selftest
-	@./out/plate_line_selftest
+	@set -e; \
+	ST=$$(./out/plate_line_selftest); \
+	echo "$$ST" | grep -q '"schema":"grokium.plate_line_selftest.v1"'; \
+	echo "$$ST" | grep -q '"ok":true'; \
+	echo "$$ST" | grep -q '"dual_wire":"keep"'; \
+	echo "$$ST" | grep -q '"free_json":"drop"'; \
+	echo "$$ST" | grep -q '"product_wire":"smx2"'; \
+	echo "$$ST" | grep -q '"python":0'; \
+	echo "$$ST" | grep -qv HOST_PLATE_LINE_OK
 
 # Dual-wire settings plate — pure C, no nanobot/ncurses.
 out/settings_plate_selftest: tests/settings_plate_selftest.c src/grokium_config.c \

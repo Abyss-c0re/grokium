@@ -195,8 +195,34 @@ int main(void) {
       return fail("ui_line sessions human");
   }
 
-  printf("HOST_PLATE_LINE_OK dual_wire=keep free_json=drop debug=pass "
-         "compact_schema=1 ui_line=human fleet_hub_manager=1 "
-         "integrity_contract_cmd=1\n");
+  /* Dual-wire selftest success — no free-text HOST_PLATE_LINE_OK. */
+  {
+    char okp[640];
+    snprintf(okp, sizeof okp,
+             "{\"schema\":\"grokium.plate_line_selftest.v1\",\"ok\":true,"
+             "\"dual_wire\":\"keep\",\"free_json\":\"drop\","
+             "\"debug\":\"pass\",\"compact_schema\":true,"
+             "\"ui_line\":\"human\",\"fleet_hub_manager\":true,"
+             "\"integrity_contract_cmd\":true,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"hold_flash\":1,"
+             "\"share\":\"state_matrix_only\",\"python\":0}");
+    if (!strstr(okp, "\"schema\":\"grokium.plate_line_selftest.v1\"") ||
+        !strstr(okp, "\"ok\":true") ||
+        !strstr(okp, "\"dual_wire\":\"keep\"") ||
+        !strstr(okp, "\"free_json\":\"drop\"") ||
+        !strstr(okp, "\"product_wire\":\"smx2\"") ||
+        !strstr(okp, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(okp, "\"peer_http_is_product_bus\":false") ||
+        !strstr(okp, "\"llm_is_commander\":false") ||
+        !strstr(okp, "\"hold_flash\":1") ||
+        !strstr(okp, "\"share\":\"state_matrix_only\"") ||
+        !strstr(okp, "\"python\":0")) {
+      fprintf(stderr, "plate_line_selftest: ok plate fail: %.200s\n", okp);
+      return 1;
+    }
+    printf("%s\n", okp);
+  }
   return 0;
 }
