@@ -740,13 +740,11 @@ static void cmd_smx_latest(void) {
     n = fread(buf, 1, sizeof buf - 1, f);
     buf[n] = 0;
     fclose(f);
-    log_add("--- SMX latest (data/matrix/LATEST.json) ---");
+    /* On-disk SMX plate only — no free-text dual-wire banner. */
     log_add_block(buf);
-    log_add("share=state_matrix_only · product_wire=smx2");
     return;
   }
   /* fallback: consolidator ability plate (no transcript dump) */
-  log_add("--- SMX ability (no LATEST.json yet) ---");
   av[0] = "ability";
   av[1] = NULL;
   (void)run_c_core_capture("grokium-consolidate", av);
@@ -790,7 +788,6 @@ static void cmd_sessions_search(const char *q) {
   /* Shared c_core dual-wire list plate (match CLI / loopback). */
   snprintf(data_root, sizeof data_root, "%s/data", root);
   gk_session_list_json(data_root, q ? q : "", plate, sizeof plate);
-  log_add("--- sessions meta-only (shared plate) ---");
   log_add(plate);
 }
 
@@ -1029,7 +1026,7 @@ static void cmd_session_pickup(const char *id) {
   }
   snprintf(data_root, sizeof data_root, "%s/data", root);
   rc = gk_session_pickup_json(data_root, id, plate, sizeof plate);
-  log_add("--- session pickup meta-only (shared plate) ---");
+  /* Shared dual-wire plate only — resume lines below stay host-local UX. */
   log_add(plate);
   if (rc != 0) return;
 
@@ -1053,7 +1050,7 @@ static void cmd_session_pickup(const char *id) {
 
 static void cmd_integrity_tick(void) {
   char *av[2];
-  log_add("--- integrity tick (CODE_SEAL + privacy, fail-closed) ---");
+  /* Capture prints dual-wire integrity plate — no free-text banner. */
   av[0] = "tick";
   av[1] = NULL;
   (void)run_c_core_capture("grokium-integrity", av);
@@ -1062,7 +1059,7 @@ static void cmd_integrity_tick(void) {
 static void cmd_commander_show(void) {
   char *av[4];
   char law[PATH_MAX];
-  log_add("--- commander (Ed25519 law · never a model) ---");
+  /* Capture prints dual-wire commander plate — no free-text banner. */
   snprintf(law, sizeof law, "%s/data/law", root);
   av[0] = "show";
   av[1] = "--law-dir";
@@ -1073,19 +1070,14 @@ static void cmd_commander_show(void) {
 
 /* Cube law plate — shared c_core dual-wire builder (Commander ≠ model). */
 static void cmd_law_show(void) {
-  char plate[768], line[240];
-  log_add("--- law (Cube Standards · shared plate) ---");
+  char plate[768];
   grokium_law_json(NULL, plate, sizeof plate);
   log_add(plate);
-  snprintf(line, sizeof line, "  agent.tools=%d · agent.braincells=%d · backend=%s",
-           cfg.agent_tools, cfg.agent_braincells, cfg.active_backend);
-  log_add(line);
 }
 
 /* License plate — shared c_core dual-wire (Apache-2.0 · not xAI · ≠ model). */
 static void cmd_license_show(void) {
   char plate[512];
-  log_add("--- license (shared dual-wire plate) ---");
   grokium_license_json(plate, sizeof plate);
   log_add(plate);
 }
