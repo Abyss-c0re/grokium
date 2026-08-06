@@ -675,7 +675,7 @@ void gkx_interrupt_json(char *out, size_t cap) {
 
 void gkx_empty_output_json(char *out, size_t cap) {
   if (!out || cap < 64) return;
-  /* Shared dual-wire empty capture: TUI c_core tool with no stdout. */
+  /* Shared dual-wire empty capture: c_core + shell tool spoiler (no stdout). */
   snprintf(out, cap,
            "{\"schema\":\"grokium.empty_output.v1\",\"ok\":true,"
            "\"empty\":true,\"content\":\"meta_only\","

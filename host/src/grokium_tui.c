@@ -483,10 +483,14 @@ static void shell_run_direct(const char *cmd) {
   ng_cmd_result cr = ng_run_command(cmd, 60);
   snprintf(blks[t].head, sizeof blks[t].head, "tool · shell · exit %d", cr.exit_code);
   blk_append_str(t, "\n— result —\n");
-  if (cr.output)
+  if (cr.output && cr.output[0]) {
     blk_append_str(t, cr.output);
-  else
-    blk_append_str(t, "(no output)");
+  } else {
+    char empty_plate[512];
+    /* Dual-wire empty shell body — no free-text (no output) placeholder. */
+    gkx_empty_output_json(empty_plate, sizeof empty_plate);
+    blk_append_str(t, empty_plate);
+  }
   blks[t].open = cfg.ui_open_tool_spoiler_on_done;
   draw();
 
@@ -499,7 +503,8 @@ static void shell_run_direct(const char *cmd) {
              "stdout/stderr:\n```\n%.3500s\n```\n"
              "Present these results to me in plain text: what happened, "
              "and the important output lines. Do not re-run the command.",
-             cmd, cr.exit_code, cr.output ? cr.output : "(no output)");
+             cmd, cr.exit_code,
+             (cr.output && cr.output[0]) ? cr.output : "");
     /* Use chat without tools for pure presentation */
     setenv("NANOBOT_TOOLS", "0", 1);
     stream_acc acc;

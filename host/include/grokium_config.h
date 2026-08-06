@@ -192,7 +192,8 @@ void gkx_interrupt_json(char *out, size_t cap);
 
 /*
  * Dual-wire empty-output plate (schema grokium.empty_output.v1).
- * Host TUI c_core capture / tool with no stdout — no free-text (no output).
+ * Host TUI c_core capture + shell tool spoiler with no stdout —
+ * no free-text (no output) body placeholder.
  */
 void gkx_empty_output_json(char *out, size_t cap);
 

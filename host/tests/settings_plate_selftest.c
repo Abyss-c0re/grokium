@@ -256,7 +256,7 @@ int main(void) {
       !strstr(plate, "\"key\":\"ctrl_c\"") || !plate_dual_wire(plate))
     return fail("interrupt dual-wire plate");
 
-  /* c_core capture empty stdout dual-wire (no free-text (no output)). */
+  /* c_core capture + shell tool spoiler empty body (no free-text (no output)). */
   gkx_empty_output_json(plate, sizeof plate);
   if (!strstr(plate, "\"schema\":\"grokium.empty_output.v1\"") ||
       !strstr(plate, "\"ok\":true") || !strstr(plate, "\"empty\":true") ||
