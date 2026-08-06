@@ -165,7 +165,15 @@ out/settings_plate_selftest: tests/settings_plate_selftest.c src/grokium_config.
 		tests/settings_plate_selftest.c src/grokium_config.c
 
 test-settings-plate: out/settings_plate_selftest
-	@./out/settings_plate_selftest
+	@set -e; \
+	ST=$$(./out/settings_plate_selftest); \
+	echo "$$ST" | grep -q '"schema":"grokium.settings_plate_selftest.v1"'; \
+	echo "$$ST" | grep -q '"ok":true'; \
+	echo "$$ST" | grep -q '"empty_output":true'; \
+	echo "$$ST" | grep -q '"ready":true'; \
+	echo "$$ST" | grep -q '"product_wire":"smx2"'; \
+	echo "$$ST" | grep -q '"python":0'; \
+	echo "$$ST" | grep -qv HOST_SETTINGS_PLATE_OK
 
 test: test-status test-version-compat test-hub-status test-memory-seed \
 	test-media-plate test-session-plate test-smx-host-filter test-plate-line \

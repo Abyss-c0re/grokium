@@ -355,9 +355,34 @@ int main(void) {
       !strstr(plate, "\"multiline\":false") || !plate_dual_wire(plate))
     return fail("ready off dual-wire plate");
 
-  printf("HOST_SETTINGS_PLATE_OK dual_wire=honest sanitize=1 saved=1 "
-         "no_config=1 backend=1 model=1 context=1 multiline=1 spoilers=1 "
-         "debug=1 always_approve=1 auth=1 login=1 session_clear=1 interrupt=1 "
-         "empty_output=1 tui_help=1 cli_help=1 models_list=1 ready=1 python=0\n");
+  /* Dual-wire selftest success — no free-text HOST_SETTINGS_PLATE_OK. */
+  {
+    char okp[768];
+    snprintf(okp, sizeof okp,
+             "{\"schema\":\"grokium.settings_plate_selftest.v1\","
+             "\"ok\":true,\"dual_wire\":true,\"sanitize\":true,"
+             "\"saved\":true,\"no_config\":true,\"backend\":true,"
+             "\"model\":true,\"context\":true,\"multiline\":true,"
+             "\"spoilers\":true,\"debug\":true,\"always_approve\":true,"
+             "\"auth\":true,\"login\":true,\"session_clear\":true,"
+             "\"interrupt\":true,\"empty_output\":true,\"tui_help\":true,"
+             "\"cli_help\":true,\"models_list\":true,\"ready\":true,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"hold_flash\":1,"
+             "\"share\":\"state_matrix_only\",\"python\":0}");
+    if (!strstr(okp, "\"schema\":\"grokium.settings_plate_selftest.v1\"") ||
+        !strstr(okp, "\"ok\":true") || !strstr(okp, "\"empty_output\":true") ||
+        !strstr(okp, "\"ready\":true") ||
+        !strstr(okp, "\"product_wire\":\"smx2\"") ||
+        !strstr(okp, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(okp, "\"peer_http_is_product_bus\":false") ||
+        !strstr(okp, "\"llm_is_commander\":false") ||
+        !strstr(okp, "\"hold_flash\":1") ||
+        !strstr(okp, "\"share\":\"state_matrix_only\"") ||
+        !strstr(okp, "\"python\":0"))
+      return fail("settings_plate_selftest plate");
+    printf("%s\n", okp);
+  }
   return 0;
 }
