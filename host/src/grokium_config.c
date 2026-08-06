@@ -436,3 +436,52 @@ void gkx_config_summary(const gkx_config *c, char *out, size_t n) {
            c->ui_theme, c->ui_multiline, c->agent_tools, c->agent_braincells,
            c->hub_enabled, c->agent_max_turns, c->agent_cmd_timeout_sec);
 }
+
+/* Machine token for plate fields (backend/theme — no free-text inject). */
+static void settings_token(const char *in, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in || !in[0]) return;
+  for (i = 0; in[i] && o + 1 < cap && o < 40; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.')
+      out[o++] = (char)c;
+    else if (c == ' ' || c == '/' || c == ':' || c == '"' || c == '\\')
+      out[o++] = '_';
+  }
+  out[o] = 0;
+}
+
+void gkx_settings_json(const gkx_config *c, int saved, char *out, size_t cap) {
+  char backend[48], theme[48];
+  if (!out || cap < 64) return;
+  if (!c) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.settings.v1\",\"ok\":false,"
+             "\"error\":\"no_config\","
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"llm_is_commander\":false}");
+    return;
+  }
+  settings_token(c->active_backend, backend, sizeof backend);
+  if (!backend[0]) snprintf(backend, sizeof backend, "local");
+  settings_token(c->ui_theme, theme, sizeof theme);
+  if (!theme[0]) snprintf(theme, sizeof theme, "glass");
+  /* Shared dual-wire settings plate: TUI show/save · lab/ops ≠ product bus. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.settings.v1\",\"ok\":true,"
+           "\"saved\":%s,\"tools\":%d,\"braincells\":%d,"
+           "\"multiline\":%d,\"hub\":%d,\"turns\":%d,"
+           "\"backend\":\"%s\",\"theme\":\"%s\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false}",
+           saved ? "true" : "false", c->agent_tools ? 1 : 0,
+           c->agent_braincells ? 1 : 0, c->ui_multiline ? 1 : 0,
+           c->hub_enabled ? 1 : 0, c->agent_max_turns, backend, theme);
+}

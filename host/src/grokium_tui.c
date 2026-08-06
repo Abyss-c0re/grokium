@@ -102,14 +102,18 @@ static int composer_max_rows(void) {
 }
 
 static void config_persist(void) {
-  char path[PATH_MAX];
+  char path[PATH_MAX], plate[512];
   gkx_config_resolve_save_path(&cfg, path, sizeof path);
   if (gkx_config_save(&cfg, path) == 0) {
-    char line[200];
-    snprintf(line, sizeof line, "config saved: %s", path);
-    log_add(line);
-  } else
-    log_add("config save failed");
+    /* Shared dual-wire settings plate — no free-text path dump. */
+    gkx_settings_json(&cfg, 1, plate, sizeof plate);
+    log_add(plate);
+  } else {
+    /* Shared dual-wire save_failed (match /settings deny schema). */
+    grokium_err_json("settings", "save_failed",
+                     "/settings save|reload|path|show", plate, sizeof plate);
+    log_add(plate);
+  }
 }
 static gkx_version_state ver_st;
 static time_t last_ver_check;
@@ -1482,8 +1486,11 @@ static void do_command(const char *raw) {
   }
   if (strcmp(cmd, "settings") == 0 || strcmp(cmd, "config") == 0) {
     if (!rest[0] || !strcmp(rest, "show")) {
-      char line[240];
-      log_add("--- settings ---");
+      char plate[512], line[240];
+      /* Shared dual-wire settings plate — no free-text dual-wire banner. */
+      gkx_settings_json(&cfg, 0, plate, sizeof plate);
+      log_add(plate);
+      /* Host UX detail lines (not dual-wire surface). */
       gkx_config_summary(&cfg, line, sizeof line);
       log_add(line);
       snprintf(line, sizeof line, "backend=%s model=%s ctx=%d",
@@ -1498,15 +1505,17 @@ static void do_command(const char *raw) {
       log_add(line);
       snprintf(line, sizeof line, "base=%s", cfg.local_base_url);
       log_add(line);
-      log_add("set: /settings ui.multiline=false | agent.tools=true | save");
       return;
     }
     if (!strcmp(rest, "save")) { config_persist(); return; }
     if (!strcmp(rest, "reload")) {
+      char plate[512];
       gkx_config_load(&cfg, NULL);
       gkx_config_apply_env(&cfg);
       ui_apply_colors();
-      log_add("config reloaded");
+      /* Shared dual-wire settings plate after reload (saved=false). */
+      gkx_settings_json(&cfg, 0, plate, sizeof plate);
+      log_add(plate);
       return;
     }
     if (!strcmp(rest, "path")) {
@@ -1575,8 +1584,8 @@ static void do_command(const char *raw) {
       }
       always_approve = cfg.agent_always_approve;
       ui_apply_colors();
+      /* config_persist emits dual-wire settings plate (saved=true). */
       config_persist();
-      log_add("ok — saved");
     }
     return;
   }
