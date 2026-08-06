@@ -21,6 +21,28 @@ static int pid_alive(int pid) {
   return errno == EPERM; /* exists, not ours — still alive */
 }
 
+/*
+ * Machine token for error leaves and bot ids on plates.
+ * Allows '*' (spawn-all wildcard); drops quote/control inject.
+ */
+static void err_token(const char *in, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in || !in[0]) return;
+  for (i = 0; in[i] && o + 1 < cap && o < 48; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.' ||
+        c == '*')
+      out[o++] = (char)c;
+    else if (c == ' ' || c == '/' || c == ':' || c == '"' || c == '\\' ||
+             c == '\'' || c == ',' || c == ';')
+      out[o++] = '_';
+  }
+  out[o] = 0;
+}
+
 static void bot_set(gk_bot *b, const char *id, const char *purpose, int port,
                     int shell, const char *home_root) {
   memset(b, 0, sizeof *b);
@@ -150,16 +172,18 @@ void fleet_status_json(gk_fleet *F, char *out, size_t cap) {
                           alive, F->n);
   for (i = 0; i < F->n && used + 128 < cap; i++) {
     const gk_bot *b = &F->bots[i];
-    char pid_buf[24];
+    char pid_buf[24], id_tok[56];
     int n;
     if (b->pid > 0)
       snprintf(pid_buf, sizeof pid_buf, "%d", b->pid);
     else
       snprintf(pid_buf, sizeof pid_buf, "null");
+    err_token(b->id, id_tok, sizeof id_tok);
+    if (!id_tok[0]) snprintf(id_tok, sizeof id_tok, "bot");
     n = snprintf(out + used, cap - used,
                  "%s{\"id\":\"%s\",\"port\":%d,\"pid\":%s,"
                  "\"status\":\"%s\",\"offline\":%s,\"wire\":\"%s\"}",
-                 i ? "," : "", b->id, b->port, pid_buf,
+                 i ? "," : "", id_tok, b->port, pid_buf,
                  b->running ? "running" : "separated",
                  b->running ? "false" : "true",
                  strcmp(b->id, "nb-manager") == 0 ? "smx_motivate" : "smx2");
@@ -186,24 +210,6 @@ static void path_escape(const char *in, char *out, size_t cap) {
     } else {
       out[o++] = (char)c;
     }
-  }
-  out[o] = 0;
-}
-
-/* Machine token for deny error leaves (no free-text / quote inject). */
-static void err_token(const char *in, char *out, size_t cap) {
-  size_t i, o = 0;
-  if (!out || cap < 2) return;
-  out[0] = 0;
-  if (!in || !in[0]) return;
-  for (i = 0; in[i] && o + 1 < cap && o < 48; i++) {
-    unsigned char c = (unsigned char)in[i];
-    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-        (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.')
-      out[o++] = (char)c;
-    else if (c == ' ' || c == '/' || c == ':' || c == '"' || c == '\\' ||
-             c == '\'' || c == ',' || c == ';')
-      out[o++] = '_';
   }
   out[o] = 0;
 }
@@ -265,7 +271,7 @@ void fleet_spawn_err_json(const char *error, char *out, size_t cap) {
 
 void fleet_spawn_json(gk_fleet *F, const char *id, int spawned,
                       const char *path, char *out, size_t cap) {
-  char path_esc[640];
+  char path_esc[640], id_tok[56];
   const char *bid = id && id[0] ? id : "*";
   int alive, i;
   if (!out || cap < 64) return;
@@ -285,12 +291,14 @@ void fleet_spawn_json(gk_fleet *F, const char *id, int spawned,
         snprintf(pid_buf, sizeof pid_buf, "%d", b->pid);
       else
         snprintf(pid_buf, sizeof pid_buf, "null");
+      err_token(b->id, id_tok, sizeof id_tok);
+      if (!id_tok[0]) snprintf(id_tok, sizeof id_tok, "bot");
       snprintf(out, cap,
                "{\"schema\":\"grokium.nanobot_spawn.v1\",\"ok\":true,"
                "\"spawned\":%d,\"id\":\"%s\",\"pid\":%s,\"running\":%s,"
                "\"status\":\"%s\",\"alive\":%d,\"path\":\"%s\","
                "\"wire\":\"%s\"," FLEET_DUAL_WIRE_TAIL "}",
-               spawned > 0 ? spawned : 1, b->id, pid_buf,
+               spawned > 0 ? spawned : 1, id_tok, pid_buf,
                b->running ? "true" : "false",
                b->running ? "running" : "separated", alive, path_esc,
                strcmp(b->id, "nb-manager") == 0 ? "smx_motivate" : "smx2");
@@ -298,11 +306,13 @@ void fleet_spawn_json(gk_fleet *F, const char *id, int spawned,
     }
   }
   /* spawn-all or unknown id after success path: aggregate plate. */
+  err_token(bid, id_tok, sizeof id_tok);
+  if (!id_tok[0]) snprintf(id_tok, sizeof id_tok, "bot");
   snprintf(out, cap,
            "{\"schema\":\"grokium.nanobot_spawn.v1\",\"ok\":true,"
            "\"spawned\":%d,\"id\":\"%s\",\"alive\":%d,\"path\":\"%s\","
            FLEET_DUAL_WIRE_TAIL "}",
-           spawned, bid, alive, path_esc);
+           spawned, id_tok, alive, path_esc);
 }
 
 void fleet_separate_err_json(const char *error, char *out, size_t cap) {
@@ -326,7 +336,7 @@ void fleet_separate_err_json(const char *error, char *out, size_t cap) {
 
 void fleet_separate_json(const char *id, const char *path, char *out,
                          size_t cap) {
-  char path_esc[640];
+  char path_esc[640], id_tok[56];
   const char *bid = id && id[0] ? id : "";
   const char *wire =
       strcmp(bid, "nb-manager") == 0 ? "smx_motivate" : "smx2";
@@ -336,11 +346,13 @@ void fleet_separate_json(const char *id, const char *path, char *out,
     return;
   }
   path_escape(path ? path : "", path_esc, sizeof path_esc);
+  err_token(bid, id_tok, sizeof id_tok);
+  if (!id_tok[0]) snprintf(id_tok, sizeof id_tok, "bot");
   snprintf(out, cap,
            "{\"schema\":\"grokium.nanobot_separate.v1\",\"ok\":true,"
            "\"id\":\"%s\",\"status\":\"separated\",\"pid\":null,"
            "\"path\":\"%s\",\"wire\":\"%s\"," FLEET_DUAL_WIRE_TAIL "}",
-           bid, path_esc, wire);
+           id_tok, path_esc, wire);
 }
 
 void fleet_note_pid_err_json(const char *error, char *out, size_t cap) {
@@ -364,7 +376,7 @@ void fleet_note_pid_err_json(const char *error, char *out, size_t cap) {
 
 void fleet_note_pid_json(gk_fleet *F, const char *id, const char *path,
                          char *out, size_t cap) {
-  char path_esc[640];
+  char path_esc[640], id_tok[56];
   const char *bid = id && id[0] ? id : "";
   int i;
   if (!out || cap < 64) return;
@@ -385,11 +397,13 @@ void fleet_note_pid_json(gk_fleet *F, const char *id, const char *path,
       snprintf(pid_buf, sizeof pid_buf, "%d", b->pid);
     else
       snprintf(pid_buf, sizeof pid_buf, "null");
+    err_token(b->id, id_tok, sizeof id_tok);
+    if (!id_tok[0]) snprintf(id_tok, sizeof id_tok, "bot");
     snprintf(out, cap,
              "{\"schema\":\"grokium.nanobot_note_pid.v1\",\"ok\":true,"
              "\"id\":\"%s\",\"pid\":%s,\"running\":%s,\"status\":\"%s\","
              "\"path\":\"%s\",\"wire\":\"%s\"," FLEET_DUAL_WIRE_TAIL "}",
-             b->id, pid_buf, b->running ? "true" : "false",
+             id_tok, pid_buf, b->running ? "true" : "false",
              b->running ? "running" : "separated", path_esc,
              strcmp(b->id, "nb-manager") == 0 ? "smx_motivate" : "smx2");
     return;

@@ -344,6 +344,21 @@ static int fleet_selftest(void) {
               st);
       return 1;
     }
+    /* Success-path id leaf must sanitize quote inject (unknown aggregate). */
+    fleet_spawn_json(&F, "evil\"id;x", 0, path, st, sizeof st);
+    if (!plate_dual_wire_ok(st) || strstr(st, "evil\"id") ||
+        !strstr(st, "\"id\":\"evil_id_x\"") ||
+        !strstr(st, "\"schema\":\"grokium.nanobot_spawn.v1\"")) {
+      fprintf(stderr, "selftest: spawn id sanitize fail: %.250s\n", st);
+      return 1;
+    }
+    fleet_separate_json("nb\"host;y", path, st, sizeof st);
+    if (!plate_dual_wire_ok(st) || strstr(st, "nb\"host") ||
+        !strstr(st, "\"id\":\"nb_host_y\"") ||
+        !strstr(st, "\"schema\":\"grokium.nanobot_separate.v1\"")) {
+      fprintf(stderr, "selftest: separate id sanitize fail: %.250s\n", st);
+      return 1;
+    }
     fleet_separate_json("nb-host", path, st, sizeof st);
     if (!plate_dual_wire_ok(st) ||
         !strstr(st, "\"schema\":\"grokium.nanobot_separate.v1\"") ||
