@@ -198,6 +198,25 @@ void gkx_hub_stop_json(char *buf, size_t n) {
            "\"python\":0}");
 }
 
+void gkx_hub_wait_json(int waiting, const char *model, char *buf, size_t n) {
+  char model_tok[64];
+  if (!buf || n < 64) return;
+  /* Model is display-only on the plate — machine token (no free-text inject). */
+  json_safe_path(model && model[0] ? model : "local", model_tok,
+                 sizeof model_tok);
+  /* Shared dual-wire gate/wait: TUI chat_send · LLM ≠ commander · py=0. */
+  snprintf(buf, n,
+           "{\"schema\":\"grokium.hub_wait.v1\",\"ok\":true,"
+           "\"waiting\":%s,\"phase\":\"%s\",\"model\":\"%s\","
+           "\"control_plane\":\"host_hub\","
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false,\"llm_on_hot_path\":false,"
+           "\"python\":0}",
+           waiting ? "true" : "false", waiting ? "slot" : "gate", model_tok);
+}
+
 int gkx_hub_ensure(const gkx_config *cfg) {
   gkx_hub_apply_sched_env(cfg);
   if (hub_http_ok()) return 0;

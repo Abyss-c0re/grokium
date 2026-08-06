@@ -95,8 +95,34 @@ int main(void) {
       !strstr(plate, "\"peer_http_is_product_bus\":false") ||
       !strstr(plate, "\"llm_is_commander\":false") ||
       !strstr(plate, "\"hold_flash\":1") ||
-      !strstr(plate, "\"control_plane\":\"host_hub\"")) {
+      !strstr(plate, "\"control_plane\":\"host_hub\"") ||
+      !strstr(plate, "\"python\":0")) {
     fprintf(stderr, "hub_status_selftest: stop plate fail: %s\n", plate);
+    return 1;
+  }
+
+  /* Shared hub gate/wait plates (TUI chat_send · no free-text banners). */
+  gkx_hub_wait_json(0, "local-llama", plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.hub_wait.v1\"") ||
+      !strstr(plate, "\"ok\":true") || !strstr(plate, "\"waiting\":false") ||
+      !strstr(plate, "\"phase\":\"gate\"") ||
+      !strstr(plate, "\"model\":\"local-llama\"") ||
+      !strstr(plate, "\"product_wire\":\"smx2\"") ||
+      !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+      !strstr(plate, "\"llm_is_commander\":false") ||
+      !strstr(plate, "\"llm_on_hot_path\":false") ||
+      !strstr(plate, "\"python\":0") ||
+      !strstr(plate, "\"control_plane\":\"host_hub\"")) {
+    fprintf(stderr, "hub_status_selftest: wait gate plate fail: %s\n", plate);
+    return 1;
+  }
+  gkx_hub_wait_json(1, "m\"evil\\x", plate, sizeof plate);
+  if (!strstr(plate, "\"waiting\":true") ||
+      !strstr(plate, "\"phase\":\"slot\"") ||
+      !strstr(plate, "\"model\":\"mevilx\"") || strstr(plate, "evil\\x") ||
+      strstr(plate, "m\"evil") || !strstr(plate, "\"python\":0") ||
+      !strstr(plate, "\"hold_flash\":1")) {
+    fprintf(stderr, "hub_status_selftest: wait slot sanitize fail: %s\n", plate);
     return 1;
   }
 
@@ -127,6 +153,6 @@ int main(void) {
   }
 
   printf("HOST_HUB_STATUS_OK dual_wire=honest peer_http=lab_ops_only stop=1 "
-         "lock_slots_sanitize=1\n");
+         "wait=1 lock_slots_sanitize=1 python=0\n");
   return 0;
 }

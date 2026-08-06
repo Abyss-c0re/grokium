@@ -544,15 +544,20 @@ static void chat_send(const char *msg) {
     blk_append_str(u, msg);
   }
   {
-    char sm[48], w[96];
+    char sm[48], plate[512];
     short_model(sm, sizeof sm);
-    snprintf(w, sizeof w, "… %s · hub gate", sm);
-    log_add(w);
+    /* Dual-wire hub gate plate — no free-text "… hub gate" banner. */
+    gkx_hub_wait_json(0, sm, plate, sizeof plate);
+    log_add(plate);
   }
   draw();
 
   if (!ng_llm_sched_try_acquire()) {
-    log_add("hub: waiting for LLM slot…");
+    char sm[48], plate[512];
+    short_model(sm, sizeof sm);
+    /* Dual-wire wait plate — no free-text "hub: waiting…" banner. */
+    gkx_hub_wait_json(1, sm, plate, sizeof plate);
+    log_add(plate);
     draw();
     ng_llm_sched_acquire();
   }
