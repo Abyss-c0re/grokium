@@ -138,7 +138,15 @@ out/smx_host_filter_selftest: tests/smx_host_filter_selftest.c $(SMX_FILTER_SRC)
 	$(CC) $(CFLAGS) -o $@ tests/smx_host_filter_selftest.c $(SMX_FILTER_SRC)
 
 test-smx-host-filter: out/smx_host_filter_selftest
-	@./out/smx_host_filter_selftest
+	@set -e; \
+	ST=$$(./out/smx_host_filter_selftest); \
+	echo "$$ST" | grep -q '"schema":"grokium.smx_host_filter_selftest.v1"'; \
+	echo "$$ST" | grep -q '"ok":true'; \
+	echo "$$ST" | grep -q '"external":"strict"'; \
+	echo "$$ST" | grep -q '"hold_flash":1'; \
+	echo "$$ST" | grep -q '"product_wire":"smx2"'; \
+	echo "$$ST" | grep -q '"python":0'; \
+	echo "$$ST" | grep -qv HOST_SMX_FILTER_OK
 
 # TUI tool-capture plate-line filter — pure C, no nanobot/ncurses.
 out/plate_line_selftest: tests/plate_line_selftest.c src/grokium_plate.c \
