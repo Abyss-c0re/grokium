@@ -401,7 +401,8 @@ int gk_commander_envelope_json(const gk_commander *C,
     "\"peer_http\":\"lab_ops_only\","
     "\"peer_http_is_product_bus\":false,"
     "\"share\":\"state_matrix_only\","
-    "\"hold_flash\":1"
+    "\"hold_flash\":1,"
+    "\"python\":0"
     "%s%s%s"
     "}",
     GK_CMD_DOMAIN, GK_CMD_PRODUCT, GK_CMD_NOT,

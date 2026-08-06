@@ -16,6 +16,7 @@ static int plate_dual_wire(const char *p) {
          strstr(p, "\"peer_http\":\"lab_ops_only\"") &&
          strstr(p, "\"peer_http_is_product_bus\":false") &&
          strstr(p, "\"llm_is_commander\":false") &&
+         strstr(p, "\"python\":0") &&
          strstr(p, "\"share\":\"state_matrix_only\"") &&
          strstr(p, "\"hold_flash\":1");
 }
@@ -95,7 +96,26 @@ int main(void) {
       !strstr(plate, "\"python\":0") || !plate_dual_wire(plate))
     return fail("commander deny dual-wire py=0");
 
+  /* Commander ok/verify/reject success path also declare py=0. */
+  grokium_commander_ok_json("aabb", "data/law", "GROKIUM-COMMANDER-v1", 1,
+                            plate, sizeof plate);
+  if (!strstr(plate, "\"ok\":true") ||
+      !strstr(plate, "\"fingerprint\":\"aabb\"") ||
+      !strstr(plate, "\"has_sk\":true") || !plate_dual_wire(plate))
+    return fail("commander ok dual-wire py=0");
+
+  grokium_commander_verify_json(0, plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.commander_verify.v1\"") ||
+      !strstr(plate, "\"ok\":false") || !strstr(plate, "\"commander\":null") ||
+      !plate_dual_wire(plate))
+    return fail("commander verify dual-wire py=0");
+
+  grokium_commander_reject_json(0, plate, sizeof plate);
+  if (!strstr(plate, "\"error\":\"model_is_not_commander\"") ||
+      !strstr(plate, "\"allowed\":false") || !plate_dual_wire(plate))
+    return fail("commander reject dual-wire py=0");
+
   printf("C_CORE_LAW_PLATE_OK dual_wire=honest law=1 license=1 mode=1 "
-         "need_subcmd=1 inject=1 python=0 commander_deny=1\n");
+         "need_subcmd=1 inject=1 python=0 commander_ok=1\n");
   return 0;
 }

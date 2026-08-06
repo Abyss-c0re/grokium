@@ -27,7 +27,8 @@ static int plate_dual_wire_ok(const char *p) {
          strstr(p, "\"share\":\"state_matrix_only\"") &&
          strstr(p, "\"commander\":\"ed25519\"") &&
          strstr(p, "\"not\":\"grok_model\"") &&
-         strstr(p, "\"commander_is_model\":false");
+         strstr(p, "\"commander_is_model\":false") &&
+         strstr(p, "\"python\":0");
 }
 
 static void emit_deny(const char *leaf, const char *error, const char *hint) {
@@ -101,6 +102,7 @@ int main(int argc, char **argv) {
       !strstr(plate, "\"fingerprint\":\"deadbeef\"") ||
       !strstr(plate, "\"product_wire\":\"smx2\"") ||
       !strstr(plate, "\"llm_is_commander\":false") ||
+      !strstr(plate, "\"python\":0") ||
       !strstr(plate, "\"has_sk\":true") || strstr(plate, "\";drop") ||
       strstr(plate, "\";") || strstr(plate, "\\\"") ||
       !strstr(plate, "\"law_dir\":\"data/law_drop\"")) {
@@ -111,7 +113,8 @@ int main(int argc, char **argv) {
   if (!strstr(plate, "\"schema\":\"grokium.commander_verify.v1\"") ||
       !strstr(plate, "\"ok\":true") ||
       !strstr(plate, "\"commander\":\"grokium\"") ||
-      !strstr(plate, "\"peer_http_is_product_bus\":false")) {
+      !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+      !strstr(plate, "\"python\":0")) {
     fprintf(stderr, "grokium-commander: verify plate dual-wire fail\n");
     return 1;
   }
@@ -120,7 +123,8 @@ int main(int argc, char **argv) {
   if (!strstr(plate, "\"law\":\"installed\"") || strstr(plate, "\";x") ||
       !strstr(plate, "\"home\":\"home_x\"") ||
       !strstr(plate, "\"hold_flash\":1") ||
-      !strstr(plate, "\"commander_is_model\":false")) {
+      !strstr(plate, "\"commander_is_model\":false") ||
+      !strstr(plate, "\"python\":0")) {
     fprintf(stderr, "grokium-commander: install plate sanitize fail\n");
     return 1;
   }
@@ -131,13 +135,15 @@ int main(int argc, char **argv) {
       !strstr(plate, "\"error\":\"model_is_not_commander\"") ||
       !strstr(plate, "\"allowed\":false") ||
       !strstr(plate, "\"llm_is_commander\":false") ||
-      !strstr(plate, "\"product_wire\":\"smx2\"")) {
+      !strstr(plate, "\"product_wire\":\"smx2\"") ||
+      !strstr(plate, "\"python\":0")) {
     fprintf(stderr, "grokium-commander: reject deny dual-wire fail\n");
     return 1;
   }
   grokium_commander_reject_json(1, plate, sizeof plate);
   if (!strstr(plate, "\"ok\":true") || !strstr(plate, "\"allowed\":true") ||
       !strstr(plate, "\"commander_is_model\":false") ||
+      !strstr(plate, "\"python\":0") ||
       strstr(plate, "\"error\"")) {
     fprintf(stderr, "grokium-commander: reject allow dual-wire fail\n");
     return 1;

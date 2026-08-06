@@ -245,7 +245,7 @@ void grokium_commander_ok_json(const char *fingerprint, const char *law_dir,
   if (!fp[0]) snprintf(fp, sizeof fp, "none");
   path_token(law_dir, dir, sizeof dir);
   path_token(domain, dom, sizeof dom);
-  /* Shared dual-wire success: Ed25519 residual · LLM ≠ commander. */
+  /* Shared dual-wire success: Ed25519 residual · LLM ≠ commander · py=0. */
   if (dom[0] && has_sk >= 0 && dir[0]) {
     snprintf(out, cap,
              "{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
@@ -255,7 +255,8 @@ void grokium_commander_ok_json(const char *fingerprint, const char *law_dir,
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"python\":0}",
              dom, fp, has_sk ? "true" : "false", dir);
   } else if (dom[0] && has_sk >= 0) {
     snprintf(out, cap,
@@ -266,7 +267,8 @@ void grokium_commander_ok_json(const char *fingerprint, const char *law_dir,
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"python\":0}",
              dom, fp, has_sk ? "true" : "false");
   } else if (dir[0]) {
     snprintf(out, cap,
@@ -276,7 +278,8 @@ void grokium_commander_ok_json(const char *fingerprint, const char *law_dir,
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"python\":0}",
              fp, dir);
   } else {
     snprintf(out, cap,
@@ -286,14 +289,15 @@ void grokium_commander_ok_json(const char *fingerprint, const char *law_dir,
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"python\":0}",
              fp);
   }
 }
 
 void grokium_commander_verify_json(int ok, char *out, size_t cap) {
   if (!out || cap < 64) return;
-  /* Shared dual-wire verify plate (CLI + HTTP /v1/commander/verify). */
+  /* Shared dual-wire verify plate (CLI + HTTP /v1/commander/verify · py=0). */
   snprintf(out, cap,
            "{\"schema\":\"grokium.commander_verify.v1\",\"ok\":%s,"
            "\"commander\":%s,\"not\":\"grok_model\",\"unforgeable\":true,"
@@ -301,7 +305,8 @@ void grokium_commander_verify_json(int ok, char *out, size_t cap) {
            "\"llm_is_commander\":false,\"commander_is_model\":false,"
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"python\":0}",
            ok ? "true" : "false", ok ? "\"grokium\"" : "null");
 }
 
@@ -316,7 +321,7 @@ void grokium_commander_install_json(const char *home, const char *bot,
   if (!bt[0]) snprintf(bt, sizeof bt, "nb");
   hex_token(fingerprint, fp, sizeof fp);
   if (!fp[0]) snprintf(fp, sizeof fp, "none");
-  /* Shared dual-wire install-law ack (CLI install-law). */
+  /* Shared dual-wire install-law ack (CLI install-law · py=0). */
   snprintf(out, cap,
            "{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
            "\"home\":\"%s\",\"bot\":\"%s\",\"fingerprint\":\"%s\","
@@ -325,13 +330,14 @@ void grokium_commander_install_json(const char *home, const char *bot,
            "\"llm_is_commander\":false,\"commander_is_model\":false,"
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"python\":0}",
            hm, bt, fp);
 }
 
 void grokium_commander_reject_json(int allowed, char *out, size_t cap) {
   if (!out || cap < 64) return;
-  /* Shared dual-wire reject-model plate (POST /v1/commander/reject_model). */
+  /* Shared dual-wire reject-model plate (POST /v1/commander/reject_model · py=0). */
   if (allowed) {
     snprintf(out, cap,
              "{\"schema\":\"grokium.commander_reject.v1\",\"ok\":true,"
@@ -340,7 +346,8 @@ void grokium_commander_reject_json(int allowed, char *out, size_t cap) {
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"python\":0}");
   } else {
     snprintf(out, cap,
              "{\"schema\":\"grokium.commander_reject.v1\",\"ok\":false,"
@@ -350,6 +357,7 @@ void grokium_commander_reject_json(int allowed, char *out, size_t cap) {
              "\"commander_is_model\":false,\"product_wire\":\"smx2\","
              "\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"python\":0}");
   }
 }

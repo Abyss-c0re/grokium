@@ -295,6 +295,7 @@ static int selftest(void) {
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"python\":0") ||
         !strstr(b, "\"share\":\"state_matrix_only\"") ||
         !strstr(b, "\"hold_flash\":1")) {
       fprintf(stderr, "selftest: sessions list dual-wire fail: %.400s\n", b);
@@ -310,6 +311,7 @@ static int selftest(void) {
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"python\":0") ||
         !strstr(b, "\"hold_flash\":1")) {
       fprintf(stderr, "selftest: sessions search dual-wire fail: %.400s\n", b);
       fails++;
@@ -325,6 +327,7 @@ static int selftest(void) {
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"python\":0") ||
         !strstr(b, "\"hold_flash\":1") ||
         !strstr(b, "\"content\":\"meta_only\"")) {
       fprintf(stderr, "selftest: sessions pickup need_id dual-wire fail: %.400s\n",
@@ -343,6 +346,7 @@ static int selftest(void) {
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"python\":0") ||
         !strstr(b, "\"hold_flash\":1") ||
         !strstr(b, "\"content\":\"meta_only\"")) {
       fprintf(stderr, "selftest: sessions pickup dual-wire fail: %.400s\n", b);
@@ -800,7 +804,8 @@ static int selftest(void) {
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: commander show dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -813,7 +818,8 @@ static int selftest(void) {
     if ((!strstr(resp, "403") && !strstr(b, "model_is_not_commander")) ||
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"llm_is_commander\":false") ||
-        !strstr(b, "\"peer_http_is_product_bus\":false")) {
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: reject_model dual-wire fail: %.400s\n", b);
       fails++;
     }
