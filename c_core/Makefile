@@ -345,11 +345,18 @@ test-fleet: $(BUILD)/grokium-fleet
 	echo "$$OUT" | grep -q '"stopped":true'; \
 	echo "$$OUT" | grep -q '"alive":0'; \
 	echo "$$OUT" | grep -q '"peer_http_is_product_bus":false'; \
+	OUT=$$($(BUILD)/grokium-fleet defaults); \
+	echo "$$OUT" | grep -q '"schema":"grokium.fleet_defaults.v1"'; \
+	echo "$$OUT" | grep -q '"action":"defaults"'; \
+	echo "$$OUT" | grep -q '"id":"nb-manager"'; \
+	echo "$$OUT" | grep -q '"product_wire":"smx2"'; \
+	echo "$$OUT" | grep -q '"spawn":"host_responsibility"'; \
+	echo "$$OUT" | grep -q '"python":0'; \
 	echo FLEET_ACK_DUAL_WIRE_OK
 
 hive: test-filter test-consolidate test-serve test-commander test-integrity \
 	test-fleet test-session-plate test-law-plate $(BUILD)/grokium-fleet
-	@$(BUILD)/grokium-fleet defaults | grep -q nb-manager
+	@$(BUILD)/grokium-fleet defaults | grep -q '"id":"nb-manager"'
 	@set -e; \
 	grep -q 'product_wire=smx2' ../compat/nexus_coord.v1.plate; \
 	grep -q 'peer_http_is_product_bus=0' ../compat/nexus_coord.v1.plate; \

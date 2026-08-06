@@ -66,6 +66,42 @@ static int fleet_selftest(void) {
     fprintf(stderr, "selftest: nb-manager missing from defaults\n");
     return 1;
   }
+  /* defaults plate: dual-wire role templates (not free-text TSV). */
+  {
+    char defp[4096];
+    fleet_defaults_json(&F, defp, sizeof defp);
+    if (!plate_dual_wire_ok(defp) ||
+        !strstr(defp, "\"schema\":\"grokium.fleet_defaults.v1\"") ||
+        !strstr(defp, "\"ok\":true") ||
+        !strstr(defp, "\"action\":\"defaults\"") ||
+        !strstr(defp, "\"content\":\"role_templates\"") ||
+        !strstr(defp, "\"nb_manager\":true") ||
+        !strstr(defp, "\"id\":\"nb-manager\"") ||
+        !strstr(defp, "\"spawn\":\"host_responsibility\"") ||
+        !strstr(defp, "\"wire\":\"smx_motivate\"") ||
+        strstr(defp, "\t")) {
+      fprintf(stderr, "selftest: fleet_defaults_json dual-wire fail: %.300s\n",
+              defp);
+      return 1;
+    }
+    /* Path inject sanitize on home leaf. */
+    {
+      gk_fleet inj;
+      char bad[1024];
+      fleet_default_roles(&inj);
+      snprintf(inj.bots[0].home, sizeof inj.bots[0].home, "data/h\"ome;x");
+      snprintf(inj.bots[0].purpose, sizeof inj.bots[0].purpose,
+               "bad\";drop");
+      fleet_defaults_json(&inj, bad, sizeof bad);
+      if (strstr(bad, "h\"ome") || strstr(bad, "\";drop") ||
+          !strstr(bad, "\"purpose\":\"bad__drop\"") ||
+          !plate_dual_wire_ok(bad)) {
+        fprintf(stderr, "selftest: defaults inject sanitize fail: %.300s\n",
+                bad);
+        return 1;
+      }
+    }
+  }
   if (fleet_deploy(&F) != 0 || fleet_save(&F, path) != 0) {
     fprintf(stderr, "selftest: deploy/save failed\n");
     return 1;
@@ -430,11 +466,11 @@ int main(int argc, char **argv) {
     return 2;
   }
   if (!strcmp(argv[1], "defaults")) {
-    int i;
+    char plate[4096];
+    /* Dual-wire role templates — no free-text TSV id/purpose/port dump. */
     fleet_default_roles(&F);
-    for (i = 0; i < F.n; i++)
-      printf("%s\t%s\t%d\t%s\n", F.bots[i].id, F.bots[i].purpose,
-             F.bots[i].port, F.bots[i].home);
+    fleet_defaults_json(&F, plate, sizeof plate);
+    printf("%s\n", plate);
     return 0;
   }
   if (!strcmp(argv[1], "deploy")) {

@@ -27,6 +27,12 @@ typedef struct {
 } gk_fleet;
 
 void fleet_default_roles(gk_fleet *F);
+/*
+ * Dual-wire default-roles plate (schema grokium.fleet_defaults.v1).
+ * Role templates only — not live pid/status (use fleet_status_json for that).
+ * Replaces free-text TSV "id purpose port home" dump on CLI defaults.
+ */
+void fleet_defaults_json(const gk_fleet *F, char *out, size_t cap);
 int  fleet_deploy(gk_fleet *F);
 /* Probe PIDs with kill(0); clear dead; return alive count. */
 int  fleet_status(gk_fleet *F);

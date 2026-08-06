@@ -43,6 +43,9 @@ static void err_token(const char *in, char *out, size_t cap) {
   out[o] = 0;
 }
 
+/* Forward: used by fleet_defaults_json before definition. */
+static void path_escape(const char *in, char *out, size_t cap);
+
 static void bot_set(gk_bot *b, const char *id, const char *purpose, int port,
                     int shell, const char *home_root) {
   memset(b, 0, sizeof *b);
@@ -85,6 +88,57 @@ void fleet_default_roles(gk_fleet *F) {
   bot_set(&F->bots[5], "nb-integrity", "integrity_no_leak_core",
           F->base_port + 5, 0, F->home_root);
   F->n = 6;
+}
+
+void fleet_defaults_json(const gk_fleet *F, char *out, size_t cap) {
+  int i;
+  size_t used;
+  if (!out || cap < 64) return;
+  if (!F || F->n <= 0) {
+    snprintf(out, cap,
+             "{\"schema\":\"grokium.fleet_defaults.v1\",\"ok\":false,"
+             "\"error\":\"no_fleet\",\"product_wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"commander_is_model\":false,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"python\":0,\"bots\":[]}");
+    return;
+  }
+  /* Role templates only — not live status; spawn remains host responsibility. */
+  used = (size_t)snprintf(out, cap,
+                          "{\"schema\":\"grokium.fleet_defaults.v1\","
+                          "\"ok\":true,\"action\":\"defaults\",\"n\":%d,"
+                          "\"nb_manager\":true,"
+                          "\"content\":\"role_templates\","
+                          "\"spawn\":\"host_responsibility\","
+                          "\"product_wire\":\"smx2\","
+                          "\"peer_http\":\"lab_ops_only\","
+                          "\"peer_http_is_product_bus\":false,"
+                          "\"llm_is_commander\":false,"
+                          "\"commander_is_model\":false,"
+                          "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+                          "\"python\":0,\"bots\":[",
+                          F->n);
+  for (i = 0; i < F->n && used + 160 < cap; i++) {
+    const gk_bot *b = &F->bots[i];
+    char id_tok[56], pur_tok[72], home_esc[320];
+    int n;
+    err_token(b->id, id_tok, sizeof id_tok);
+    if (!id_tok[0]) snprintf(id_tok, sizeof id_tok, "bot");
+    err_token(b->purpose, pur_tok, sizeof pur_tok);
+    if (!pur_tok[0]) snprintf(pur_tok, sizeof pur_tok, "assigned");
+    path_escape(b->home, home_esc, sizeof home_esc);
+    n = snprintf(out + used, cap - used,
+                 "%s{\"id\":\"%s\",\"purpose\":\"%s\",\"port\":%d,"
+                 "\"home\":\"%s\",\"wire\":\"%s\"}",
+                 i ? "," : "", id_tok, pur_tok, b->port, home_esc,
+                 strcmp(b->id, "nb-manager") == 0 ? "smx_motivate" : "smx2");
+    if (n < 0) break;
+    used += (size_t)n;
+  }
+  if (used + 3 < cap)
+    snprintf(out + used, cap - used, "]}");
 }
 
 /* Per-bot purpose plate: dual-wire honesty (SMX2 ≠ peer HTTP lab/ops). */
