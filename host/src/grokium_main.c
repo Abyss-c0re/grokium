@@ -31,11 +31,6 @@ char state_dir[PATH_MAX];
 char prog_dir[PATH_MAX];
 char nanobot_root[PATH_MAX];
 
-static void die(const char *m) {
-  fprintf(stderr, "grokium: %s\n", m);
-  exit(2);
-}
-
 /* Short machine error token for dual-wire plates (no free-text / path inject). */
 static void err_token(const char *in, char *out, size_t cap) {
   size_t i, o = 0;
@@ -50,6 +45,26 @@ static void err_token(const char *in, char *out, size_t cap) {
       out[o++] = '_';
   }
   out[o] = 0;
+}
+
+/* Fatal dual-wire plate — no free-text "grokium: …" banners. */
+static void die(const char *m) {
+  char plate[512], tok[48];
+  err_token(m && m[0] ? m : "fatal", tok, sizeof tok);
+  if (!tok[0]) snprintf(tok, sizeof tok, "fatal");
+  grokium_err_json("fatal", tok, NULL, plate, sizeof plate);
+  fprintf(stderr, "%s\n", plate);
+  exit(2);
+}
+
+/* Child exec fail → dual-wire plate then _exit (no free-text strerror/path). */
+static void die_exec(const char *leaf) {
+  char plate[512], tok[48];
+  err_token(leaf && leaf[0] ? leaf : "exec_failed", tok, sizeof tok);
+  if (!tok[0]) snprintf(tok, sizeof tok, "exec_failed");
+  grokium_err_json("exec", tok, NULL, plate, sizeof plate);
+  fprintf(stderr, "%s\n", plate);
+  _exit(127);
 }
 
 int file_ok(const char *p) {
@@ -164,8 +179,7 @@ static int run_cubalc_program(const char *name, const char *plate) {
     setenv("CUBALC_STATE", state_dir, 1);
     setenv("GROKIUM_ROOT", root, 1);
     execl(cubalc_bin, "cubalc", "run", run_path, (char *)NULL);
-    fprintf(stderr, "grokium: exec cubalc: %s\n", strerror(errno));
-    _exit(127);
+    die_exec("cubalc");
   }
   int st = 0;
   if (waitpid(pid, &st, 0) < 0) die("waitpid");
@@ -189,7 +203,7 @@ static int run_cubalc_args(char *const argv[]) {
     setenv("CUBALC_STATE", state_dir, 1);
     setenv("GROKIUM_ROOT", root, 1);
     execv(cubalc_bin, argv);
-    _exit(127);
+    die_exec("cubalc");
   }
   int st = 0;
   waitpid(pid, &st, 0);
@@ -239,8 +253,7 @@ static int run_c_core(const char *name, int argc, char **argv) {
       /* still try; relative data/home paths prefer repo root */
     }
     execv(bin, av);
-    fprintf(stderr, "grokium: exec %s: %s\n", bin, strerror(errno));
-    _exit(127);
+    die_exec("c_core");
   }
   if (waitpid(pid, &st, 0) < 0) die("waitpid");
   return WIFEXITED(st) ? WEXITSTATUS(st) : 1;
