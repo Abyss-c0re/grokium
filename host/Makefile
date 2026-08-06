@@ -50,7 +50,7 @@ SRCS := src/grokium_main.c src/grokium_tui.c src/grokium_chat.c \
 
 .PHONY: all clean nanobot install test-status test-version-compat \
 	test-hub-status test-memory-seed test-media-plate test-session-plate \
-	test-smx-host-filter test-plate-line test
+	test-smx-host-filter test-plate-line test-settings-plate test
 
 all: nanobot out/grokium
 
@@ -141,14 +141,25 @@ out/plate_line_selftest: tests/plate_line_selftest.c src/grokium_plate.c \
 test-plate-line: out/plate_line_selftest
 	@./out/plate_line_selftest
 
+# Dual-wire settings plate — pure C, no nanobot/ncurses.
+out/settings_plate_selftest: tests/settings_plate_selftest.c src/grokium_config.c \
+	include/grokium_config.h
+	@mkdir -p out
+	$(CC) $(CFLAGS) -DGKX_CONFIG_NO_NCURSES -o $@ \
+		tests/settings_plate_selftest.c src/grokium_config.c
+
+test-settings-plate: out/settings_plate_selftest
+	@./out/settings_plate_selftest
+
 test: test-status test-version-compat test-hub-status test-memory-seed \
-	test-media-plate test-session-plate test-smx-host-filter test-plate-line
+	test-media-plate test-session-plate test-smx-host-filter test-plate-line \
+	test-settings-plate
 
 clean:
 	rm -f out/grokium out/status_probe_selftest out/version_compat_selftest \
 		out/hub_status_selftest out/memory_seed_selftest out/media_plate_selftest \
 		out/session_plate_selftest out/smx_host_filter_selftest \
-		out/plate_line_selftest
+		out/plate_line_selftest out/settings_plate_selftest
 
 install: all
 	install -m755 out/grokium $(HOME)/.local/bin/grokium

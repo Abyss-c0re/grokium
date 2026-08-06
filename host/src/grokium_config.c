@@ -7,7 +7,9 @@
 #include <sys/stat.h>
 #include <limits.h>
 #include <unistd.h>
+#ifndef GKX_CONFIG_NO_NCURSES
 #include <ncurses.h>
+#endif
 
 void gkx_config_init(gkx_config *c) {
   if (!c) return;
@@ -418,6 +420,7 @@ void gkx_config_save_prefs(const gkx_config *c, const char *state_dir) {
 int gkx_color_id(const char *name) {
   if (!name || !name[0] || !strcmp(name, "default") || !strcmp(name, "none"))
     return -1;
+#ifndef GKX_CONFIG_NO_NCURSES
   if (!strcmp(name, "black")) return COLOR_BLACK;
   if (!strcmp(name, "red")) return COLOR_RED;
   if (!strcmp(name, "green")) return COLOR_GREEN;
@@ -426,6 +429,7 @@ int gkx_color_id(const char *name) {
   if (!strcmp(name, "magenta")) return COLOR_MAGENTA;
   if (!strcmp(name, "cyan")) return COLOR_CYAN;
   if (!strcmp(name, "white")) return COLOR_WHITE;
+#endif
   return -1;
 }
 
