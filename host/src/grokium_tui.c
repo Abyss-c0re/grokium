@@ -1097,23 +1097,16 @@ static void cmd_license_show(void) {
 
 /* Dual-wire honesty status plate (shared probes with host CLI). */
 static void cmd_status_show(void) {
-  char line[280], grade[32], hub[640], plate[512];
-  int fleet_n = 0, fleet_alive = 0;
-  unsigned matrix_bits = 0;
-  gkx_status_fleet_probe(root, &fleet_n, &fleet_alive);
-  gkx_status_matrix_probe(root, &matrix_bits, grade, sizeof grade);
-  log_add("--- status (dual-wire honesty · pure C) ---");
-  log_add("  product_wire=smx2 · peer_http=lab_ops_only · peer_http_is_product_bus=0");
-  log_add("  share=state_matrix_only · hold_flash=1 · telemetry=off");
-  log_add("  Commander=Ed25519 · llm_is_commander=0 · llm_on_hot_path=0");
-  snprintf(line, sizeof line, "  fleet_n=%d fleet_alive=%d · matrix_bits=%u grade=%s",
-           fleet_n, fleet_alive, matrix_bits, grade);
-  log_add(line);
-  snprintf(line, sizeof line, "  backend=%s model=%s tools=%d",
-           cfg.active_backend, cfg.active_model, cfg.agent_tools);
-  log_add(line);
-  if (gkx_status_plate_json(root, "host_tui", plate, sizeof plate) == 0)
+  char hub[640], plate[512];
+  /* Shared status plate only — no free-text dual-wire banner (match CLI). */
+  if (gkx_status_plate_json(root, "host_tui", plate, sizeof plate) == 0) {
     log_add_block(plate);
+  } else {
+    char deny[512];
+    /* Shared dual-wire plate_failed (match CLI status). */
+    grokium_err_json("status", "plate_failed", NULL, deny, sizeof deny);
+    log_add(deny);
+  }
   hub[0] = 0;
   gkx_hub_status(hub, sizeof hub);
   if (hub[0])
