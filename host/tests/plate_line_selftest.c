@@ -98,8 +98,52 @@ int main(void) {
     if (!strstr(out, "ready") || !strstr(out, "Enter=send"))
       return fail("ui_line ready human");
   }
+  /* Fleet / hub / manager human lines (no raw JSON · honest counts). */
+  {
+    const char *st =
+        "{\"schema\":\"grokium.nanobot_status.v1\",\"ok\":true,"
+        "\"alive\":2,\"n\":6,\"nb_manager\":true}";
+    const char *def =
+        "{\"schema\":\"grokium.fleet_defaults.v1\",\"ok\":true,"
+        "\"action\":\"defaults\",\"n\":6,\"nb_manager\":true}";
+    const char *sp =
+        "{\"schema\":\"grokium.nanobot_spawn.v1\",\"ok\":false,"
+        "\"error\":\"spawn_failed\"}";
+    const char *hub =
+        "{\"schema\":\"grokium.hub_status.v1\",\"ok\":true,"
+        "\"pid\":42,\"alive\":true,\"managed\":true,\"http\":true}";
+    const char *mgr =
+        "{\"schema\":\"grokium.manager_tick.v1\",\"ok\":true,"
+        "\"motivated\":1,\"incomplete\":2}";
+    const char *coord =
+        "{\"schema\":\"grokium.coord.v1\",\"ok\":false,"
+        "\"error\":\"smx_filter_deny\"}";
+    gkx_plate_ui_line(st, 0, out, sizeof out);
+    if (!strstr(out, "fleet") || !strstr(out, "alive=2") ||
+        !strstr(out, "n=6") || strstr(out, "\"schema\""))
+      return fail("ui_line fleet status human");
+    gkx_plate_ui_line(def, 0, out, sizeof out);
+    if (!strstr(out, "defaults") || !strstr(out, "n=6") ||
+        !strstr(out, "manager"))
+      return fail("ui_line fleet defaults human");
+    gkx_plate_ui_line(sp, 0, out, sizeof out);
+    if (!strstr(out, "spawn") || !strstr(out, "deny") ||
+        !strstr(out, "spawn_failed"))
+      return fail("ui_line fleet spawn deny human");
+    gkx_plate_ui_line(hub, 0, out, sizeof out);
+    if (!strstr(out, "hub") || !strstr(out, "pid=42") ||
+        !strstr(out, "managed") || !strstr(out, "http"))
+      return fail("ui_line hub status human");
+    gkx_plate_ui_line(mgr, 0, out, sizeof out);
+    if (!strstr(out, "manager") || !strstr(out, "tick"))
+      return fail("ui_line manager tick human");
+    gkx_plate_ui_line(coord, 0, out, sizeof out);
+    if (!strstr(out, "coord") || !strstr(out, "deny") ||
+        !strstr(out, "smx_filter_deny"))
+      return fail("ui_line coord deny human");
+  }
 
   printf("HOST_PLATE_LINE_OK dual_wire=keep free_json=drop debug=pass "
-         "compact_schema=1 ui_line=human\n");
+         "compact_schema=1 ui_line=human fleet_hub_manager=1\n");
   return 0;
 }

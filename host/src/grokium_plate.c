@@ -48,6 +48,20 @@ static int plate_json_bool(const char *j, const char *key) {
   return -1;
 }
 
+/* Compact "key":N integer (or -1 if missing). */
+static int plate_json_int(const char *j, const char *key) {
+  char pat[80];
+  const char *p;
+  if (!j || !key) return -1;
+  snprintf(pat, sizeof pat, "\"%s\":", key);
+  p = strstr(j, pat);
+  if (!p) return -1;
+  p += strlen(pat);
+  while (*p == ' ') p++;
+  if (*p == '-' || (*p >= '0' && *p <= '9')) return atoi(p);
+  return -1;
+}
+
 int gkx_plate_ui_line(const char *ln, int debug_mode, char *out, size_t cap) {
   char schema[64], short_s[48], be[48], model[64], err[48], hint[96];
   char method[32], action[32];
@@ -143,6 +157,92 @@ int gkx_plate_ui_line(const char *ln, int debug_mode, char *out, size_t cap) {
   }
   if (strcmp(short_s, "hub_wait") == 0 || strcmp(short_s, "hub") == 0) {
     snprintf(out, cap, "· hub · %s", be[0] ? be : "wait");
+    return 0;
+  }
+  if (strcmp(short_s, "hub_status") == 0) {
+    {
+      int alive = plate_json_bool(ln, "alive");
+      int managed = plate_json_bool(ln, "managed");
+      int http = plate_json_bool(ln, "http");
+      int pid = plate_json_int(ln, "pid");
+      if (ok == 0)
+        snprintf(out, cap, "· hub · deny%s%s%s",
+                 alive == 0 ? " · dead" : "",
+                 managed == 0 ? " · unmanaged" : "",
+                 http == 0 ? " · no_http" : "");
+      else
+        snprintf(out, cap, "· hub · ok · pid=%d%s%s",
+                 pid > 0 ? pid : 0,
+                 managed == 1 ? " · managed" : "",
+                 http == 1 ? " · http" : "");
+    }
+    return 0;
+  }
+  if (strcmp(short_s, "nanobot_status") == 0 ||
+      strcmp(short_s, "fleet_defaults") == 0) {
+    {
+      int nn = plate_json_int(ln, "n");
+      int alive = plate_json_int(ln, "alive");
+      int mgr = plate_json_bool(ln, "nb_manager");
+      if (strcmp(short_s, "fleet_defaults") == 0)
+        snprintf(out, cap, "· fleet · defaults · n=%d%s",
+                 nn >= 0 ? nn : 0, mgr == 1 ? " · manager" : "");
+      else
+        snprintf(out, cap, "· fleet · alive=%d · n=%d%s",
+                 alive >= 0 ? alive : 0, nn >= 0 ? nn : 0,
+                 mgr == 1 ? " · manager" : "");
+    }
+    return 0;
+  }
+  if (strcmp(short_s, "nanobot_deploy") == 0 ||
+      strcmp(short_s, "nanobot_spawn") == 0 ||
+      strcmp(short_s, "nanobot_separate") == 0 ||
+      strcmp(short_s, "nanobot_note_pid") == 0 ||
+      strcmp(short_s, "nanobot_stop") == 0 ||
+      strcmp(short_s, "nanobot_save") == 0) {
+    {
+      const char *verb = "fleet";
+      char id[48];
+      int alive = plate_json_int(ln, "alive");
+      id[0] = 0;
+      plate_json_str(ln, "id", id, sizeof id);
+      if (strcmp(short_s, "nanobot_deploy") == 0) verb = "deploy";
+      else if (strcmp(short_s, "nanobot_spawn") == 0) verb = "spawn";
+      else if (strcmp(short_s, "nanobot_separate") == 0) verb = "separate";
+      else if (strcmp(short_s, "nanobot_note_pid") == 0) verb = "note-pid";
+      else if (strcmp(short_s, "nanobot_stop") == 0) verb = "stop";
+      else if (strcmp(short_s, "nanobot_save") == 0) verb = "save";
+      if (ok == 0 && err[0])
+        snprintf(out, cap, "· fleet · %s · deny · %s", verb, err);
+      else if (id[0] && alive >= 0)
+        snprintf(out, cap, "· fleet · %s · %s · alive=%d", verb, id, alive);
+      else if (id[0])
+        snprintf(out, cap, "· fleet · %s · %s", verb, id);
+      else if (alive >= 0)
+        snprintf(out, cap, "· fleet · %s · alive=%d", verb, alive);
+      else
+        snprintf(out, cap, "· fleet · %s", verb);
+    }
+    return 0;
+  }
+  if (strcmp(short_s, "manager_tick") == 0) {
+    {
+      int motivated = plate_json_int(ln, "motivated");
+      int incomplete = plate_json_int(ln, "incomplete");
+      if (ok == 0 && err[0])
+        snprintf(out, cap, "· manager · deny · %s", err);
+      else
+        snprintf(out, cap, "· manager · tick%s%s",
+                 motivated >= 0 ? " · motivated" : "",
+                 incomplete >= 0 ? " · incomplete" : "");
+    }
+    return 0;
+  }
+  if (strcmp(short_s, "coord") == 0) {
+    if (ok == 0 && err[0])
+      snprintf(out, cap, "· coord · deny · %s", err);
+    else
+      snprintf(out, cap, "· coord · ok · smx");
     return 0;
   }
   if (strcmp(short_s, "session_clear") == 0) {
