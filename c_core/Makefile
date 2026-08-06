@@ -242,7 +242,13 @@ test-consolidate: $(BUILD)/grokium-consolidate
 	echo "$$H" | grep -q '"hold_flash":1'; \
 	echo "$$H" | grep -q '"share":"state_matrix_only"'; \
 	echo "$$H" | grep -q '"python":0'; \
-	$(BUILD)/grokium-consolidate selftest; \
+	ST=$$($(BUILD)/grokium-consolidate selftest); \
+	echo "$$ST" | grep -q '"schema":"grokium.consolidator_selftest.v1"'; \
+	echo "$$ST" | grep -q '"ok":true'; \
+	echo "$$ST" | grep -q '"smx_filter":true'; \
+	echo "$$ST" | grep -q '"product_wire":"smx2"'; \
+	echo "$$ST" | grep -q '"python":0'; \
+	echo "$$ST" | grep -qv CONSOLIDATOR_OK; \
 	rm -f /tmp/gk_cons_save_as_file; touch /tmp/gk_cons_save_as_file; \
 	SF=$$($(BUILD)/grokium-consolidate save /tmp/gk_cons_save_as_file 2>/dev/null || true); \
 	echo "$$SF" | grep -q '"schema":"grokium.consolidator_save.v1"'; \

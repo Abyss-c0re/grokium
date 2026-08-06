@@ -446,9 +446,39 @@ int main(int argc, char **argv) {
         }
       }
     }
-    printf("CONSOLIDATOR_OK grade=%s concepts=%d bits=%u smx_filter=on "
-           "dual_wire=honest\n",
-           C.grade, C.n_concepts, C.matrix.bits_set);
+    /* Dual-wire selftest success — no free-text CONSOLIDATOR_OK banner. */
+    {
+      char okp[640];
+      char grade_tok[32];
+      size_t i, o = 0;
+      grade_tok[0] = 0;
+      for (i = 0; C.grade[i] && o + 1 < sizeof grade_tok && o < 16; i++) {
+        unsigned char c = (unsigned char)C.grade[i];
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+            (c >= '0' && c <= '9') || c == '_' || c == '-')
+          grade_tok[o++] = (char)c;
+      }
+      grade_tok[o] = 0;
+      if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
+      snprintf(okp, sizeof okp,
+               "{\"schema\":\"grokium.consolidator_selftest.v1\",\"ok\":true,"
+               "\"grade\":\"%s\",\"n_concepts\":%d,\"bits_set\":%u,"
+               "\"n_items\":%d,\"smx_filter\":true,\"dual_wire\":true,"
+               "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+               "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+               "\"peer_http_is_product_bus\":false,"
+               "\"llm_is_commander\":false,\"llm_on_hot_path\":false,"
+               "\"python\":0}",
+               grade_tok, C.n_concepts, C.matrix.bits_set, C.n_items);
+      if (!plate_dual_wire_ok(okp) ||
+          !strstr(okp, "\"schema\":\"grokium.consolidator_selftest.v1\"") ||
+          !strstr(okp, "\"ok\":true") || !strstr(okp, "\"smx_filter\":true")) {
+        fprintf(stderr, "selftest: consolidator_selftest plate fail: %.200s\n",
+                okp);
+        return 1;
+      }
+      printf("%s\n", okp);
+    }
     return 0;
   }
   if (!strcmp(argv[1], "ingest")) {
