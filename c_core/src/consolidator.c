@@ -386,6 +386,32 @@ int gk_cube_status_json(const gk_consolidator *C, int hold_flash,
   return 0;
 }
 
+/* Publish dual-wire LATEST for TUI /smx + status probe (host data/matrix). */
+static void publish_matrix_latest(const gk_consolidator *C, const char *dir) {
+  char path[640];
+  const char *slash, *base;
+  size_t n;
+  if (!C || !dir || !dir[0]) return;
+  /* Always dual-wire LATEST beside knowledge artifacts. */
+  snprintf(path, sizeof path, "%s/LATEST.json", dir);
+  (void)smx_save_json(&C->matrix, path, 0);
+  /*
+   * Canonical host plate: when saving under …/knowledge, also write
+   * …/matrix/LATEST.json (TUI /smx · status matrix probe).
+   */
+  slash = strrchr(dir, '/');
+  base = slash ? slash + 1 : dir;
+  if (strcmp(base, "knowledge") != 0) return;
+  n = slash ? (size_t)(slash - dir) : 0;
+  if (n == 0 || n + 24 >= sizeof path) return;
+  memcpy(path, dir, n);
+  path[n] = 0;
+  snprintf(path + n, sizeof path - n, "/matrix");
+  mkdir(path, 0755);
+  snprintf(path + n, sizeof path - n, "/matrix/LATEST.json");
+  (void)smx_save_json(&C->matrix, path, 0);
+}
+
 int gk_save_dir(const gk_consolidator *C, const char *dir) {
   char path[512];
   FILE *f;
@@ -401,6 +427,8 @@ int gk_save_dir(const gk_consolidator *C, const char *dir) {
   /* Compact dual-wire SMX plate for lab/ops inspection (bits truncated). */
   snprintf(path, sizeof path, "%s/matrix.json", dir);
   if (smx_save_json(&C->matrix, path, 0) != 0) return -1;
+  /* Dual-wire LATEST (dir + optional sibling data/matrix for host /smx). */
+  publish_matrix_latest(C, dir);
   smx_bits_ascii(&C->matrix, bits, sizeof bits);
   smx_sha256_hex(&C->matrix, hex);
   gk_ability(C, 0, ability, sizeof ability);

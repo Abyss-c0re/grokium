@@ -79,6 +79,11 @@ void gk_coord_err_json(const char *error, char *out, size_t cap);
  */
 void gk_save_json(const gk_consolidator *C, const char *dir, char *out,
                   size_t cap);
+/*
+ * Persist matrix.bin/json + dual-wire LATEST.json under dir.
+ * When dir basename is "knowledge", also writes sibling matrix/LATEST.json
+ * (canonical host TUI /smx · status probe path under data/).
+ */
 int  gk_save_dir(const gk_consolidator *C, const char *dir);
 int  gk_load_dir(gk_consolidator *C, const char *dir);
 #endif

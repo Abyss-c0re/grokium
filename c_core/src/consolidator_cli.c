@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 
 /* Shared dual-wire need_subcmd (no free-text usage on the machine wire). */
@@ -272,6 +273,49 @@ int main(int argc, char **argv) {
           !strstr(body, "\"python\":0")) {
         fprintf(stderr, "selftest: matrix.json dual-wire fail: %s\n", body);
         return 1;
+      }
+      /* Dual-wire LATEST.json beside save dir (not legacy free-form plate). */
+      f = fopen("/tmp/gk_consolidate_selftest/LATEST.json", "r");
+      if (!f) {
+        fprintf(stderr, "selftest: LATEST.json missing after save\n");
+        return 1;
+      }
+      n = fread(body, 1, sizeof body - 1, f);
+      body[n] = 0;
+      fclose(f);
+      if (!strstr(body, "\"schema\":\"grokium.smx.v1\"") ||
+          !strstr(body, "\"product_wire\":\"smx2\"") ||
+          !strstr(body, "\"python\":0") ||
+          !strstr(body, "\"peer_http_is_product_bus\":false") ||
+          strstr(body, "sot_bits") || strstr(body, "nexus_coord")) {
+        fprintf(stderr, "selftest: LATEST.json dual-wire fail: %s\n", body);
+        return 1;
+      }
+      /* knowledge → sibling matrix/LATEST.json (host /smx path). */
+      {
+        FILE *lf;
+        mkdir("/tmp/gk_cons_data", 0755);
+        mkdir("/tmp/gk_cons_data/knowledge", 0755);
+        if (gk_save_dir(&C, "/tmp/gk_cons_data/knowledge") != 0) {
+          fprintf(stderr, "selftest: knowledge save_dir failed\n");
+          return 1;
+        }
+        lf = fopen("/tmp/gk_cons_data/matrix/LATEST.json", "r");
+        if (!lf) {
+          fprintf(stderr, "selftest: knowledge→matrix/LATEST.json missing\n");
+          return 1;
+        }
+        n = fread(body, 1, sizeof body - 1, lf);
+        body[n] = 0;
+        fclose(lf);
+        if (!strstr(body, "\"product_wire\":\"smx2\"") ||
+            !strstr(body, "\"python\":0") ||
+            !strstr(body, "\"schema\":\"grokium.smx.v1\"") ||
+            strstr(body, "sot_bits")) {
+          fprintf(stderr, "selftest: matrix/LATEST dual-wire fail: %s\n",
+                  body);
+          return 1;
+        }
       }
       /* Shared compact plate builder must match on-disk matrix.json. */
       {
