@@ -142,8 +142,61 @@ int main(void) {
         !strstr(out, "smx_filter_deny"))
       return fail("ui_line coord deny human");
   }
+  /* Integrity / contract / ability / commander human lines. */
+  {
+    const char *ir =
+        "{\"schema\":\"grokium.integrity_report.v1\",\"ok\":true,"
+        "\"privacy_ok\":true,\"code_seal_ok\":true,\"mismatches\":0}";
+    const char *ibad =
+        "{\"schema\":\"grokium.integrity_report.v1\",\"ok\":false,"
+        "\"error\":\"no_code_seal\",\"hint\":\"reseal\"}";
+    const char *cf =
+        "{\"schema\":\"grokium.contract_form.v1\",\"ok\":true,"
+        "\"id\":\"c1\",\"assignee\":\"nb-manager\"}";
+    const char *ab =
+        "{\"schema\":\"grokium.ability.v1\",\"ok\":true,"
+        "\"grade\":\"STRONG\",\"seal_ok\":true,\"fresh\":true}";
+    const char *cmd =
+        "{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
+        "\"fingerprint\":\"deadbeef\",\"has_sk\":true}";
+    const char *smx =
+        "{\"schema\":\"grokium.smx.v1\",\"ok\":true,"
+        "\"bits_set\":32,\"grade\":\"OK\"}";
+    const char *sess =
+        "{\"schema\":\"grokium.sessions.v1\",\"ok\":true,\"n\":3}";
+    gkx_plate_ui_line(ir, 0, out, sizeof out);
+    if (!strstr(out, "integrity") || !strstr(out, "ok") ||
+        !strstr(out, "privacy") || !strstr(out, "seal") ||
+        strstr(out, "\"schema\""))
+      return fail("ui_line integrity ok human");
+    gkx_plate_ui_line(ibad, 0, out, sizeof out);
+    if (!strstr(out, "integrity") || !strstr(out, "deny") ||
+        !strstr(out, "no_code_seal"))
+      return fail("ui_line integrity deny human");
+    gkx_plate_ui_line(cf, 0, out, sizeof out);
+    if (!strstr(out, "contract") || !strstr(out, "form") ||
+        !strstr(out, "c1") || !strstr(out, "nb-manager"))
+      return fail("ui_line contract form human");
+    gkx_plate_ui_line(ab, 0, out, sizeof out);
+    if (!strstr(out, "ability") || !strstr(out, "STRONG") ||
+        !strstr(out, "seal") || !strstr(out, "fresh"))
+      return fail("ui_line ability human");
+    gkx_plate_ui_line(cmd, 0, out, sizeof out);
+    if (!strstr(out, "commander") || !strstr(out, "deadbeef") ||
+        !strstr(out, "sk"))
+      return fail("ui_line commander human");
+    gkx_plate_ui_line(smx, 0, out, sizeof out);
+    if (!strstr(out, "smx") || !strstr(out, "bits=32") ||
+        !strstr(out, "OK"))
+      return fail("ui_line smx human");
+    gkx_plate_ui_line(sess, 0, out, sizeof out);
+    if (!strstr(out, "session") || !strstr(out, "list") ||
+        !strstr(out, "n=3"))
+      return fail("ui_line sessions human");
+  }
 
   printf("HOST_PLATE_LINE_OK dual_wire=keep free_json=drop debug=pass "
-         "compact_schema=1 ui_line=human fleet_hub_manager=1\n");
+         "compact_schema=1 ui_line=human fleet_hub_manager=1 "
+         "integrity_contract_cmd=1\n");
   return 0;
 }

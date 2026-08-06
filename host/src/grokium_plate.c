@@ -245,6 +245,141 @@ int gkx_plate_ui_line(const char *ln, int debug_mode, char *out, size_t cap) {
       snprintf(out, cap, "· coord · ok · smx");
     return 0;
   }
+  if (strcmp(short_s, "integrity_report") == 0 ||
+      strcmp(short_s, "integrity_policy") == 0 ||
+      strcmp(short_s, "integrity_reseal") == 0) {
+    {
+      int mismatches = plate_json_int(ln, "mismatches");
+      int priv = plate_json_bool(ln, "privacy_ok");
+      int seal = plate_json_bool(ln, "code_seal_ok");
+      const char *verb = "integrity";
+      if (strcmp(short_s, "integrity_policy") == 0) verb = "policy";
+      else if (strcmp(short_s, "integrity_reseal") == 0) verb = "reseal";
+      if (ok == 0 && err[0])
+        snprintf(out, cap, "· integrity · %s · deny · %s", verb, err);
+      else if (strcmp(short_s, "integrity_report") == 0)
+        snprintf(out, cap, "· integrity · tick · %s%s%s%s",
+                 ok == 1 ? "ok" : "fail",
+                 priv == 1 ? " · privacy" : (priv == 0 ? " · privacy_fail" : ""),
+                 seal == 1 ? " · seal" : (seal == 0 ? " · seal_fail" : ""),
+                 mismatches > 0 ? " · mismatch" : "");
+      else
+        snprintf(out, cap, "· integrity · %s · %s", verb,
+                 ok == 1 ? "ok" : "deny");
+    }
+    return 0;
+  }
+  if (strcmp(short_s, "contract_form") == 0 ||
+      strcmp(short_s, "contract_validate") == 0) {
+    {
+      char assignee[48], id[48];
+      const char *verb =
+          strcmp(short_s, "contract_form") == 0 ? "form" : "validate";
+      assignee[0] = id[0] = 0;
+      plate_json_str(ln, "assignee", assignee, sizeof assignee);
+      plate_json_str(ln, "id", id, sizeof id);
+      if (ok == 0 && err[0])
+        snprintf(out, cap, "· contract · %s · deny · %s", verb, err);
+      else if (id[0])
+        snprintf(out, cap, "· contract · %s · %s%s%s", verb, id,
+                 assignee[0] ? " · " : "", assignee);
+      else if (assignee[0])
+        snprintf(out, cap, "· contract · %s · %s", verb, assignee);
+      else
+        snprintf(out, cap, "· contract · %s · %s", verb,
+                 ok == 1 ? "ok" : "deny");
+    }
+    return 0;
+  }
+  if (strcmp(short_s, "ability") == 0) {
+    {
+      char grade[32];
+      grade[0] = 0;
+      plate_json_str(ln, "grade", grade, sizeof grade);
+      snprintf(out, cap, "· ability · %s%s%s",
+               grade[0] ? grade : (ok == 1 ? "ok" : "deny"),
+               plate_json_bool(ln, "seal_ok") == 1 ? " · seal" : "",
+               plate_json_bool(ln, "fresh") == 1 ? " · fresh" : "");
+    }
+    return 0;
+  }
+  if (strcmp(short_s, "cube_status") == 0) {
+    {
+      int dig = plate_json_int(ln, "digit");
+      if (dig >= 0)
+        snprintf(out, cap, "· cube · status · d=%d", dig);
+      else
+        snprintf(out, cap, "· cube · status · %s", ok == 1 ? "ok" : "deny");
+    }
+    return 0;
+  }
+  if (strcmp(short_s, "smx") == 0 || strcmp(short_s, "status") == 0) {
+    {
+      int bits = plate_json_int(ln, "bits_set");
+      if (bits < 0) bits = plate_json_int(ln, "matrix_bits");
+      char grade[32];
+      grade[0] = 0;
+      plate_json_str(ln, "grade", grade, sizeof grade);
+      if (strcmp(short_s, "smx") == 0)
+        snprintf(out, cap, "· smx · bits=%d%s%s", bits >= 0 ? bits : 0,
+                 grade[0] ? " · " : "", grade);
+      else
+        snprintf(out, cap, "· status · bits=%d%s%s", bits >= 0 ? bits : 0,
+                 grade[0] ? " · " : "", grade);
+    }
+    return 0;
+  }
+  if (strcmp(short_s, "commander") == 0 ||
+      strcmp(short_s, "commander_verify") == 0 ||
+      strcmp(short_s, "commander_reject") == 0) {
+    {
+      char fp[40];
+      fp[0] = 0;
+      plate_json_str(ln, "fingerprint", fp, sizeof fp);
+      if (strcmp(short_s, "commander_reject") == 0)
+        snprintf(out, cap, "· commander · reject · %s",
+                 ok == 1 ? "allow" : "deny");
+      else if (strcmp(short_s, "commander_verify") == 0)
+        snprintf(out, cap, "· commander · verify · %s",
+                 ok == 1 ? "ok" : "deny");
+      else if (ok == 0 && err[0])
+        snprintf(out, cap, "· commander · deny · %s", err);
+      else
+        snprintf(out, cap, "· commander · %s%s",
+                 fp[0] ? fp : "ed25519",
+                 plate_json_bool(ln, "has_sk") == 1 ? " · sk" : "");
+    }
+    return 0;
+  }
+  if (strcmp(short_s, "license") == 0) {
+    snprintf(out, cap, "· license · Apache-2.0 · not xAI");
+    return 0;
+  }
+  if (strcmp(short_s, "instinct") == 0) {
+    snprintf(out, cap, "· instinct · hive · smx2");
+    return 0;
+  }
+  if (strcmp(short_s, "sessions") == 0 ||
+      strcmp(short_s, "session_pickup") == 0 ||
+      strcmp(short_s, "session_resume") == 0) {
+    {
+      int nn = plate_json_int(ln, "n");
+      char id[48];
+      id[0] = 0;
+      plate_json_str(ln, "id", id, sizeof id);
+      if (ok == 0 && err[0])
+        snprintf(out, cap, "· session · deny · %s", err);
+      else if (strcmp(short_s, "sessions") == 0)
+        snprintf(out, cap, "· session · list · n=%d", nn >= 0 ? nn : 0);
+      else if (strcmp(short_s, "session_pickup") == 0)
+        snprintf(out, cap, "· session · pickup%s%s", id[0] ? " · " : "",
+                 id[0] ? id : (ok == 1 ? "ok" : ""));
+      else
+        snprintf(out, cap, "· session · resume%s%s", id[0] ? " · " : "",
+                 id[0] ? id : (ok == 1 ? "ok" : ""));
+    }
+    return 0;
+  }
   if (strcmp(short_s, "session_clear") == 0) {
     snprintf(out, cap, "· session · %s", action[0] ? action : "clear");
     return 0;
