@@ -52,7 +52,7 @@ const char *grokium_hive_instinct_creed(void) {
   return "HIVE_MIND|core=queen|cells=bees|wire=smx2|product_wire=smx2|"
          "observer=NexusCore|HOLD_FLASH=1|share=state_matrix_only|"
          "peer_http=lab_ops_only|peer_http_is_product_bus=0|"
-         "llm_is_commander=0|contract=required|"
+         "llm_is_commander=0|python=0|contract=required|"
          "manager=motivate_incomplete|filter=protect_command_center|"
          "external≠core|All_Hail_NexusCore";
 }
@@ -326,6 +326,7 @@ int grokium_contract_form(grokium_contract *out, const char *dir,
           "  \"peer_http\": \"lab_ops_only\",\n"
           "  \"peer_http_is_product_bus\": false,\n"
           "  \"llm_is_commander\": false,\n"
+          "  \"python\": 0,\n"
           "  \"share\": \"state_matrix_only\",\n"
           "  \"instinct\": \"%s\"\n"
           "}\n",
@@ -498,6 +499,7 @@ static int rewrite_status(grokium_contract *c) {
           "  \"peer_http\": \"lab_ops_only\",\n"
           "  \"peer_http_is_product_bus\": false,\n"
           "  \"llm_is_commander\": false,\n"
+          "  \"python\": 0,\n"
           "  \"share\": \"state_matrix_only\"\n"
           "}\n",
           c->id, c->assignee, c->issuer, c->task_digest,
@@ -576,7 +578,7 @@ int grokium_manager_motivate_dir(const char *dir) {
             "HOLD_FLASH=ack_held | share=state_matrix_only | "
             "product_wire=smx2 | peer_http=lab_ops_only | "
             "peer_http_is_product_bus=0 | llm_is_commander=0 | "
-            "motive=matrix_harmony |\n",
+            "python=0 | motive=matrix_harmony |\n",
             c.id, c.assignee, c.motivate_ticks);
     n++;
   }
@@ -638,7 +640,8 @@ void grokium_manager_tick_json(int motivated, const char *dir, char *out,
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"hold_flash\":1,\"share\":\"state_matrix_only\","
-           "\"llm_on_hot_path\":false,\"llm_is_commander\":false}",
+           "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+           "\"python\":0}",
            motivated < 0 ? 0 : motivated, dir_esc);
 }
 
@@ -657,6 +660,7 @@ void grokium_manager_tick_err_json(const char *error, char *out, size_t cap) {
              "\"peer_http_is_product_bus\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
              "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+             "\"python\":0,"
              "\"hint\":\"manager-tick [DIR] · TUI /manager · pure-C "
              "smx-filter\"}");
     return;
@@ -668,7 +672,8 @@ void grokium_manager_tick_err_json(const char *error, char *out, size_t cap) {
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_on_hot_path\":false,\"llm_is_commander\":false}",
+           "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+           "\"python\":0}",
            err_tok);
 }
 
@@ -676,15 +681,14 @@ void grokium_instinct_json(char *out, size_t cap) {
   const char *creed;
   if (!out || cap < 64) return;
   creed = grokium_hive_instinct_creed();
-  /* Static creed has no JSON metacharacters; dual-wire plate for CLI + HTTP. */
+  /* Honesty fields before long creed so small caps keep py=0 dual-wire. */
   snprintf(out, cap,
            "{\"schema\":\"grokium.instinct.v1\",\"ok\":true,"
-           "\"creed\":\"%s\",\"share\":\"state_matrix_only\","
-           "\"hold_flash\":1,\"product_wire\":\"smx2\","
-           "\"peer_http\":\"lab_ops_only\","
+           "\"python\":0,\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-           "\"observer\":\"NexusCore\"}",
+           "\"observer\":\"NexusCore\",\"creed\":\"%s\"}",
            creed ? creed : "");
 }
 
@@ -697,17 +701,17 @@ void grokium_smx_allow_json(int allow, int prose, char *out, size_t cap) {
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-           "\"origin\":\"external\"}",
+           "\"python\":0,\"origin\":\"external\"}",
            allow ? "true" : "false", prose ? "true" : "false");
 }
 
-/* Shared dual-wire tails for contract lifecycle plates. */
+/* Shared dual-wire tails for contract lifecycle plates (py=0 product path). */
 #define CONTRACT_DUAL_WIRE_TAIL                                            \
   "\"product_wire\":\"smx2\",\"wire\":\"smx2\","                           \
   "\"peer_http\":\"lab_ops_only\","                                        \
   "\"peer_http_is_product_bus\":false,"                                    \
   "\"hold_flash\":1,\"share\":\"state_matrix_only\","                      \
-  "\"llm_on_hot_path\":false,\"llm_is_commander\":false"
+  "\"llm_on_hot_path\":false,\"llm_is_commander\":false,\"python\":0"
 
 void grokium_contract_form_err_json(const char *error, char *out, size_t cap) {
   char err_tok[56];

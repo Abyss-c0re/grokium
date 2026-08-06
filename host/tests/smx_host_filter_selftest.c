@@ -53,7 +53,7 @@ int main(void) {
 
   /* Shared allow plate dual-wire honesty (CLI allow-check same builder). */
   {
-    char plate[512];
+    char plate[1024];
     int allow = grokium_smx_filter_allow_frame(&L, (const uint8_t *)good,
                                                strlen(good), 1);
     int prose_f = grokium_smx_filter_is_prose(good, strlen(good));
@@ -63,13 +63,14 @@ int main(void) {
         !strstr(plate, "\"product_wire\":\"smx2\"") ||
         !strstr(plate, "\"peer_http_is_product_bus\":false") ||
         !strstr(plate, "\"llm_is_commander\":false") ||
-        !strstr(plate, "\"hold_flash\":1"))
+        !strstr(plate, "\"hold_flash\":1") || !strstr(plate, "\"python\":0"))
       return fail("smx_allow dual-wire plate fail");
     grokium_instinct_json(plate, sizeof plate);
     if (!strstr(plate, "\"schema\":\"grokium.instinct.v1\"") ||
         !strstr(plate, "HIVE_MIND") ||
         !strstr(plate, "\"product_wire\":\"smx2\"") ||
-        !strstr(plate, "\"llm_on_hot_path\":false"))
+        !strstr(plate, "\"llm_on_hot_path\":false") ||
+        !strstr(plate, "\"python\":0") || !strstr(plate, "python=0"))
       return fail("instinct dual-wire plate fail");
     /* Shared manager help plate (TUI /manager help|? + CLI manager-tick help). */
     grokium_manager_tick_err_json("need_dir_or_run", plate, sizeof plate);
@@ -82,7 +83,8 @@ int main(void) {
         !strstr(plate, "\"llm_is_commander\":false") ||
         !strstr(plate, "\"llm_on_hot_path\":false") ||
         !strstr(plate, "\"hold_flash\":1") ||
-        !strstr(plate, "\"share\":\"state_matrix_only\""))
+        !strstr(plate, "\"share\":\"state_matrix_only\"") ||
+        !strstr(plate, "\"python\":0"))
       return fail("manager_tick help dual-wire plate fail");
     /* Shared license plate (GET /v1/license · host CLI/TUI · serve CLI). */
     grokium_license_json(plate, sizeof plate);
