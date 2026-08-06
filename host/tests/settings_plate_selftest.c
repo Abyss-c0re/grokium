@@ -162,7 +162,39 @@ int main(void) {
       !strstr(plate, "\"send\":\"alt_enter\"") || !plate_dual_wire(plate))
     return fail("multiline off dual-wire plate");
 
+  /* /expand|/collapse dual-wire (host UX · no free-text spoilers banner). */
+  gkx_spoilers_json(1, plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.spoilers.v1\"") ||
+      !strstr(plate, "\"ok\":true") || !strstr(plate, "\"expanded\":true") ||
+      !strstr(plate, "\"state\":\"expanded\"") || !plate_dual_wire(plate))
+    return fail("spoilers expanded dual-wire plate");
+  gkx_spoilers_json(0, plate, sizeof plate);
+  if (!strstr(plate, "\"expanded\":false") ||
+      !strstr(plate, "\"state\":\"collapsed\"") || !plate_dual_wire(plate))
+    return fail("spoilers collapsed dual-wire plate");
+
+  /* /debug dual-wire (host UX · no free-text ON/OFF banner). */
+  gkx_debug_json(1, plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.debug.v1\"") ||
+      !strstr(plate, "\"ok\":true") || !strstr(plate, "\"debug\":true") ||
+      !plate_dual_wire(plate))
+    return fail("debug on dual-wire plate");
+  gkx_debug_json(0, plate, sizeof plate);
+  if (!strstr(plate, "\"debug\":false") || !plate_dual_wire(plate))
+    return fail("debug off dual-wire plate");
+
+  /* /always-approve|/yolo dual-wire (host UX · no free-text ON/OFF banner). */
+  gkx_always_approve_json(1, plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.always_approve.v1\"") ||
+      !strstr(plate, "\"ok\":true") ||
+      !strstr(plate, "\"always_approve\":true") || !plate_dual_wire(plate))
+    return fail("always_approve on dual-wire plate");
+  gkx_always_approve_json(0, plate, sizeof plate);
+  if (!strstr(plate, "\"always_approve\":false") || !plate_dual_wire(plate))
+    return fail("always_approve off dual-wire plate");
+
   printf("HOST_SETTINGS_PLATE_OK dual_wire=honest sanitize=1 saved=1 "
-         "no_config=1 backend=1 model=1 context=1 multiline=1 python=0\n");
+         "no_config=1 backend=1 model=1 context=1 multiline=1 spoilers=1 "
+         "debug=1 always_approve=1 python=0\n");
   return 0;
 }

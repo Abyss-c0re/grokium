@@ -143,4 +143,24 @@ void gkx_context_json(int context_window, int saved, char *out, size_t cap);
  */
 void gkx_multiline_json(int on, int saved, char *out, size_t cap);
 
+/*
+ * Dual-wire spoilers plate (schema grokium.spoilers.v1).
+ * Host TUI /expand|/collapse — no free-text spoilers: expanded banner.
+ * expanded!=0 → state=expanded; else state=collapsed.
+ */
+void gkx_spoilers_json(int expanded, char *out, size_t cap);
+
+/*
+ * Dual-wire debug plate (schema grokium.debug.v1).
+ * Host TUI /debug toggle — no free-text debug ON/OFF banner.
+ */
+void gkx_debug_json(int on, char *out, size_t cap);
+
+/*
+ * Dual-wire always-approve plate (schema grokium.always_approve.v1).
+ * Host TUI /always-approve|/yolo toggle — no free-text ON/OFF banner.
+ * on!=0 → shell auto-approve (NANOBOT_ALWAYS_APPROVE).
+ */
+void gkx_always_approve_json(int on, char *out, size_t cap);
+
 #endif

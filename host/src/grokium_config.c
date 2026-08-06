@@ -553,3 +553,43 @@ void gkx_multiline_json(int on, int saved, char *out, size_t cap) {
            on ? "true" : "false", saved ? "true" : "false",
            on ? "newline" : "send", on ? "alt_enter_or_ctrl_s" : "alt_enter");
 }
+
+void gkx_spoilers_json(int expanded, char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Shared dual-wire spoilers plate: TUI /expand|/collapse (host UX · py=0). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.spoilers.v1\",\"ok\":true,"
+           "\"expanded\":%s,\"state\":\"%s\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"tools\":false,\"python\":0}",
+           expanded ? "true" : "false",
+           expanded ? "expanded" : "collapsed");
+}
+
+void gkx_debug_json(int on, char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Shared dual-wire debug plate: TUI /debug (host UX · py=0). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.debug.v1\",\"ok\":true,"
+           "\"debug\":%s,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"tools\":false,\"python\":0}",
+           on ? "true" : "false");
+}
+
+void gkx_always_approve_json(int on, char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Shared dual-wire always-approve: TUI /always-approve|/yolo (host UX). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.always_approve.v1\",\"ok\":true,"
+           "\"always_approve\":%s,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"tools\":false,\"python\":0}",
+           on ? "true" : "false");
+}

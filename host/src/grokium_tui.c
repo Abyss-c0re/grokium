@@ -1603,24 +1603,36 @@ static void do_command(const char *raw) {
     return;
   }
   if (strcmp(cmd, "expand") == 0 || strcmp(cmd, "open") == 0) {
+    char plate[512];
     spoilers_set_all(1);
-    log_add("spoilers: expanded");
+    /* Dual-wire spoilers plate — no free-text spoilers: expanded banner. */
+    gkx_spoilers_json(1, plate, sizeof plate);
+    log_add(plate);
     return;
   }
   if (strcmp(cmd, "collapse") == 0 || strcmp(cmd, "fold") == 0) {
+    char plate[512];
     spoilers_set_all(0);
-    log_add("spoilers: collapsed");
+    /* Dual-wire spoilers plate — no free-text spoilers: collapsed banner. */
+    gkx_spoilers_json(0, plate, sizeof plate);
+    log_add(plate);
     return;
   }
   if (strcmp(cmd, "debug") == 0) {
+    char plate[512];
     debug_mode = !debug_mode;
-    log_add(debug_mode ? "debug ON" : "debug OFF");
+    /* Dual-wire debug plate — no free-text debug ON/OFF banner. */
+    gkx_debug_json(debug_mode, plate, sizeof plate);
+    log_add(plate);
     return;
   }
   if (strcmp(cmd, "always-approve") == 0 || strcmp(cmd, "yolo") == 0) {
+    char plate[512];
     always_approve = !always_approve;
     setenv("NANOBOT_ALWAYS_APPROVE", always_approve ? "1" : "0", 1);
-    log_add(always_approve ? "always-approve ON" : "always-approve OFF");
+    /* Dual-wire always-approve plate — no free-text ON/OFF banner. */
+    gkx_always_approve_json(always_approve, plate, sizeof plate);
+    log_add(plate);
     return;
   }
   if (strcmp(cmd, "login") == 0 || strcmp(cmd, "grok") == 0) {
