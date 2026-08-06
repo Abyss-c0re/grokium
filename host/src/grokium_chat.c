@@ -341,8 +341,15 @@ static int chat_core(const gkx_config *cfg, const char *msg,
     setenv("NANOBOT_LLM_SERIAL", "1", 1);
     /* Desktop host: real agent tools + long-running budgets */
     setenv("NANOBOT_TOOLS", cfg->agent_tools ? "1" : "0", 1);
+    /* Local llama tool-calling: always opt-in when host tools enabled. */
     setenv("NANOBOT_LOCAL_TOOLS", cfg->agent_tools ? "1" : "0", 1);
     setenv("NANOBOT_BRAINCELLS", cfg->agent_braincells ? "1" : "0", 1);
+    /* Subagents: parent can spawn explore/plan/general (both local + Grok). */
+    if (cfg->agent_tools) {
+      setenv("NANOBOT_SUBAGENTS", "1", 1);
+      if (!getenv("NANOBOT_SUBAGENTS_MAX"))
+        setenv("NANOBOT_SUBAGENTS_MAX", "8", 1);
+    }
     setenv("NANOBOT_SHOW_THINKING", cfg->ui_show_thinking ? "1" : "0", 1);
     if (cfg->adapter_tool_style[0])
       setenv("NANOBOT_TOOL_STYLE", cfg->adapter_tool_style, 1);

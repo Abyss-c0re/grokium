@@ -77,7 +77,29 @@ int main(void) {
   if (gkx_filter_tool_block("", 0, out, sizeof out) != 0)
     return fail("empty text");
 
+  /* Human UI line — no raw JSON on chat surface */
+  if (gkx_plate_ui_line(NULL, 0, out, sizeof out) != 0)
+    return fail("ui_line null");
+  if (gkx_plate_ui_line(plate, 0, out, sizeof out) != 0)
+    return fail("ui_line plate");
+  if (!strstr(out, "coord"))
+    return fail("ui_line should humanize plate");
+  if (strstr(out, "\"schema\""))
+    return fail("ui_line must not show raw schema JSON");
+  if (gkx_plate_ui_line(plate, 1, out, sizeof out) != 0)
+    return fail("ui_line debug");
+  if (!strstr(out, "\"schema\""))
+    return fail("ui_line debug keeps JSON");
+  {
+    const char *ready =
+        "{\"schema\":\"grokium.ready.v1\",\"ok\":true,\"hub\":true,"
+        "\"tools\":true,\"multiline\":true}";
+    gkx_plate_ui_line(ready, 0, out, sizeof out);
+    if (!strstr(out, "ready") || !strstr(out, "Enter=send"))
+      return fail("ui_line ready human");
+  }
+
   printf("HOST_PLATE_LINE_OK dual_wire=keep free_json=drop debug=pass "
-         "compact_schema=1\n");
+         "compact_schema=1 ui_line=human\n");
   return 0;
 }

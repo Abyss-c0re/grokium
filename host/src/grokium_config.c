@@ -33,7 +33,8 @@ void gkx_config_init(gkx_config *c) {
   c->hub_enabled = 1;
   c->llm_slots = 1;
   c->hub_port = 8787;
-  c->agent_max_turns = 64;
+  /* Long-horizon agent work: high turn budget; task hard_max can stretch further. */
+  c->agent_max_turns = 96;
   c->agent_cmd_timeout_sec = 900;
   c->agent_http_timeout_sec = 600;
   c->agent_tools = 1;
@@ -60,7 +61,8 @@ void gkx_config_init(gkx_config *c) {
   snprintf(c->ui_color_accent, sizeof c->ui_color_accent, "cyan");
   snprintf(c->ui_color_ok, sizeof c->ui_color_ok, "green");
   c->ui_scroll_step = 5;
-  snprintf(c->ui_send_hint, sizeof c->ui_send_hint, "Enter=nl · Alt+Enter/Ctrl+S=send");
+  snprintf(c->ui_send_hint, sizeof c->ui_send_hint,
+           "Enter=send · Shift/Alt+Enter=nl · / cmds");
   snprintf(c->ui_welcome_line, sizeof c->ui_welcome_line,
            "local-first · pure C · /settings · /help");
   snprintf(c->adapter_tool_style, sizeof c->adapter_tool_style, "auto");
@@ -234,18 +236,30 @@ static int load_file(gkx_config *c, const char *path) {
 int gkx_config_load(gkx_config *c, const char *path_or_null) {
   int loaded = 0;
   gkx_config_init(c);
-  if (path_or_null && path_or_null[0] && load_file(c, path_or_null) == 0)
-    return 0;
-  const char *root = getenv("GROKIUM_ROOT");
-  char try[PATH_MAX];
-  if (root && root[0]) {
-    snprintf(try, sizeof try, "%s/config/config.toml", root);
-    if (load_file(c, try) == 0) loaded = 1;
+  if (path_or_null && path_or_null[0] && load_file(c, path_or_null) == 0) {
+    loaded = 1;
+  } else {
+    const char *root = getenv("GROKIUM_ROOT");
+    char try[PATH_MAX];
+    if (root && root[0]) {
+      snprintf(try, sizeof try, "%s/config/config.toml", root);
+      if (load_file(c, try) == 0) loaded = 1;
+    }
+    {
+      const char *home = getenv("HOME");
+      if (home) {
+        snprintf(try, sizeof try, "%s/.grokium/config.toml", home);
+        if (load_file(c, try) == 0) loaded = 1; /* user overrides project */
+      }
+    }
   }
-  const char *home = getenv("HOME");
-  if (home) {
-    snprintf(try, sizeof try, "%s/.grokium/config.toml", home);
-    if (load_file(c, try) == 0) loaded = 1; /* user overrides project */
+  /* Migrate stale send-hint strings from older multiline UX. */
+  if (c->ui_send_hint[0] &&
+      (strstr(c->ui_send_hint, "Enter=nl") ||
+       strstr(c->ui_send_hint, "Enter = nl") ||
+       strstr(c->ui_send_hint, "Alt+Enter/Ctrl+S=send"))) {
+    snprintf(c->ui_send_hint, sizeof c->ui_send_hint,
+             "Enter=send · Shift/Alt+Enter=nl · / cmds");
   }
   return loaded ? 0 : 1;
 }
@@ -578,17 +592,18 @@ void gkx_context_json(int context_window, int saved, char *out, size_t cap) {
 
 void gkx_multiline_json(int on, int saved, char *out, size_t cap) {
   if (!out || cap < 64) return;
-  /* Shared dual-wire multiline plate: TUI /multiline|/ml (host UX · py=0). */
+  /* Shared dual-wire multiline plate: TUI /multiline|/ml (host UX · py=0).
+   * Product UX: Enter always sends; Shift/Alt+Enter insert newline when ml on. */
   snprintf(out, cap,
            "{\"schema\":\"grokium.multiline.v1\",\"ok\":true,"
            "\"multiline\":%s,\"saved\":%s,"
-           "\"enter\":\"%s\",\"send\":\"%s\","
+           "\"enter\":\"send\",\"newline\":\"%s\","
            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"llm_is_commander\":false,\"tools\":false,\"python\":0}",
            on ? "true" : "false", saved ? "true" : "false",
-           on ? "newline" : "send", on ? "alt_enter_or_ctrl_s" : "alt_enter");
+           on ? "shift_or_alt_enter" : "disabled");
 }
 
 void gkx_spoilers_json(int expanded, char *out, size_t cap) {
@@ -714,10 +729,9 @@ void gkx_tui_help_json(char *out, size_t cap) {
            "\"peer_http_is_product_bus\":false,"
            "\"llm_is_commander\":false,\"tools\":false,\"python\":0,"
            "\"commander_is_model\":false,"
-           "\"hint\":\"/settings|/coord|/smx|/sessions|/pickup|/mode|/law|"
-           "/license|/status|/fleet|/manager|/contract|/hub|/integrity|"
-           "/commander|/attach|/viz|/model|/shell|/q · multiline "
-           "Alt+Enter/Ctrl+S · spoilers Tab\"}");
+           "\"hint\":\"/settings|/coord|/smx|/sessions|/pickup|/fleet|/auth|"
+           "/login|/model|/backend|/shell|/manager|/contract|/hub|/q · "
+           "Enter=send · Shift/Alt+Enter=nl · spoilers Tab\"}");
 }
 
 void gkx_cli_help_json(char *out, size_t cap) {
@@ -731,9 +745,9 @@ void gkx_cli_help_json(char *out, size_t cap) {
            "\"peer_http_is_product_bus\":false,"
            "\"llm_is_commander\":false,\"commander_is_model\":false,"
            "\"python\":0,\"telemetry\":\"off\","
-           "\"hint\":\"help|chat|tui|-p|serve|fleet|filter|coord|contract|"
-           "manager-tick|commander|sessions|pickup|law|license|status|"
-           "llama|integrity|hub|models|compat|board · backend=local\"}");
+           "\"hint\":\"help|chat|tui|-p|login|auth|serve|fleet|filter|coord|"
+           "contract|manager-tick|commander|sessions|pickup|law|license|"
+           "status|llama|integrity|hub|models|compat|board · backend=local\"}");
 }
 
 void gkx_models_list_json(int n, const char *backend, const char *active,
@@ -772,7 +786,8 @@ void gkx_ready_json(int hub, int tools, int multiline, char *out, size_t cap) {
            "\"peer_http_is_product_bus\":false,"
            "\"llm_is_commander\":false,\"commander_is_model\":false,"
            "\"python\":0,\"telemetry\":\"off\","
-           "\"hint\":\"/help · /settings\"}",
+           "\"vision\":\"perfect_assistant\","
+           "\"hint\":\"Enter=send · / agents fleet auth · tools on both cores\"}",
            hub ? "true" : "false", tools ? "true" : "false",
            multiline ? "true" : "false");
 }

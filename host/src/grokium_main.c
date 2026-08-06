@@ -11,6 +11,8 @@
 #include "grokium_llama.h"
 #include "grokium_consolidator.h"
 #include "grokium_smx_filter.h"
+#include "auth.h"
+#include "util.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -477,6 +479,59 @@ int main(int argc, char **argv) {
     usage();
     return 0;
   }
+  /* Auth CLI: status + import from ~/.grok (dual-wire plate only · py=0). */
+  if (strcmp(cmd, "auth") == 0 || strcmp(cmd, "login") == 0) {
+    gkx_config cfg2 = cfg;
+    char plate[512], tok[64], home[PATH_MAX];
+    int has = 0;
+    const char *sub = (ai + 1 < argc) ? argv[ai + 1] : "";
+    resolve_paths();
+    snprintf(home, sizeof home, "%s/nanobot_home", state_dir);
+    mkdir(home, 0700);
+    setenv("NANOBOT_HOME", home, 1);
+    ng_set_workdir(home);
+    /* Keep nanobot import noise off stdout/stderr — plate is the surface. */
+    ng_log_set_stderr(0);
+    ng_log_init(NULL);
+    if (strcmp(cmd, "login") == 0 ||
+        (sub[0] && (strcmp(sub, "login") == 0 || strcmp(sub, "oauth") == 0 ||
+                    strcmp(sub, "device") == 0))) {
+      /* Optional: fork user-installed grok login, then import. */
+      const char *grok = getenv("GROK_CLI");
+      char *av[6];
+      int ac = 0, st = 0;
+      pid_t pid;
+      int device = (sub[0] && strstr(sub, "device") != NULL) ||
+                  (ai + 2 < argc && strstr(argv[ai + 2], "device") != NULL);
+      if (!grok || !grok[0]) grok = "grok";
+      av[ac++] = (char *)grok;
+      av[ac++] = "login";
+      av[ac++] = device ? "--device-auth" : "--oauth";
+      av[ac] = NULL;
+      pid = fork();
+      if (pid == 0) {
+        execvp(grok, av);
+        _exit(127);
+      }
+      if (pid > 0) waitpid(pid, &st, 0);
+    }
+    if (!sub[0] || strcmp(sub, "import") == 0 || strcmp(sub, "sync") == 0 ||
+        strcmp(sub, "status") == 0 || strcmp(cmd, "login") == 0 ||
+        strcmp(sub, "login") == 0 || strcmp(sub, "oauth") == 0 ||
+        strcmp(sub, "device") == 0) {
+      ng_session s;
+      int irc;
+      ng_session_init(&s);
+      irc = ng_session_try_import_grok_cli(&s);
+      if (irc == 1) ng_session_save(&s);
+      has = (irc == 1) || (grokium_load_grok_token(tok, sizeof tok) == 0);
+      ng_session_free(&s);
+    }
+    /* Dual-wire auth plate only — never free-text import banners. */
+    gkx_auth_json(has, cfg2.active_backend, plate, sizeof plate);
+    printf("%s\n", plate);
+    return has ? 0 : 1;
+  }
   if (strcmp(cmd, "version") == 0) {
     char plate[512];
     /* Shared dual-wire product version plate (lab/ops ≠ product bus). */
@@ -790,7 +845,8 @@ int main(int argc, char **argv) {
           strcmp(cmd, "integrity") != 0 &&
           strcmp(cmd, "sessions") != 0 && strcmp(cmd, "session") != 0 &&
           strcmp(cmd, "pickup") != 0 && strcmp(cmd, "load") != 0 &&
-          strcmp(cmd, "law") != 0 && strcmp(cmd, "laws") != 0) {
+          strcmp(cmd, "law") != 0 && strcmp(cmd, "laws") != 0 &&
+          strcmp(cmd, "auth") != 0 && strcmp(cmd, "login") != 0) {
         /* Prefer TUI for bare `grokium`; multi-word → prompt */
         if (argc > 2 || (argc == 2 && strchr(argv[1], ' ')))
           return cmd_prompt(&cfg, msg);

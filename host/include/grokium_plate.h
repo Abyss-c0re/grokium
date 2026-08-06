@@ -29,4 +29,12 @@ int gkx_log_block_keep_line(const char *ln, int debug_mode);
 int gkx_filter_tool_block(const char *text, int debug_mode, char *out,
                           size_t cap);
 
+/*
+ * Human one-liner for TUI META rows from a dual-wire plate.
+ * Keeps machine JSON off the chat surface while preserving dual-wire honesty.
+ * Non-plate lines are copied truncated. Returns 0 on write, -1 on bad args.
+ * debug_mode!=0 → copy plate JSON truncated (raw machine view).
+ */
+int gkx_plate_ui_line(const char *ln, int debug_mode, char *out, size_t cap);
+
 #endif

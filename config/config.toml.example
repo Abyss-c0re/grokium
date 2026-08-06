@@ -63,7 +63,7 @@ color_think = "magenta"
 color_tool = "yellow"
 color_accent = "cyan"
 color_ok = "green"
-send_hint = "Enter=nl · Alt+Enter/Ctrl+S=send"
+send_hint = "Enter=send · Shift/Alt+Enter=nl · / cmds"
 welcome_line = "local-first · pure C · /settings · /help"
 
 # Models differ: tool JSON vs XML cosplay; thinking fields/tags

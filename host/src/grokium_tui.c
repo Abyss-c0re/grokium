@@ -17,6 +17,8 @@
 #include "util.h"
 #include "ng_sched.h"
 #include "shell.h"
+#include "auth.h"
+#include "subagent.h"
 #include <ncurses.h>
 #include <dirent.h>
 #include <stdio.h>
@@ -80,6 +82,8 @@ enum {
 };
 
 static void log_add(const char *line);
+static void input_insert(char ch);
+static void draw(void);
 static int is_spoiler_kind(int kind);
 
 static void ui_apply_colors(void) {
@@ -124,8 +128,6 @@ static int g_argc;
 static int live_think = -1; /* open think block during stream */
 static int live_tool = -1;
 static int live_asst = -1;
-
-static void draw(void);
 
 static void blk_free_all(void) {
   for (int i = 0; i < blk_n; i++) {
@@ -181,7 +183,11 @@ static void blk_append_str(int ix, const char *s) {
 }
 
 static void log_add(const char *line) {
+  char ui[256];
   if (!line) return;
+  /* Dual-wire plates → human one-liner (raw JSON only in /debug). */
+  if (gkx_plate_ui_line(line, debug_mode, ui, sizeof ui) == 0 && ui[0])
+    line = ui;
   int ix = blk_push(BK_META, NULL);
   blk_append_str(ix, line);
 }
@@ -381,19 +387,24 @@ static void handle_struct_event(const char *json) {
 }
 
 typedef struct {
-  char line[200];
-  int len;
+  size_t bytes;     /* total text bytes streamed into live_asst */
   int started;
+  int redraw_n;     /* throttle redraws */
+  int spam_stop;    /* UI refused further appends (stutter / cap) */
 } stream_acc;
+
+/* Cap runaway UI appends if upstream still misbehaves. */
+#define STREAM_UI_MAX (96 * 1024)
 
 static void stream_cb(void *ud, const char *chunk, size_t n) {
   stream_acc *a = ud;
-  if (!chunk || !n) return;
+  size_t i;
+  if (!chunk || !n || !a || a->spam_stop) return;
 
   /* Structured events: 0x1e + json (thinking / tool) → spoilers */
   if ((unsigned char)chunk[0] == 0x1e) {
     handle_struct_event(chunk + 1);
-    draw();
+    if (cfg.ui_stream_redraw) draw();
     return;
   }
   /* Some paths send thinking JSON without 0x1e */
@@ -405,38 +416,69 @@ static void stream_cb(void *ud, const char *chunk, size_t n) {
         tmp[n] = 0;
         handle_struct_event(tmp);
         free(tmp);
-        draw();
+        if (cfg.ui_stream_redraw) draw();
       }
       return;
     }
   }
 
-  for (size_t i = 0; i < n; i++) {
-    char ch = chunk[i];
-    if (ch == '\n' || a->len >= (int)sizeof a->line - 1) {
-      a->line[a->len] = 0;
-      if (a->len > 0) {
-        if (live_asst < 0) {
-          live_asst = blk_push(BK_ASST, NULL);
-          a->started = 1;
-        }
-        blk_append_str(live_asst, a->line);
-        blk_append_str(live_asst, "\n");
-        draw();
-      }
-      a->len = 0;
-      if (ch == '\n') continue;
-    }
-    if ((unsigned char)ch >= 32 || ch == '\t')
-      a->line[a->len++] = (ch == '\t') ? ' ' : ch;
+  if (a->bytes >= STREAM_UI_MAX) {
+    a->spam_stop = 1;
+    return;
   }
-  /* partial live line */
-  if (a->len > 0) {
-    if (live_asst < 0) {
-      live_asst = blk_push(BK_ASST, NULL);
-      a->started = 1;
+  if (a->bytes + n > STREAM_UI_MAX) n = STREAM_UI_MAX - a->bytes;
+
+  if (live_asst < 0) {
+    live_asst = blk_push(BK_ASST, NULL);
+    a->started = 1;
+  }
+
+  /* UI anti-stutter: drop chunk if already present as a full block in body. */
+  if (n >= 32 && live_asst >= 0 && blks[live_asst].body) {
+    const char *body = blks[live_asst].body;
+    size_t bl = strlen(body);
+    if (bl >= n) {
+      size_t j;
+      for (j = 0; j + n <= bl; j++) {
+        if (memcmp(body + j, chunk, n) == 0) {
+          return; /* already painted this text */
+        }
+      }
+      /* Tail equals chunk */
+      if (memcmp(body + (bl - n), chunk, n) == 0) return;
     }
-    /* paint by temporarily extending body then redraw — keep partial only in acc */
+    /* Detect body already stuttering (same ~80-char window 3x) */
+    if (bl >= 200) {
+      size_t w = 80;
+      size_t hits = 0, j;
+      if (bl >= w) {
+        for (j = 0; j + w <= bl; j += w / 2) {
+          if (memcmp(body + j, body + bl - w, w) == 0) hits++;
+          if (hits >= 3) {
+            a->spam_stop = 1;
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  /* Live token paint — append immediately (real streaming feel). */
+  for (i = 0; i < n; i++) {
+    char ch = chunk[i];
+    if (ch == '\t') ch = ' ';
+    if (ch == '\n' || (unsigned char)ch >= 32) {
+      char one[2] = {ch, 0};
+      blk_append_str(live_asst, one);
+      a->bytes++;
+    }
+  }
+  a->redraw_n++;
+  /* Redraw every 2 chunks / large delta / newline — smooth, not spam-frozen. */
+  if (cfg.ui_stream_redraw &&
+      (a->redraw_n >= 2 || (n > 0 && chunk[n - 1] == '\n') || n >= 24)) {
+    a->redraw_n = 0;
+    scroll_off = 0; /* follow live stream */
     draw();
   }
 }
@@ -515,11 +557,7 @@ static void shell_run_direct(const char *cmd) {
     int rc = grokium_chat_request_ex(&cfg, prompt, stream_cb, &acc, reply, sizeof reply,
                                      err, sizeof err);
     setenv("NANOBOT_TOOLS", "1", 1);
-    if (acc.len > 0) {
-      acc.line[acc.len] = 0;
-      if (live_asst < 0) live_asst = blk_push(BK_ASST, NULL);
-      blk_append_str(live_asst, acc.line);
-    }
+    /* Live stream already painted — do not re-append reply (anti-spam). */
     if (live_asst < 0) {
       if (rc == 0 && reply[0]) {
         int a = blk_push(BK_ASST, NULL);
@@ -580,12 +618,19 @@ static void chat_send(const char *msg) {
   int rc = grokium_chat_request_ex(&cfg, msg, stream_cb, &acc, reply, sizeof reply, err,
                                    sizeof err);
 
-  if (acc.len > 0) {
-    acc.line[acc.len] = 0;
-    if (live_asst < 0) live_asst = blk_push(BK_ASST, NULL);
-    blk_append_str(live_asst, acc.line);
-  }
-  if (live_asst < 0) {
+  /* Stream already painted live_asst — never re-append full reply (spam).
+   * If live body stuttered but clean final exists, replace body with final. */
+  if (live_asst >= 0 && rc == 0 && reply[0] && blks[live_asst].body) {
+    size_t bl = strlen(blks[live_asst].body);
+    size_t rl = strlen(reply);
+    /* Replace when live is much longer (stutter) or UI spam_stop tripped */
+    if (acc.spam_stop || (rl > 40 && bl > rl + 80)) {
+      free(blks[live_asst].body);
+      blks[live_asst].body = strdup(reply);
+      blks[live_asst].len = rl;
+      blks[live_asst].cap = rl + 1;
+    }
+  } else if (live_asst < 0) {
     if (rc == 0 && reply[0]) {
       int a = blk_push(BK_ASST, NULL);
       blk_append_str(a, reply);
@@ -604,6 +649,7 @@ static void chat_send(const char *msg) {
   /* seal think title after stream */
   if (live_think >= 0) refresh_think_head(live_think);
   live_think = live_tool = live_asst = -1;
+  scroll_off = 0;
   draw();
 }
 
@@ -1306,6 +1352,75 @@ static void cmd_contract(const char *arg) {
   (void)run_c_core_capture("grokium-smx-filter", av);
 }
 
+static void cmd_fleet(const char *arg);
+
+/* Perfect-assistant surface: tools · subagents · fleet · long budgets. */
+static void cmd_agents(const char *arg) {
+  char plate[640], line[200];
+  const char *sub = arg ? arg : "";
+  while (*sub == ' ') sub++;
+
+  if (!sub[0] || !strcmp(sub, "status") || !strcmp(sub, "show") ||
+      !strcmp(sub, "help") || !strcmp(sub, "?")) {
+    snprintf(line, sizeof line,
+             "· agents · tools=%s · braincells=%s · turns=%d · timeout=%ds",
+             cfg.agent_tools ? "on" : "off",
+             cfg.agent_braincells ? "on" : "off", cfg.agent_max_turns,
+             cfg.agent_cmd_timeout_sec);
+    log_add(line);
+    snprintf(line, sizeof line,
+             "· agents · cores: local(llama tools) + grok(cloud tools) · "
+             "subagents explore|plan|general · /fleet deploy");
+    log_add(line);
+    {
+      char *list = ng_subagent_list_json();
+      int nrun = ng_subagent_running_count();
+      if (list && list[0] && strcmp(list, "[]") != 0) {
+        snprintf(line, sizeof line, "· subagents · running=%d · list below",
+                 nrun);
+        log_add(line);
+        log_add_block(list);
+      } else {
+        snprintf(line, sizeof line,
+                 "· subagents · running=%d · max=%d · spawn via agent tools",
+                 nrun, ng_subagent_max() > 0 ? ng_subagent_max() : 8);
+        log_add(line);
+      }
+      free(list);
+    }
+    log_add("· fleet · /fleet status|deploy|spawn-all|stop-all · /manager");
+    log_add("· long tasks · task board auto-extends turns · /mode agent");
+    return;
+  }
+  if (!strcmp(sub, "fleet") || !strncmp(sub, "fleet ", 6)) {
+    cmd_fleet(sub[0] == 'f' && sub[5] == ' ' ? sub + 6 : "");
+    return;
+  }
+  if (!strcmp(sub, "list") || !strcmp(sub, "subagents")) {
+    char *list = ng_subagent_list_json();
+    if (list && list[0])
+      log_add_block(list);
+    else
+      log_add("· subagents · (none)");
+    free(list);
+    return;
+  }
+  if (!strncmp(sub, "cancel ", 7)) {
+    const char *id = sub + 7;
+    while (*id == ' ') id++;
+    if (ng_subagent_cancel(id) == 0)
+      log_add("· subagent · cancelled");
+    else
+      log_add("· subagent · cancel failed · check id");
+    return;
+  }
+  grokium_need_subcmd_json(
+      "agents",
+      "/agents [status|list|fleet|cancel ID] · /fleet · /mode agent", plate,
+      sizeof plate);
+  log_add(plate);
+}
+
 /* Fleet plate: pure-C grokium-fleet (honest pid/status). CubalC opt-in. */
 static void cmd_fleet(const char *arg) {
   char *av[8];
@@ -1375,8 +1490,23 @@ static void do_login(int device) {
     int st = 0;
     waitpid(pid, &st, 0);
   }
-  if (grokium_load_grok_token(tok, sizeof tok) == 0) {
-    has = 1;
+  /* Seal CLI credentials into NANOBOT_HOME when login wrote ~/.grok/auth.json. */
+  {
+    char home[PATH_MAX];
+    ng_session s;
+    snprintf(home, sizeof home, "%s/nanobot_home", state_dir);
+    mkdir(home, 0700);
+    setenv("NANOBOT_HOME", home, 1);
+    ng_set_workdir(home);
+    ng_session_init(&s);
+    if (ng_session_try_import_grok_cli(&s) == 1) {
+      ng_session_save(&s);
+      has = 1;
+    }
+    ng_session_free(&s);
+  }
+  if (!has && grokium_load_grok_token(tok, sizeof tok) == 0) has = 1;
+  if (has) {
     snprintf(cfg.active_backend, sizeof cfg.active_backend, "grok");
     snprintf(cfg.active_model, sizeof cfg.active_model, "%s", cfg.grok_model);
     gkx_config_save_prefs(&cfg, state_dir);
@@ -1635,7 +1765,38 @@ static void do_command(const char *raw) {
   }
   if (strcmp(cmd, "auth") == 0) {
     char tok[64], plate[512];
-    int has = (grokium_load_grok_token(tok, sizeof tok) == 0);
+    int has;
+    /* /auth import — seal active CLI credentials from ~/.grok when present. */
+    if (rest[0] && (strcmp(rest, "import") == 0 || strcmp(rest, "sync") == 0 ||
+                    strcmp(rest, "pull") == 0)) {
+      char home[PATH_MAX];
+      ng_session s;
+      int irc;
+      snprintf(home, sizeof home, "%s/nanobot_home", state_dir);
+      mkdir(home, 0700);
+      setenv("NANOBOT_HOME", home, 1);
+      ng_set_workdir(home);
+      ng_session_init(&s);
+      irc = ng_session_try_import_grok_cli(&s);
+      if (irc == 1)
+        ng_session_save(&s);
+      has = (irc == 1) || (grokium_load_grok_token(tok, sizeof tok) == 0);
+      gkx_auth_json(has, cfg.active_backend, plate, sizeof plate);
+      log_add(plate);
+      if (irc == 1) {
+        char note[160];
+        snprintf(note, sizeof note,
+                 "· auth import · sealed from ~/.grok · /backend grok");
+        log_add(note);
+      } else if (irc == 0) {
+        log_add("· auth import · no usable ~/.grok/auth.json · /login");
+      } else {
+        log_add("· auth import · parse/io error · check ~/.grok/auth.json");
+      }
+      ng_session_free(&s);
+      return;
+    }
+    has = (grokium_load_grok_token(tok, sizeof tok) == 0);
     /* Dual-wire auth plate — has_token only · never free-text token/banner. */
     gkx_auth_json(has, cfg.active_backend, plate, sizeof plate);
     log_add(plate);
@@ -1657,12 +1818,26 @@ static void do_command(const char *raw) {
       gkx_backend_json(cfg.active_backend, 1, plate, sizeof plate);
       log_add(plate);
     } else if (strcmp(rest, "grok") == 0 || strcmp(rest, "cloud") == 0) {
-      char plate[512];
+      char plate[512], home[PATH_MAX], tok[64];
+      ng_session s;
+      int has;
       snprintf(cfg.active_backend, sizeof cfg.active_backend, "grok");
       snprintf(cfg.active_model, sizeof cfg.active_model, "%s", cfg.grok_model);
+      /* Auto-import CLI auth when ~/.grok is present (cloud opt-in). */
+      snprintf(home, sizeof home, "%s/nanobot_home", state_dir);
+      mkdir(home, 0700);
+      setenv("NANOBOT_HOME", home, 1);
+      ng_set_workdir(home);
+      ng_session_init(&s);
+      if (ng_session_try_import_grok_cli(&s) == 1)
+        ng_session_save(&s);
+      ng_session_free(&s);
+      has = (grokium_load_grok_token(tok, sizeof tok) == 0);
       gkx_config_save_prefs(&cfg, state_dir);
       gkx_backend_json(cfg.active_backend, 1, plate, sizeof plate);
       log_add(plate);
+      if (!has)
+        log_add("· need auth · /auth import or /login");
     } else {
       char plate[512];
       /* Shared dual-wire need_backend (LLM ≠ commander). */
@@ -1795,6 +1970,12 @@ static void do_command(const char *raw) {
   }
   if (strcmp(cmd, "mode") == 0) {
     cmd_mode(rest);
+    return;
+  }
+  if (strcmp(cmd, "agents") == 0 || strcmp(cmd, "agent") == 0 ||
+      strcmp(cmd, "subagent") == 0 || strcmp(cmd, "subagents") == 0 ||
+      strcmp(cmd, "nanobots") == 0) {
+    cmd_agents(rest);
     return;
   }
   if (strcmp(cmd, "attach") == 0 || strcmp(cmd, "file") == 0 || strcmp(cmd, "open") == 0) {
@@ -1997,6 +2178,7 @@ static void do_command(const char *raw) {
 typedef struct {
   int blk;
   int is_header; /* spoiler header row */
+  int md;        /* render light markdown (**bold**, `code`) */
   const char *text;
   char tmp[240];
 } vrow_t;
@@ -2005,12 +2187,129 @@ typedef struct {
 static vrow_t vrows[VROW_MAX];
 static int vrow_n;
 
+/* Strip/display light markdown markers into tmp (for row storage). */
+static void md_plain(const char *in, char *out, size_t cap) {
+  size_t j = 0;
+  int bold = 0, code = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in) return;
+  while (*in && j + 1 < cap) {
+    if (!code && in[0] == '*' && in[1] == '*') {
+      bold = !bold;
+      in += 2;
+      continue;
+    }
+    if (in[0] == '`') {
+      code = !code;
+      in++;
+      continue;
+    }
+    out[j++] = *in++;
+  }
+  out[j] = 0;
+  (void)bold;
+}
+
+/* Paint a line with light markdown (bold / dim for code). */
+static void addnstr_md(int y, int x, const char *s, int maxw, int base_attr) {
+  int col = x, bold = 0, code = 0;
+  if (!s || maxw < 1) return;
+  attrset(base_attr);
+  while (*s && col < x + maxw) {
+    if (!code && s[0] == '*' && s[1] == '*') {
+      bold = !bold;
+      attrset(base_attr | (bold ? A_BOLD : 0) | (code ? A_DIM : 0));
+      s += 2;
+      continue;
+    }
+    if (s[0] == '`') {
+      code = !code;
+      attrset(base_attr | (bold ? A_BOLD : 0) | (code ? A_DIM : 0));
+      s++;
+      continue;
+    }
+    mvaddch(y, col++, (unsigned char)*s++);
+  }
+  attrset(A_NORMAL);
+}
+
+/* Slash command catalogue for / completion. */
+static const char *const SLASH_CMDS[] = {
+    "settings", "help", "status", "model", "backend", "mode", "agents",
+    "subagent", "nanobots", "smx", "coord", "sessions", "pickup", "load",
+    "fleet", "hub", "contract", "manager", "integrity", "commander", "law",
+    "license", "auth", "login", "logout", "clear", "new", "attach", "viz",
+    "multiline", "spoilers", "debug", "context", "ctx", "shell", "expand",
+    "collapse", "version", "compat",
+    NULL};
+
+static int slash_match_count(const char *prefix, const char **out, int maxn) {
+  int n = 0, i;
+  size_t pl;
+  if (!prefix) prefix = "";
+  if (prefix[0] == '/') prefix++;
+  pl = strlen(prefix);
+  for (i = 0; SLASH_CMDS[i] && n < maxn; i++) {
+    if (pl == 0 || strncmp(SLASH_CMDS[i], prefix, pl) == 0)
+      out[n++] = SLASH_CMDS[i];
+  }
+  return n;
+}
+
+static void slash_complete_tab(void) {
+  const char *m[24];
+  int n, i, common;
+  char prefix[64];
+  size_t j = 0;
+  if (in_len < 1 || input[0] != '/') return;
+  while (j + 1 < sizeof prefix && j < (size_t)in_len && input[j] != ' ' &&
+         input[j] != '\n') {
+    prefix[j] = input[j];
+    j++;
+  }
+  prefix[j] = 0;
+  n = slash_match_count(prefix, m, 24);
+  if (n == 1) {
+    /* replace token with full command + space */
+    char full[80];
+    snprintf(full, sizeof full, "/%s ", m[0]);
+    in_len = 0;
+    in_cur = 0;
+    input[0] = 0;
+    for (i = 0; full[i]; i++) input_insert(full[i]);
+    return;
+  }
+  if (n < 2) return;
+  /* longest common prefix among matches */
+  common = (int)strlen(m[0]);
+  for (i = 1; i < n; i++) {
+    int k = 0;
+    while (k < common && m[0][k] && m[i][k] && m[0][k] == m[i][k]) k++;
+    common = k;
+  }
+  if (common > (int)strlen(prefix) - (prefix[0] == '/' ? 0 : 0)) {
+    char full[80];
+    int start = (prefix[0] == '/') ? 0 : 0;
+    (void)start;
+    snprintf(full, sizeof full, "/%.*s", common, m[0]);
+    in_len = 0;
+    in_cur = 0;
+    input[0] = 0;
+    for (i = 0; full[i]; i++) input_insert(full[i]);
+  }
+}
+
 static void rebuild_vrows(void) {
   vrow_n = 0;
   for (int i = 0; i < blk_n && vrow_n < VROW_MAX - 8; i++) {
     blk_t *b = &blks[i];
     if (b->kind == BK_USER) {
-      vrows[vrow_n++] = (vrow_t){.blk = i, .is_header = 0, .text = "you>"};
+      vrows[vrow_n].blk = i;
+      vrows[vrow_n].is_header = 0;
+      vrows[vrow_n].md = 0;
+      vrows[vrow_n].text = "you>";
+      vrow_n++;
       if (b->body && b->body[0]) {
         char *dup = strdup(b->body);
         if (dup) {
@@ -2019,6 +2318,7 @@ static void rebuild_vrows(void) {
                ln = strtok_r(NULL, "\n", &save)) {
             vrows[vrow_n].blk = i;
             vrows[vrow_n].is_header = 0;
+            vrows[vrow_n].md = 0;
             snprintf(vrows[vrow_n].tmp, sizeof vrows[vrow_n].tmp, "  %s", ln);
             vrows[vrow_n].text = vrows[vrow_n].tmp;
             vrow_n++;
@@ -2027,7 +2327,11 @@ static void rebuild_vrows(void) {
         }
       }
     } else if (b->kind == BK_ASST) {
-      vrows[vrow_n++] = (vrow_t){.blk = i, .is_header = 0, .text = "cube>"};
+      vrows[vrow_n].blk = i;
+      vrows[vrow_n].is_header = 0;
+      vrows[vrow_n].md = 0;
+      vrows[vrow_n].text = "cube>";
+      vrow_n++;
       if (b->body && b->body[0]) {
         char *dup = strdup(b->body);
         if (dup) {
@@ -2036,6 +2340,7 @@ static void rebuild_vrows(void) {
                ln = strtok_r(NULL, "\n", &save)) {
             vrows[vrow_n].blk = i;
             vrows[vrow_n].is_header = 0;
+            vrows[vrow_n].md = 1; /* **bold** `code` */
             snprintf(vrows[vrow_n].tmp, sizeof vrows[vrow_n].tmp, "  %s", ln);
             vrows[vrow_n].text = vrows[vrow_n].tmp;
             vrow_n++;
@@ -2046,6 +2351,7 @@ static void rebuild_vrows(void) {
     } else if (b->kind == BK_META) {
       vrows[vrow_n].blk = i;
       vrows[vrow_n].is_header = 0;
+      vrows[vrow_n].md = 0;
       vrows[vrow_n].text = b->body ? b->body : "";
       vrow_n++;
     } else if (is_spoiler(b->kind)) {
@@ -2054,6 +2360,7 @@ static void rebuild_vrows(void) {
       const char *focus = (focus_sp == i) ? "*" : " ";
       vrows[vrow_n].blk = i;
       vrows[vrow_n].is_header = 1;
+      vrows[vrow_n].md = 0;
       snprintf(vrows[vrow_n].tmp, sizeof vrows[vrow_n].tmp, "%s%s %s", focus, mark,
                b->head[0] ? b->head : (b->kind == BK_THINK ? "thought" : "tool"));
       vrows[vrow_n].text = vrows[vrow_n].tmp;
@@ -2066,6 +2373,7 @@ static void rebuild_vrows(void) {
                ln = strtok_r(NULL, "\n", &save)) {
             vrows[vrow_n].blk = i;
             vrows[vrow_n].is_header = 0;
+            vrows[vrow_n].md = 0;
             snprintf(vrows[vrow_n].tmp, sizeof vrows[vrow_n].tmp, "    %s", ln);
             vrows[vrow_n].text = vrows[vrow_n].tmp;
             vrow_n++;
@@ -2189,7 +2497,7 @@ static void draw(void) {
              cfg.context_window, cfg.ui_theme);
     if (cfg.ui_show_status_hints && cols > 50) {
       const char *hint = cfg.ui_send_hint[0] ? cfg.ui_send_hint :
-        (cfg.ui_multiline ? "Enter=nl · Alt+Enter send" : "Enter=send");
+        "Enter=send · Shift/Alt+Enter=nl";
       int hl = (int)strlen(hint);
       if (hl < cols - 2)
         mvprintw(1, cols - hl - 1, "%s", hint);
@@ -2198,39 +2506,90 @@ static void draw(void) {
     mvhline(2, 0, ACS_HLINE, cols > 0 ? cols : 1);
   }
 
+  /* Slash command strip takes one row when typing /… */
+  int slash_hints = 0;
+  const char *slash_m[8];
+  int slash_n = 0;
+  if (in_len >= 1 && input[0] == '/' && !strchr(input, ' ') &&
+      !strchr(input, '\n')) {
+    char pref[64];
+    size_t j = 0;
+    while (j + 1 < sizeof pref && j < (size_t)in_len) {
+      pref[j] = input[j];
+      j++;
+    }
+    pref[j] = 0;
+    slash_n = slash_match_count(pref, slash_m, 8);
+    if (slash_n > 0) slash_hints = 1;
+  }
+
   int comp_rows = input_line_count();
-  int sep_y = rows - 1 - comp_rows; /* separator above composer */
+  int sep_y = rows - 1 - comp_rows - slash_hints; /* separator above composer */
   if (sep_y < 3) sep_y = 3;
 
   int log_h = sep_y - 3;
   if (log_h < 2) log_h = 2;
+  /* Clamp scroll so wheel/page never leaves empty viewport */
+  {
+    int max_off = vrow_n - log_h;
+    if (max_off < 0) max_off = 0;
+    if (scroll_off > max_off) scroll_off = max_off;
+    if (scroll_off < 0) scroll_off = 0;
+  }
   int start = vrow_n - log_h - scroll_off;
   if (start < 0) start = 0;
   int y = 3;
   for (int i = start; i < vrow_n && y < sep_y; i++, y++) {
     int bi = vrows[i].blk;
     int kind = (bi >= 0 && bi < blk_n) ? blks[bi].kind : BK_META;
+    int base = A_NORMAL;
     if (kind == BK_USER)
-      attron(A_BOLD | COLOR_PAIR(CP_USER));
+      base = A_BOLD | COLOR_PAIR(CP_USER);
     else if (kind == BK_ASST)
-      attron(A_BOLD | COLOR_PAIR(CP_ASST));
+      base = A_BOLD | COLOR_PAIR(CP_ASST);
     else if (kind == BK_THINK)
-      attron(A_DIM | COLOR_PAIR(CP_THINK));
+      base = A_DIM | COLOR_PAIR(CP_THINK);
     else if (kind == BK_TOOL)
-      attron(A_DIM | COLOR_PAIR(CP_TOOL));
+      base = A_DIM | COLOR_PAIR(CP_TOOL);
     else
-      attron(A_DIM);
-    if (vrows[i].is_header && focus_sp == bi) attron(A_REVERSE);
-    mvaddnstr(y, 0, vrows[i].text ? vrows[i].text : "", cols > 1 ? cols - 1 : 1);
-    attroff(A_BOLD | A_DIM | A_REVERSE | COLOR_PAIR(CP_USER) | COLOR_PAIR(CP_ASST) | COLOR_PAIR(CP_TOOL) |
-            COLOR_PAIR(CP_THINK));
+      base = A_DIM;
+    if (vrows[i].is_header && focus_sp == bi) base |= A_REVERSE;
+    if (vrows[i].md && kind == BK_ASST)
+      addnstr_md(y, 0, vrows[i].text ? vrows[i].text : "",
+                 cols > 1 ? cols - 1 : 1, base);
+    else {
+      attrset(base);
+      mvaddnstr(y, 0, vrows[i].text ? vrows[i].text : "",
+                cols > 1 ? cols - 1 : 1);
+      attrset(A_NORMAL);
+    }
   }
 
   attron(A_DIM);
   mvhline(sep_y, 0, ACS_HLINE, cols > 0 ? cols : 1);
   attroff(A_DIM);
 
-  /* Multi-line composer */
+  /* Slash completion strip (settings, model, fleet, …) */
+  if (slash_hints) {
+    int hy = sep_y + 1;
+    int x = 1, i;
+    attron(A_DIM | COLOR_PAIR(CP_ACCENT));
+    mvaddstr(hy, 0, " /");
+    for (i = 0; i < slash_n && x < cols - 2; i++) {
+      char bit[48];
+      int bl;
+      snprintf(bit, sizeof bit, " %s", slash_m[i]);
+      bl = (int)strlen(bit);
+      if (x + bl >= cols - 1) break;
+      mvaddstr(hy, x + 1, bit);
+      x += bl;
+    }
+    attroff(A_DIM | COLOR_PAIR(CP_ACCENT));
+    /* composer starts one row lower */
+  }
+
+  /* Multi-line composer (below optional slash-hint strip) */
+  int comp_y0 = sep_y + 1 + slash_hints;
   int cr, cc;
   input_cursor_rc(&cr, &cc);
   /* If more lines than composer_max_rows(), window so cursor row is visible */
@@ -2244,7 +2603,7 @@ static void draw(void) {
       pos++;
     }
     for (int row = 0; row < comp_rows; row++) {
-      int yy = sep_y + 1 + row;
+      int yy = comp_y0 + row;
       if (yy >= rows) break;
       move(yy, 0);
       clrtoeol();
@@ -2273,7 +2632,7 @@ static void draw(void) {
     int vis_r = cr - view0;
     if (vis_r < 0) vis_r = 0;
     if (vis_r >= comp_rows) vis_r = comp_rows - 1;
-    int yy = sep_y + 1 + vis_r;
+    int yy = comp_y0 + vis_r;
     int xx = 3 + cc;
     if (xx >= cols) xx = cols - 1;
     if (yy >= rows) yy = rows - 1;
@@ -2360,10 +2719,44 @@ int grokium_tui(int argc, char **argv) {
 
   {
     char plate[640];
-    /* Dual-wire ready plate — no free-text welcome/send-hint dump. */
+    /* Dual-wire ready plate — humanized on META row (no raw JSON spam). */
     gkx_ready_json(cfg.hub_enabled, cfg.agent_tools, cfg.ui_multiline, plate,
                    sizeof plate);
     log_add(plate);
+  }
+  /* Auto-seal CLI auth when ~/.grok present (stay on local backend until /backend grok). */
+  {
+    const char *home = getenv("HOME");
+    char ap[PATH_MAX], nh[PATH_MAX];
+    struct stat st;
+    if (home && home[0]) {
+      snprintf(ap, sizeof ap, "%s/.grok/auth.json", home);
+      if (stat(ap, &st) == 0 && S_ISREG(st.st_mode) && st.st_size > 8) {
+        ng_session s;
+        int irc;
+        snprintf(nh, sizeof nh, "%s/nanobot_home", state_dir);
+        mkdir(nh, 0700);
+        setenv("NANOBOT_HOME", nh, 1);
+        ng_set_workdir(nh);
+        ng_session_init(&s);
+        irc = ng_session_try_import_grok_cli(&s);
+        if (irc == 1) {
+          ng_session_save(&s);
+          log_add("· ~/.grok sealed · /backend grok when you want cloud · /auth");
+        } else {
+          log_add("· ~/.grok detected · /auth import · /login · /backend grok");
+        }
+        ng_session_free(&s);
+      }
+    }
+  }
+  /* Perfect-assistant capability strip (human, not raw JSON). */
+  {
+    char cap[200];
+    snprintf(cap, sizeof cap,
+             "· vision · tools+subagents · long tasks turns=%d · /agents /fleet",
+             cfg.agent_max_turns > 0 ? cfg.agent_max_turns : 96);
+    log_add(cap);
   }
 
   input[0] = 0;
@@ -2376,9 +2769,23 @@ int grokium_tui(int argc, char **argv) {
     if (ch == KEY_RESIZE) continue;
     if (ch == KEY_MOUSE) {
       MEVENT ev;
-      if (getmouse(&ev) == OK && (ev.bstate & BUTTON1_CLICKED)) {
-        rebuild_vrows();
-        mouse_click_y(ev.y);
+      if (getmouse(&ev) == OK) {
+        int step = cfg.ui_scroll_step > 0 ? cfg.ui_scroll_step : 3;
+        if (ev.bstate & BUTTON1_CLICKED) {
+          rebuild_vrows();
+          mouse_click_y(ev.y);
+        }
+        /* Wheel: BUTTON4 up / BUTTON5 down (ncurses). */
+#ifdef BUTTON4_PRESSED
+        if (ev.bstate & (BUTTON4_PRESSED | BUTTON4_CLICKED))
+          scroll_off += step;
+#endif
+#ifdef BUTTON5_PRESSED
+        if (ev.bstate & (BUTTON5_PRESSED | BUTTON5_CLICKED)) {
+          scroll_off -= step;
+          if (scroll_off < 0) scroll_off = 0;
+        }
+#endif
       }
       continue;
     }
@@ -2395,24 +2802,48 @@ int grokium_tui(int argc, char **argv) {
       continue;
     }
 
-    /* Alt+Enter: ESC then Enter (common terminal sequence) */
+    /* ESC sequences: Alt+Enter = newline; Shift+Enter (xterm/kitty) = newline */
     if (ch == 27) {
       pending_esc = 1;
-      /* short wait for the next key of Alt-combo */
-      timeout(40);
+      timeout(50);
       int ch2 = getch();
       timeout(-1);
       pending_esc = 0;
       if (ch2 == ERR) continue;
       if (ch2 == '\n' || ch2 == '\r' || ch2 == KEY_ENTER) {
-        /* Alt+Enter */
+        /* Alt+Enter → newline when multiline, else send */
         if (cfg.ui_multiline)
-          submit_input();
-        else
           input_insert('\n');
+        else
+          submit_input();
         continue;
       }
-      /* other Alt keys ignored */
+      /* CSI: ESC [ …  Shift+Enter forms */
+      if (ch2 == '[') {
+        char seq[24];
+        int si = 0, c3;
+        seq[0] = 0;
+        timeout(30);
+        while (si < (int)sizeof(seq) - 1) {
+          c3 = getch();
+          if (c3 == ERR) break;
+          seq[si++] = (char)c3;
+          seq[si] = 0;
+          /* xterm modifyOtherKeys: 27;2;13~  kitty: 13;2u */
+          if (c3 == '~' || c3 == 'u' || c3 == 'R' ||
+              (c3 >= 'A' && c3 <= 'Z' && si > 1))
+            break;
+        }
+        timeout(-1);
+        if ((strstr(seq, "13;2") || strstr(seq, "27;2;13") ||
+             strstr(seq, ";2;13")) &&
+            cfg.ui_multiline) {
+          input_insert('\n');
+          continue;
+        }
+        /* ESC [ A/B sometimes used; ignore unknown CSI for composer */
+        continue;
+      }
       ch = ch2;
     }
 
@@ -2421,8 +2852,11 @@ int grokium_tui(int argc, char **argv) {
       submit_input();
       continue;
     }
-    /* Ctrl+J = newline when not multiline? both: force newline */
-    if (ch == 10 && 0) { /* unused — Enter handling below */
+
+    /* Tab completes /slash when composer has a slash token */
+    if (ch == '\t' && in_len >= 1 && input[0] == '/') {
+      slash_complete_tab();
+      continue;
     }
 
     /* Spoiler keys only when composer empty */
@@ -2450,16 +2884,13 @@ int grokium_tui(int argc, char **argv) {
       }
     }
 
+    /* Enter = always send (product chat UX). Newline via Shift/Alt+Enter. */
     if (ch == KEY_ENTER || ch == '\n' || ch == '\r') {
-      if (cfg.ui_multiline) {
-        /* Enter = newline; empty Enter on focus = spoiler */
-        if (in_len == 0 && focus_sp >= 0)
-          toggle_spoiler(focus_sp);
-        else
-          input_insert('\n');
-      } else {
-        submit_input();
+      if (in_len == 0 && focus_sp >= 0) {
+        toggle_spoiler(focus_sp);
+        continue;
       }
+      submit_input();
       continue;
     }
     if (ch == KEY_BACKSPACE || ch == 127 || ch == 8) {

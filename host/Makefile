@@ -15,7 +15,7 @@ NANOBOT_LIBDIR := $(NANOBOT_BUILD)/lib
 C_CORE := $(ROOT)/c_core
 INCLUDES := -Iinclude -I$(C_CORE)/include -I$(NANOBOT_ROOT)/src \
 	-I$(NANOBOT_ROOT)/include -I$(NANOBOT_ROOT)/libs/sched \
-	-I$(NANOBOT_ROOT)/libs/provider
+	-I$(NANOBOT_ROOT)/libs/provider -I$(NANOBOT_ROOT)/libs/subagent
 CFLAGS += $(INCLUDES)
 
 LIBS := -L$(NANOBOT_LIBDIR) -Wl,--start-group \

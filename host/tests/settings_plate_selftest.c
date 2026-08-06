@@ -168,13 +168,13 @@ int main(void) {
   if (!strstr(plate, "\"context_window\":0") || !plate_dual_wire(plate))
     return fail("context negative clamps to 0");
 
-  /* /multiline|/ml dual-wire (host UX · no free-text ON/OFF banner). */
+  /* /multiline|/ml dual-wire — Enter always sends; Shift/Alt+Enter = newline. */
   gkx_multiline_json(1, 1, plate, sizeof plate);
   if (!strstr(plate, "\"schema\":\"grokium.multiline.v1\"") ||
       !strstr(plate, "\"ok\":true") || !strstr(plate, "\"multiline\":true") ||
       !strstr(plate, "\"saved\":true") ||
-      !strstr(plate, "\"enter\":\"newline\"") ||
-      !strstr(plate, "\"send\":\"alt_enter_or_ctrl_s\"") ||
+      !strstr(plate, "\"enter\":\"send\"") ||
+      !strstr(plate, "\"newline\":\"shift_or_alt_enter\"") ||
       !plate_dual_wire(plate)) {
     fprintf(stderr, "settings_plate_selftest: multiline on fail: %.400s\n",
             plate);
@@ -184,7 +184,7 @@ int main(void) {
   if (!strstr(plate, "\"multiline\":false") ||
       !strstr(plate, "\"saved\":false") ||
       !strstr(plate, "\"enter\":\"send\"") ||
-      !strstr(plate, "\"send\":\"alt_enter\"") || !plate_dual_wire(plate))
+      !strstr(plate, "\"newline\":\"disabled\"") || !plate_dual_wire(plate))
     return fail("multiline off dual-wire plate");
 
   /* /expand|/collapse dual-wire (host UX · no free-text spoilers banner). */
@@ -288,9 +288,9 @@ int main(void) {
       !strstr(plate, "\"ok\":false") ||
       !strstr(plate, "\"error\":\"need_cmd\"") ||
       !strstr(plate, "\"surface\":\"host_tui\"") ||
-      !strstr(plate, "/settings") || !strstr(plate, "/smx") ||
-      !strstr(plate, "/fleet") || !strstr(plate, "/commander") ||
-      !strstr(plate, "Alt+Enter") ||
+      !strstr(plate, "/settings") || !strstr(plate, "/fleet") ||
+      !strstr(plate, "/auth") || !strstr(plate, "/login") ||
+      !strstr(plate, "Enter=send") || !strstr(plate, "Shift/Alt+Enter") ||
       !strstr(plate, "\"commander_is_model\":false") ||
       !plate_dual_wire(plate)) {
     fprintf(stderr, "settings_plate_selftest: tui help fail: %.500s\n", plate);
@@ -303,7 +303,7 @@ int main(void) {
       !strstr(plate, "\"ok\":true") ||
       !strstr(plate, "\"surface\":\"host_cli\"") ||
       !strstr(plate, "\"local_first\":true") ||
-      !strstr(plate, "help|chat|tui") || !strstr(plate, "coord") ||
+      !strstr(plate, "help|chat|tui") || !strstr(plate, "login|auth") ||
       !strstr(plate, "manager-tick") || !strstr(plate, "backend=local") ||
       !strstr(plate, "\"commander_is_model\":false") ||
       !strstr(plate, "\"telemetry\":\"off\"") || !plate_dual_wire(plate)) {
@@ -343,7 +343,9 @@ int main(void) {
       !strstr(plate, "\"hub\":true") || !strstr(plate, "\"tools\":true") ||
       !strstr(plate, "\"multiline\":true") ||
       !strstr(plate, "\"telemetry\":\"off\"") ||
-      !strstr(plate, "/help") || !strstr(plate, "\"commander_is_model\":false") ||
+      !strstr(plate, "\"vision\":\"perfect_assistant\"") ||
+      !strstr(plate, "Enter=send") ||
+      !strstr(plate, "\"commander_is_model\":false") ||
       !plate_dual_wire(plate)) {
     fprintf(stderr, "settings_plate_selftest: ready on fail: %.400s\n", plate);
     return 1;
