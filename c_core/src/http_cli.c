@@ -204,7 +204,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: error plate dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -223,7 +224,8 @@ static int selftest(void) {
         !strstr(b, "\"llm_is_commander\":false") ||
         !strstr(b, "\"hold_flash\":1") ||
         !strstr(b, "\"share\":\"state_matrix_only\"") ||
-        !strstr(b, "\"hint\"") || !strstr(b, "/v1/status")) {
+        !strstr(b, "\"hint\"") || !strstr(b, "/v1/status") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: not_found dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -252,7 +254,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
         !strstr(b, "\"hold_flash\":1") || strstr(b, "method\n") ||
-        strstr(resp, "text/plain")) {
+        strstr(resp, "text/plain") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: /ui method dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -281,7 +284,8 @@ static int selftest(void) {
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"blueprint\"") ||
-        !strstr(b, "llm_is_commander\":false")) {
+        !strstr(b, "llm_is_commander\":false") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: cube status fail: %.400s\n", resp);
       fails++;
     }
@@ -383,7 +387,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: coord need_plate dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -397,7 +402,8 @@ static int selftest(void) {
     if ((!strstr(resp, "403") && !strstr(b, "smx_filter_deny")) ||
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
-        !strstr(b, "\"llm_is_commander\":false")) {
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: prose deny dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -418,7 +424,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
         !strstr(b, "\"hold_flash\":1") ||
-        !strstr(b, "\"share\":\"state_matrix_only\"")) {
+        !strstr(b, "\"share\":\"state_matrix_only\"") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: coord ingest dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -430,7 +437,8 @@ static int selftest(void) {
     b = body_of(resp);
     if ((!strstr(resp, "403") && !strstr(b, "smx_filter_deny")) ||
         !strstr(b, "\"product_wire\":\"smx2\"") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: hold_flash=0 deny dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -445,7 +453,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
         !strstr(b, "\"commander_is_model\":false") ||
-        strstr(b, "\"wire_product\"")) {
+        strstr(b, "\"wire_product\"") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: nanobot status dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -460,7 +469,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: nanobot deploy dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -478,7 +488,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: nanobot separate need_bot_id fail: %.400s\n",
               b);
       fails++;
@@ -495,7 +506,8 @@ static int selftest(void) {
         !strstr(b, "\"error\":\"unknown_bot\"") ||
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: nanobot separate unknown dual-wire fail: %.400s\n",
               b);
       fails++;
@@ -515,7 +527,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
         !strstr(b, "\"hold_flash\":1") ||
-        strstr(b, "\"schema\":\"grokium.error.v1\"")) {
+        strstr(b, "\"schema\":\"grokium.error.v1\"") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: nanobot spawn_failed dual-wire fail: %.400s\n",
               b);
       fails++;
@@ -532,7 +545,8 @@ static int selftest(void) {
         !strstr(b, "\"error\":\"need_bot_id_pid\"") ||
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: nanobot note-pid need args fail: %.400s\n", b);
       fails++;
     }
@@ -547,7 +561,8 @@ static int selftest(void) {
         !strstr(b, "\"schema\":\"grokium.nanobot_note_pid.v1\"") ||
         !strstr(b, "\"error\":\"unknown_bot\"") ||
         !strstr(b, "\"product_wire\":\"smx2\"") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: nanobot note-pid unknown dual-wire fail: %.400s\n",
               b);
       fails++;
@@ -565,7 +580,8 @@ static int selftest(void) {
         !strstr(b, "\"wire\":\"smx_motivate\"") ||
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
-        !strstr(b, "\"llm_is_commander\":false")) {
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: nanobot note-pid dead honesty fail: %.400s\n",
               b);
       fails++;
@@ -584,7 +600,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: nanobot stop-all dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -603,7 +620,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
         !strstr(b, "\"share\":\"state_matrix_only\"") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: nanobot save dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -617,7 +635,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: matrix dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -630,7 +649,8 @@ static int selftest(void) {
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
-        !strstr(b, "\"llm_on_hot_path\":false")) {
+        !strstr(b, "\"llm_on_hot_path\":false") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: ability dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -664,7 +684,8 @@ static int selftest(void) {
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"hold_flash\":1") ||
-        strstr(b, "\"schema\":\"grokium.error.v1\"")) {
+        strstr(b, "\"schema\":\"grokium.error.v1\"") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: contract form need_json dual-wire fail: %.400s\n",
               b);
       fails++;
@@ -682,7 +703,8 @@ static int selftest(void) {
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"llm_is_commander\":false") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr,
               "selftest: contract form need_args dual-wire fail: %.400s\n", b);
       fails++;
@@ -698,7 +720,8 @@ static int selftest(void) {
         !strstr(b, "\"schema\":\"grokium.contract_validate.v1\"") ||
         !strstr(b, "\"error\":\"need_path\"") ||
         !strstr(b, "\"product_wire\":\"smx2\"") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: contract validate need_path fail: %.400s\n",
               b);
       fails++;
@@ -720,7 +743,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_on_hot_path\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: contract form dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -756,7 +780,8 @@ static int selftest(void) {
         !strstr(b, "\"llm_on_hot_path\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
         !strstr(b, "\"hold_flash\":1") ||
-        !strstr(b, "\"share\":\"state_matrix_only\"")) {
+        !strstr(b, "\"share\":\"state_matrix_only\"") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: manager tick dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -776,7 +801,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
         !strstr(b, "\"hold_flash\":1") ||
-        !strstr(b, "\"share\":\"state_matrix_only\"")) {
+        !strstr(b, "\"share\":\"state_matrix_only\"") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: instinct dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -793,7 +819,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
         !strstr(b, "\"hold_flash\":1") ||
-        !strstr(b, "\"share\":\"state_matrix_only\"")) {
+        !strstr(b, "\"share\":\"state_matrix_only\"") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: license dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -836,7 +863,8 @@ static int selftest(void) {
     if ((!strstr(b, "sig") && !strstr(b, "fingerprint") &&
          !strstr(b, "nonce") && !strstr(b, "grokium")) ||
         !strstr(b, "\"product_wire\":\"smx2\"") ||
-        !strstr(b, "\"llm_is_commander\":false")) {
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: sign dual-wire fail: %.400s\n", b);
       fails++;
     }
