@@ -1485,30 +1485,15 @@ static void do_command(const char *raw) {
   }
   if (strcmp(cmd, "settings") == 0 || strcmp(cmd, "config") == 0) {
     if (!rest[0] || !strcmp(rest, "show")) {
-      char plate[512], line[240];
-      /* Shared dual-wire settings plate — no free-text dual-wire banner. */
+      char plate[640];
+      /* Dual-wire settings plate only — no free-text detail dump. */
       gkx_settings_json(&cfg, 0, plate, sizeof plate);
       log_add(plate);
-      /* Host UX detail lines (not dual-wire surface). */
-      gkx_config_summary(&cfg, line, sizeof line);
-      log_add(line);
-      snprintf(line, sizeof line, "backend=%s model=%s ctx=%d",
-               cfg.active_backend, cfg.active_model, cfg.context_window);
-      log_add(line);
-      snprintf(line, sizeof line, "ui.theme=%s product=%s ml=%d mouse=%d rows=%d",
-               cfg.ui_theme, cfg.ui_product_name, cfg.ui_multiline, cfg.ui_mouse,
-               cfg.ui_composer_max_rows);
-      log_add(line);
-      snprintf(line, sizeof line, "agent tools=%d brain=%d turns=%d",
-               cfg.agent_tools, cfg.agent_braincells, cfg.agent_max_turns);
-      log_add(line);
-      snprintf(line, sizeof line, "base=%s", cfg.local_base_url);
-      log_add(line);
       return;
     }
     if (!strcmp(rest, "save")) { config_persist(); return; }
     if (!strcmp(rest, "reload")) {
-      char plate[512];
+      char plate[640];
       gkx_config_load(&cfg, NULL);
       gkx_config_apply_env(&cfg);
       ui_apply_colors();
@@ -1518,10 +1503,11 @@ static void do_command(const char *raw) {
       return;
     }
     if (!strcmp(rest, "path")) {
-      char path[PATH_MAX], line[PATH_MAX + 40];
+      char path[PATH_MAX], plate[640];
       gkx_config_resolve_save_path(&cfg, path, sizeof path);
-      snprintf(line, sizeof line, "save path: %s", path);
-      log_add(line);
+      /* Dual-wire path plate — no free-text save path banner. */
+      gkx_settings_path_json(path, plate, sizeof plate);
+      log_add(plate);
       return;
     }
     {

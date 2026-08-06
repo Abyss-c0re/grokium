@@ -459,7 +459,8 @@ static void settings_token(const char *in, char *out, size_t cap) {
 }
 
 void gkx_settings_json(const gkx_config *c, int saved, char *out, size_t cap) {
-  char backend[48], theme[48];
+  char backend[48], theme[48], model[48], product[48];
+  int ctx;
   if (!out || cap < 64) return;
   if (!c) {
     snprintf(out, cap,
@@ -475,19 +476,55 @@ void gkx_settings_json(const gkx_config *c, int saved, char *out, size_t cap) {
   if (!backend[0]) snprintf(backend, sizeof backend, "local");
   settings_token(c->ui_theme, theme, sizeof theme);
   if (!theme[0]) snprintf(theme, sizeof theme, "glass");
+  settings_token(c->active_model, model, sizeof model);
+  if (!model[0]) snprintf(model, sizeof model, "auto");
+  settings_token(c->ui_product_name, product, sizeof product);
+  if (!product[0]) snprintf(product, sizeof product, "grokium");
+  ctx = c->context_window > 0 ? c->context_window : 0;
   /* Shared dual-wire settings plate: TUI show/save · py=0 product path. */
   snprintf(out, cap,
            "{\"schema\":\"grokium.settings.v1\",\"ok\":true,"
            "\"saved\":%s,\"tools\":%d,\"braincells\":%d,"
            "\"multiline\":%d,\"hub\":%d,\"turns\":%d,"
-           "\"backend\":\"%s\",\"theme\":\"%s\","
+           "\"backend\":\"%s\",\"model\":\"%s\",\"theme\":\"%s\","
+           "\"product\":\"%s\",\"context_window\":%d,\"mouse\":%d,"
            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"llm_is_commander\":false,\"python\":0}",
            saved ? "true" : "false", c->agent_tools ? 1 : 0,
            c->agent_braincells ? 1 : 0, c->ui_multiline ? 1 : 0,
-           c->hub_enabled ? 1 : 0, c->agent_max_turns, backend, theme);
+           c->hub_enabled ? 1 : 0, c->agent_max_turns, backend, model, theme,
+           product, ctx, c->ui_mouse ? 1 : 0);
+}
+
+void gkx_settings_path_json(const char *path, char *out, size_t cap) {
+  char path_tok[160];
+  size_t i, o = 0;
+  if (!out || cap < 64) return;
+  path_tok[0] = 0;
+  if (path) {
+    for (i = 0; path[i] && o + 1 < sizeof path_tok && o < 120; i++) {
+      unsigned char c = (unsigned char)path[i];
+      if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+          (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.' ||
+          c == '/' || c == '~')
+        path_tok[o++] = (char)c;
+      else if (c == ' ' || c == '"' || c == '\\' || c == ':' || c == ';')
+        path_tok[o++] = '_';
+    }
+    path_tok[o] = 0;
+  }
+  if (!path_tok[0]) snprintf(path_tok, sizeof path_tok, "unknown");
+  /* Dual-wire path ack — no free-text "save path:" banner. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.settings.v1\",\"ok\":true,"
+           "\"action\":\"path\",\"path\":\"%s\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"python\":0}",
+           path_tok);
 }
 
 void gkx_backend_json(const char *backend, int saved, char *out, size_t cap) {

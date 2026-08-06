@@ -109,10 +109,17 @@ void gkx_config_summary(const gkx_config *c, char *out, size_t n);
 /*
  * Dual-wire settings plate (schema grokium.settings.v1).
  * Host TUI /settings show|save|key=value — tools/brain/hub flags machine-safe.
- * saved=1 after successful persist; backend/theme machine-tokenized (no inject).
+ * saved=1 after successful persist; backend/theme/model/product tokenized.
+ * Includes context_window/mouse so show needs no free-text detail dump.
  * product bus SMX2; peer HTTP lab/ops only; LLM ≠ commander.
  */
 void gkx_settings_json(const gkx_config *c, int saved, char *out, size_t cap);
+
+/*
+ * Dual-wire settings path plate (schema grokium.settings.v1).
+ * Host TUI /settings path — path machine-sanitized (no free-text path dump).
+ */
+void gkx_settings_path_json(const char *path, char *out, size_t cap);
 
 /*
  * Dual-wire backend plate (schema grokium.backend.v1).

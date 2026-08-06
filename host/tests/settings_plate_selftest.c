@@ -39,7 +39,10 @@ int main(void) {
       !strstr(plate, "\"tools\":1") || !strstr(plate, "\"braincells\":1") ||
       !strstr(plate, "\"multiline\":1") || !strstr(plate, "\"hub\":1") ||
       !strstr(plate, "\"backend\":\"local\"") ||
-      !strstr(plate, "\"theme\":\"glass\"") || !plate_dual_wire(plate)) {
+      !strstr(plate, "\"theme\":\"glass\"") ||
+      !strstr(plate, "\"model\"") || !strstr(plate, "\"context_window\"") ||
+      !strstr(plate, "\"mouse\"") || !strstr(plate, "\"product\"") ||
+      !plate_dual_wire(plate)) {
     fprintf(stderr, "settings_plate_selftest: defaults fail: %.400s\n", plate);
     return 1;
   }
@@ -49,28 +52,50 @@ int main(void) {
   cfg.ui_multiline = 0;
   cfg.hub_enabled = 0;
   cfg.agent_max_turns = 12;
+  cfg.context_window = 8192;
+  cfg.ui_mouse = 0;
   snprintf(cfg.active_backend, sizeof cfg.active_backend, "grok");
+  snprintf(cfg.active_model, sizeof cfg.active_model, "grok-4");
   snprintf(cfg.ui_theme, sizeof cfg.ui_theme, "dark");
+  snprintf(cfg.ui_product_name, sizeof cfg.ui_product_name, "grokium");
   gkx_settings_json(&cfg, 1, plate, sizeof plate);
   if (!strstr(plate, "\"saved\":true") || !strstr(plate, "\"tools\":0") ||
       !strstr(plate, "\"braincells\":0") || !strstr(plate, "\"multiline\":0") ||
       !strstr(plate, "\"hub\":0") || !strstr(plate, "\"turns\":12") ||
       !strstr(plate, "\"backend\":\"grok\"") ||
-      !strstr(plate, "\"theme\":\"dark\"") || !plate_dual_wire(plate))
+      !strstr(plate, "\"model\":\"grok-4\"") ||
+      !strstr(plate, "\"theme\":\"dark\"") ||
+      !strstr(plate, "\"context_window\":8192") ||
+      !strstr(plate, "\"mouse\":0") || !strstr(plate, "\"product\":\"grokium\"") ||
+      !plate_dual_wire(plate))
     return fail("saved flags dual-wire plate");
 
-  /* Hostile backend/theme must not inject JSON (machine token only). */
+  /* Hostile backend/theme/model must not inject JSON (machine token only). */
   snprintf(cfg.active_backend, sizeof cfg.active_backend, "loc\"al;x");
   snprintf(cfg.ui_theme, sizeof cfg.ui_theme, "gla\"ss\\x");
+  snprintf(cfg.active_model, sizeof cfg.active_model, "bad\";drop");
   gkx_settings_json(&cfg, 0, plate, sizeof plate);
   /* quote/backslash → _; ';' dropped — never raw metachar on wire. */
   if (strstr(plate, "loc\"al") || strstr(plate, "gla\"ss") ||
-      strstr(plate, ";x") || strstr(plate, "\\x") ||
+      strstr(plate, ";x") || strstr(plate, "\\x") || strstr(plate, "bad\";") ||
       !strstr(plate, "\"backend\":\"loc_alx\"") ||
-      !strstr(plate, "\"theme\":\"gla_ss_x\"") || !plate_dual_wire(plate)) {
+      !strstr(plate, "\"theme\":\"gla_ss_x\"") ||
+      !strstr(plate, "\"model\":\"bad_drop\"") || !plate_dual_wire(plate)) {
     fprintf(stderr, "settings_plate_selftest: inject fail: %.400s\n", plate);
     return 1;
   }
+
+  /* /settings path dual-wire (no free-text save path banner). */
+  gkx_settings_path_json("/home/me/config/grokium.toml", plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.settings.v1\"") ||
+      !strstr(plate, "\"ok\":true") || !strstr(plate, "\"action\":\"path\"") ||
+      !strstr(plate, "\"path\":\"/home/me/config/grokium.toml\"") ||
+      !plate_dual_wire(plate))
+    return fail("settings path dual-wire plate");
+  gkx_settings_path_json("evil\";drop path", plate, sizeof plate);
+  if (strstr(plate, "evil\";") || strstr(plate, "drop path") ||
+      !strstr(plate, "\"action\":\"path\"") || !plate_dual_wire(plate))
+    return fail("settings path inject sanitize");
 
   /* /backend show|set dual-wire (LLM ≠ commander · no free-text banner). */
   gkx_backend_json("local", 0, plate, sizeof plate);
