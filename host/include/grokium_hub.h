@@ -17,7 +17,11 @@ int gkx_hub_stop(void);
  */
 void gkx_hub_stop_json(char *buf, size_t n);
 
-/* Dual-wire hub status plate into buf; returns 0 if healthy (alive+http). */
+/*
+ * Dual-wire hub status plate into buf.
+ * Returns 0 if healthy (alive + managed hub pid + peer http).
+ * managed=false when pid file names a non-hub process (fleet honesty).
+ */
 int gkx_hub_status(char *buf, size_t n);
 
 /*

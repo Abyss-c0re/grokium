@@ -65,7 +65,8 @@ int main(void) {
     return 1;
   }
 
-  /* Honest pid plate: note self pid, still may be http=false (no hub server). */
+  /* Honest pid plate: plant self pid (not nanobot). Alive but not managed.
+   * Ambient hub HTTP on :8787 must not make ok=true for a non-hub pid. */
   snprintf(pidp, sizeof pidp, "%s/data/hub/nanobot.pid", td);
   f = fopen(pidp, "w");
   if (!f) return fail("write pid");
@@ -73,12 +74,13 @@ int main(void) {
   fclose(f);
   rc = gkx_hub_status(plate, sizeof plate);
   if (!strstr(plate, "\"alive\":true") ||
+      !strstr(plate, "\"managed\":false") ||
       !strstr(plate, "\"product_wire\":\"smx2\"") ||
       !strstr(plate, "\"peer_http_is_product_bus\":false")) {
     fprintf(stderr, "hub_status_selftest: live pid plate fail: %s\n", plate);
     return 1;
   }
-  /* Without peer health, overall ok stays false. */
+  /* Non-managed pid never yields ok=true (fleet honesty). */
   if (rc != 1 || !strstr(plate, "\"ok\":false"))
     return fail("alive without http should not report ok=true");
 
@@ -153,6 +155,6 @@ int main(void) {
   }
 
   printf("HOST_HUB_STATUS_OK dual_wire=honest peer_http=lab_ops_only stop=1 "
-         "wait=1 lock_slots_sanitize=1 python=0\n");
+         "wait=1 managed=1 lock_slots_sanitize=1 python=0\n");
   return 0;
 }

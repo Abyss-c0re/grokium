@@ -83,6 +83,30 @@ static int pid_alive(int pid) {
   return kill(pid, 0) == 0 || errno == EPERM;
 }
 
+/* Fleet honesty: pid file must name a hub-like process (nanobot peer),
+ * not an arbitrary live pid planted beside ambient :hub_port health. */
+static int pid_is_hub_proc(int pid) {
+  char path[64], buf[128];
+  FILE *f;
+  size_t n;
+  if (pid <= 0) return 0;
+  snprintf(path, sizeof path, "/proc/%d/comm", pid);
+  f = fopen(path, "r");
+  if (!f) return 0;
+  if (!fgets(buf, sizeof buf, f)) {
+    fclose(f);
+    return 0;
+  }
+  fclose(f);
+  n = strlen(buf);
+  while (n > 0 && (buf[n - 1] == '\n' || buf[n - 1] == '\r'))
+    buf[--n] = 0;
+  /* Managed hub is nanobot peer (cmdline may be truncated in comm). */
+  if (strstr(buf, "nanobot") != NULL) return 1;
+  if (strstr(buf, "grokium") != NULL) return 1; /* rare self-host */
+  return 0;
+}
+
 static int hub_http_ok(void) {
   char cmd[256];
   snprintf(cmd, sizeof cmd,
@@ -144,8 +168,11 @@ static void json_safe_path(const char *in, char *out, size_t n) {
 int gkx_hub_status(char *buf, size_t n) {
   int pid = read_pid();
   int alive = pid_alive(pid);
+  int managed = pid_is_hub_proc(pid);
   int http = hub_http_ok();
-  int ok = (alive && http) ? 1 : 0;
+  /* ok only when our managed hub pid is alive and peer HTTP answers.
+   * Ambient :port health + arbitrary live pid must not claim ok=true. */
+  int ok = (alive && managed && http) ? 1 : 0;
   char lock_s[160], slots_s[32];
   const char *lock = getenv("NANOBOT_LLM_LOCK");
   const char *slots = getenv("NANOBOT_LLM_SLOTS");
@@ -154,7 +181,7 @@ int gkx_hub_status(char *buf, size_t n) {
   json_safe_path(slots && slots[0] ? slots : "1", slots_s, sizeof slots_s);
   snprintf(buf, n,
            "{\"schema\":\"grokium.hub_status.v1\",\"ok\":%s,"
-           "\"port\":%d,\"pid\":%d,\"alive\":%s,\"http\":%s,"
+           "\"port\":%d,\"pid\":%d,\"alive\":%s,\"managed\":%s,\"http\":%s,"
            "\"lock\":\"%s\",\"slots\":\"%s\","
            "\"control_plane\":\"host_hub\","
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
@@ -163,8 +190,8 @@ int gkx_hub_status(char *buf, size_t n) {
            "\"llm_is_commander\":false,\"llm_on_hot_path\":false,"
            "\"python\":0}",
            ok ? "true" : "false", GKX_HUB_PORT, pid > 0 ? pid : 0,
-           alive ? "true" : "false", http ? "true" : "false", lock_s,
-           slots_s);
+           alive ? "true" : "false", managed ? "true" : "false",
+           http ? "true" : "false", lock_s, slots_s);
   return ok ? 0 : 1;
 }
 
