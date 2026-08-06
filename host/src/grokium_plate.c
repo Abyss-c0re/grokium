@@ -105,10 +105,19 @@ int gkx_plate_ui_line(const char *ln, int debug_mode, char *out, size_t cap) {
 
   /* Specialize common plates for chat surface */
   if (strcmp(short_s, "ready") == 0) {
-    snprintf(out, cap,
-             "· ready%s%s%s · Enter=send · Shift/Alt+Enter=nl · /agents /fleet /auth",
-             hub == 1 ? " · hub" : "", tools == 1 ? " · tools" : "",
-             ml == 1 ? " · ml" : "");
+    {
+      int turns = plate_json_int(ln, "max_turns");
+      int sub = plate_json_bool(ln, "subagents");
+      char vision[32];
+      vision[0] = 0;
+      plate_json_str(ln, "vision", vision, sizeof vision);
+      /* Humanize dual-wire ready — no free-text capability strip elsewhere. */
+      snprintf(out, cap,
+               "· ready%s%s%s%s%s · turns=%d · Enter=send · /agents /fleet /auth",
+               hub == 1 ? " · hub" : "", tools == 1 ? " · tools" : "",
+               ml == 1 ? " · ml" : "", vision[0] ? " · vision" : "",
+               sub == 1 ? " · subagents" : "", turns > 0 ? turns : 96);
+    }
     return 0;
   }
   if (strcmp(short_s, "agents") == 0) {

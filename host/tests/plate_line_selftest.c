@@ -93,9 +93,12 @@ int main(void) {
   {
     const char *ready =
         "{\"schema\":\"grokium.ready.v1\",\"ok\":true,\"hub\":true,"
-        "\"tools\":true,\"multiline\":true}";
+        "\"tools\":true,\"multiline\":true,\"vision\":\"perfect_assistant\","
+        "\"subagents\":true,\"max_turns\":96}";
     gkx_plate_ui_line(ready, 0, out, sizeof out);
-    if (!strstr(out, "ready") || !strstr(out, "Enter=send"))
+    if (!strstr(out, "ready") || !strstr(out, "Enter=send") ||
+        !strstr(out, "vision") || !strstr(out, "subagents") ||
+        !strstr(out, "turns=96") || strstr(out, "\"schema\""))
       return fail("ui_line ready human");
   }
   /* Fleet / hub / manager human lines (no raw JSON · honest counts). */

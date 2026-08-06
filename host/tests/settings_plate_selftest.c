@@ -355,8 +355,8 @@ int main(void) {
       !plate_dual_wire(plate))
     return fail("models list inject sanitize");
 
-  /* TUI startup ready dual-wire (no free-text welcome/send-hint dump). */
-  gkx_ready_json(1, 1, 1, plate, sizeof plate);
+  /* TUI startup ready dual-wire (no free-text welcome / capability strip). */
+  gkx_ready_json(1, 1, 1, 96, plate, sizeof plate);
   if (!strstr(plate, "\"schema\":\"grokium.ready.v1\"") ||
       !strstr(plate, "\"ok\":true") ||
       !strstr(plate, "\"surface\":\"host_tui\"") ||
@@ -365,15 +365,18 @@ int main(void) {
       !strstr(plate, "\"multiline\":true") ||
       !strstr(plate, "\"telemetry\":\"off\"") ||
       !strstr(plate, "\"vision\":\"perfect_assistant\"") ||
-      !strstr(plate, "Enter=send") ||
+      !strstr(plate, "\"subagents\":true") ||
+      !strstr(plate, "\"max_turns\":96") || !strstr(plate, "Enter=send") ||
       !strstr(plate, "\"commander_is_model\":false") ||
       !plate_dual_wire(plate)) {
     fprintf(stderr, "settings_plate_selftest: ready on fail: %.400s\n", plate);
     return 1;
   }
-  gkx_ready_json(0, 0, 0, plate, sizeof plate);
+  gkx_ready_json(0, 0, 0, 0, plate, sizeof plate);
   if (!strstr(plate, "\"hub\":false") || !strstr(plate, "\"tools\":false") ||
-      !strstr(plate, "\"multiline\":false") || !plate_dual_wire(plate))
+      !strstr(plate, "\"multiline\":false") ||
+      !strstr(plate, "\"max_turns\":96") || /* 0 → default 96 */
+      !plate_dual_wire(plate))
     return fail("ready off dual-wire plate");
 
   /* TUI /agents status dual-wire (no free-text multi-line agents dump). */

@@ -2703,8 +2703,10 @@ int grokium_tui(int argc, char **argv) {
 
   {
     char plate[640];
-    /* Dual-wire ready plate — humanized on META row (no raw JSON spam). */
-    gkx_ready_json(cfg.hub_enabled, cfg.agent_tools, cfg.ui_multiline, plate,
+    /* Dual-wire ready plate — vision/subagents/max_turns in plate (no free-text
+     * capability strip). Humanized on META row via gkx_plate_ui_line. */
+    gkx_ready_json(cfg.hub_enabled, cfg.agent_tools, cfg.ui_multiline,
+                   cfg.agent_max_turns > 0 ? cfg.agent_max_turns : 96, plate,
                    sizeof plate);
     log_add(plate);
   }
@@ -2739,14 +2741,6 @@ int grokium_tui(int argc, char **argv) {
         ng_session_free(&s);
       }
     }
-  }
-  /* Perfect-assistant capability strip (human, not raw JSON). */
-  {
-    char cap[200];
-    snprintf(cap, sizeof cap,
-             "· vision · tools+subagents · long tasks turns=%d · /agents /fleet",
-             cfg.agent_max_turns > 0 ? cfg.agent_max_turns : 96);
-    log_add(cap);
   }
 
   input[0] = 0;

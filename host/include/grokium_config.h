@@ -238,10 +238,13 @@ void gkx_models_list_json(int n, const char *backend, const char *active,
 
 /*
  * Dual-wire TUI ready plate (schema grokium.ready.v1).
- * Host TUI startup — local-first honesty; replaces free-text welcome dump.
- * hub/tools/multiline are machine flags from config.
+ * Host TUI startup — local-first honesty; replaces free-text welcome dump
+ * and the free-text "perfect assistant" capability strip.
+ * hub/tools/multiline/max_turns are machine flags from config.
+ * vision=perfect_assistant · subagents=true are fixed host capability bits.
  */
-void gkx_ready_json(int hub, int tools, int multiline, char *out, size_t cap);
+void gkx_ready_json(int hub, int tools, int multiline, int max_turns, char *out,
+                    size_t cap);
 
 /*
  * Dual-wire agents status plate (schema grokium.agents.v1).

@@ -796,22 +796,28 @@ void gkx_models_list_json(int n, const char *backend, const char *active,
            n, be, act);
 }
 
-void gkx_ready_json(int hub, int tools, int multiline, char *out, size_t cap) {
+void gkx_ready_json(int hub, int tools, int multiline, int max_turns, char *out,
+                    size_t cap) {
   if (!out || cap < 64) return;
-  /* Shared dual-wire ready plate: TUI startup (local-first · py=0). */
+  if (max_turns < 0) max_turns = 0;
+  if (max_turns > 9999) max_turns = 9999;
+  if (max_turns == 0) max_turns = 96; /* default long-task budget */
+  /* Shared dual-wire ready plate: TUI startup (local-first · py=0).
+   * Carries vision/subagents/max_turns so no free-text capability strip. */
   snprintf(out, cap,
            "{\"schema\":\"grokium.ready.v1\",\"ok\":true,"
            "\"surface\":\"host_tui\",\"local_first\":true,"
            "\"hub\":%s,\"tools\":%s,\"multiline\":%s,"
+           "\"vision\":\"perfect_assistant\",\"subagents\":true,"
+           "\"max_turns\":%d,"
            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"llm_is_commander\":false,\"commander_is_model\":false,"
            "\"python\":0,\"telemetry\":\"off\","
-           "\"vision\":\"perfect_assistant\","
-           "\"hint\":\"Enter=send · / agents fleet auth · tools on both cores\"}",
+           "\"hint\":\"Enter=send · /agents /fleet /auth · vision · tools\"}",
            hub ? "true" : "false", tools ? "true" : "false",
-           multiline ? "true" : "false");
+           multiline ? "true" : "false", max_turns);
 }
 
 void gkx_agents_json(int tools, int braincells, int max_turns, int timeout_sec,
