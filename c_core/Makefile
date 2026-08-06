@@ -18,7 +18,8 @@ HTTP_SRC := src/http_cli.c src/http.c src/llama.c src/session.c \
 INT_SRC := src/integrity_cli.c src/integrity.c src/law.c src/sha256.c
 
 .PHONY: all clean test-commander test-filter hive test-consolidate test-serve \
-	test-integrity test-fleet test-session-plate test-law-plate
+	test-integrity test-fleet test-session-plate test-law-plate \
+	test-status-plate
 
 all: $(BIN_CMD) $(BIN_FILTER) $(BUILD)/grokium-fleet $(BUILD)/grokium-consolidate \
 	$(BUILD)/grokium-serve $(BUILD)/grokium-integrity
@@ -75,11 +76,28 @@ test-law-plate: $(BUILD)/law_plate_selftest
 	echo "$$ST" | grep -q '"python":0'; \
 	echo "$$ST" | grep -qv C_CORE_LAW_PLATE_OK
 
+# Status / healthz dual-wire plates — pure C, no HTTP/nanobot.
+$(BUILD)/status_plate_selftest: tests/status_plate_selftest.c src/status_plate.c \
+	include/grokium_status_plate.h | $(BUILD)
+	$(CC) $(CFLAGS) -o $@ tests/status_plate_selftest.c src/status_plate.c
+
+test-status-plate: $(BUILD)/status_plate_selftest
+	@set -e; \
+	ST=$$($(BUILD)/status_plate_selftest); \
+	echo "$$ST" | grep -q '"schema":"grokium.status_plate_selftest.v1"'; \
+	echo "$$ST" | grep -q '"ok":true'; \
+	echo "$$ST" | grep -q '"status":true'; \
+	echo "$$ST" | grep -q '"healthz":true'; \
+	echo "$$ST" | grep -q '"sanitize":true'; \
+	echo "$$ST" | grep -q '"product_wire":"smx2"'; \
+	echo "$$ST" | grep -q '"python":0'; \
+	echo "$$ST" | grep -qv C_CORE_STATUS_PLATE_OK
+
 clean:
 	rm -f $(BIN_CMD) $(BIN_FILTER) $(BUILD)/grokium-fleet \
 		$(BUILD)/grokium-consolidate $(BUILD)/grokium-serve \
 		$(BUILD)/grokium-integrity $(BUILD)/session_plate_selftest \
-		$(BUILD)/law_plate_selftest
+		$(BUILD)/law_plate_selftest $(BUILD)/status_plate_selftest
 
 test-commander: $(BIN_CMD)
 	@set -e; \
@@ -404,7 +422,8 @@ test-fleet: $(BUILD)/grokium-fleet
 	echo FLEET_ACK_DUAL_WIRE_OK
 
 hive: test-filter test-consolidate test-serve test-commander test-integrity \
-	test-fleet test-session-plate test-law-plate $(BUILD)/grokium-fleet
+	test-fleet test-session-plate test-law-plate test-status-plate \
+	$(BUILD)/grokium-fleet
 	@$(BUILD)/grokium-fleet defaults | grep -q '"id":"nb-manager"'
 	@set -e; \
 	grep -q 'product_wire=smx2' ../compat/nexus_coord.v1.plate; \
