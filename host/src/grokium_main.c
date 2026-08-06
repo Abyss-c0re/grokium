@@ -450,7 +450,10 @@ int main(int argc, char **argv) {
       return 0;
     }
     if (strcmp(argv[ai], "--version") == 0) {
-      printf("grokium %s (nanobot core)\n", GROKIUM_VERSION);
+      char plate[512];
+      /* Shared dual-wire version plate (match `version` · no free-text banner). */
+      gkx_version_json(plate, sizeof plate);
+      printf("%s\n", plate);
       return 0;
     }
     break;

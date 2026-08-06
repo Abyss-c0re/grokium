@@ -18,7 +18,8 @@ int gkx_version_maybe_restart(const gkx_version_state *st, int argc, char **argv
 
 /*
  * Dual-wire product version plate (schema grokium.version.v1).
- * Host CLI `version` shares this builder (lab/ops ≠ product bus).
+ * Host CLI `version` and `--version` share this builder (lab/ops ≠ product bus).
+ * Replaces free-text "grokium X (nanobot core)" banner.
  */
 void gkx_version_json(char *out, size_t cap);
 

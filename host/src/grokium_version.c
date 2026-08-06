@@ -119,7 +119,7 @@ int gkx_version_refresh(gkx_version_state *st, const char *root) {
 
 void gkx_version_json(char *out, size_t cap) {
   if (!out || cap < 64) return;
-  /* Shared dual-wire product version plate (host CLI version). */
+  /* Shared dual-wire product version plate (CLI version + --version). */
   snprintf(out, cap,
            "{\"schema\":\"grokium.version.v1\",\"ok\":true,"
            "\"product\":\"grokium\",\"version\":\"%s\",\"core\":\"nanobot\","

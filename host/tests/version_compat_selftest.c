@@ -89,18 +89,21 @@ int main(void) {
       return fail("compat builder dual-wire fail");
   }
 
-  /* Shared product version plate (CLI version path). */
+  /* Shared product version plate (CLI version + --version path). */
   {
     char ver[512];
     gkx_version_json(ver, sizeof ver);
     if (!strstr(ver, "\"schema\":\"grokium.version.v1\"") ||
         !strstr(ver, "\"product\":\"grokium\"") ||
         !strstr(ver, "\"version\":\"" GROKIUM_VERSION "\"") ||
+        !strstr(ver, "\"core\":\"nanobot\"") ||
+        !strstr(ver, "\"host\":\"C\"") ||
         !strstr(ver, "\"python\":0") ||
         !strstr(ver, "\"product_wire\":\"smx2\"") ||
         !strstr(ver, "\"peer_http_is_product_bus\":false") ||
         !strstr(ver, "\"llm_is_commander\":false") ||
-        !strstr(ver, "\"hold_flash\":1"))
+        !strstr(ver, "\"hold_flash\":1") ||
+        !strstr(ver, "\"share\":\"state_matrix_only\""))
       return fail("version plate dual-wire fail");
   }
 
