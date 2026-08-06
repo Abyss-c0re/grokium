@@ -121,7 +121,15 @@ test-media-plate: out/media_plate_selftest
 	@./out/media_plate_selftest
 
 test-session-plate: out/session_plate_selftest
-	@./out/session_plate_selftest
+	@set -e; \
+	ST=$$(./out/session_plate_selftest); \
+	echo "$$ST" | grep -q '"schema":"grokium.host_session_plate_selftest.v1"'; \
+	echo "$$ST" | grep -q '"ok":true'; \
+	echo "$$ST" | grep -q '"shared":"c_core"'; \
+	echo "$$ST" | grep -q '"id_safe":true'; \
+	echo "$$ST" | grep -q '"product_wire":"smx2"'; \
+	echo "$$ST" | grep -q '"python":0'; \
+	echo "$$ST" | grep -qv HOST_SESSION_PLATE_OK
 
 # Host-local SMX filter gate — pure C, no nanobot/ncurses.
 out/smx_host_filter_selftest: tests/smx_host_filter_selftest.c $(SMX_FILTER_SRC) \

@@ -149,7 +149,30 @@ int main(void) {
   if (!strstr(plate, "\"loaded_msgs\":0") || !strstr(plate, "\"python\":0"))
     return fail("resume local negative clamp");
 
-  printf("HOST_SESSION_PLATE_OK shared=c_core dual_wire=honest id_safe=ok "
-         "meta_only=1 help=1 resume_local=1 python=0\n");
+  /* Dual-wire selftest success — no free-text HOST_SESSION_PLATE_OK. */
+  {
+    char okp[512];
+    snprintf(okp, sizeof okp,
+             "{\"schema\":\"grokium.host_session_plate_selftest.v1\","
+             "\"ok\":true,\"shared\":\"c_core\",\"id_safe\":true,"
+             "\"meta_only\":true,\"help\":true,\"resume_local\":true,"
+             "\"dual_wire\":true,\"product_wire\":\"smx2\","
+             "\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"hold_flash\":1,"
+             "\"share\":\"state_matrix_only\",\"python\":0}");
+    if (!strstr(okp, "\"schema\":\"grokium.host_session_plate_selftest.v1\"") ||
+        !strstr(okp, "\"ok\":true") || !strstr(okp, "\"shared\":\"c_core\"") ||
+        !strstr(okp, "\"id_safe\":true") ||
+        !strstr(okp, "\"product_wire\":\"smx2\"") ||
+        !strstr(okp, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(okp, "\"peer_http_is_product_bus\":false") ||
+        !strstr(okp, "\"llm_is_commander\":false") ||
+        !strstr(okp, "\"python\":0") ||
+        !strstr(okp, "\"share\":\"state_matrix_only\"") ||
+        !strstr(okp, "\"hold_flash\":1"))
+      return fail("host_session_plate_selftest plate");
+    printf("%s\n", okp);
+  }
   return 0;
 }
