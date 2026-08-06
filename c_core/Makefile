@@ -88,6 +88,7 @@ test-commander: $(BIN_CMD)
 	grep -q '"llm_is_commander": false' $$D/commander.id; \
 	grep -q '"commander_is_model": false' $$D/commander.id; \
 	grep -q '"model_is_not_commander": true' $$D/commander.id; \
+	grep -q '"python": 0' $$D/commander.id; \
 	S=$$($(BIN_CMD) show --law-dir $$D); \
 	echo "$$S" | grep -q '"not":"grok_model"'; \
 	echo "$$S" | grep -q '"peer_http_is_product_bus":false'; \
@@ -105,6 +106,7 @@ test-commander: $(BIN_CMD)
 	I=$$($(BIN_CMD) install-law --law-dir $$D --home $$H --bot nb-test --purpose dual_wire); \
 	echo "$$I" | grep -q '"product_wire":"smx2"'; \
 	echo "$$I" | grep -q '"llm_is_commander":false'; \
+	echo "$$I" | grep -q '"python":0'; \
 	L=$$H/law/COMMANDER_LAW.json; test -f $$L; \
 	grep -q '"product_wire": "smx2"' $$L; \
 	grep -q '"peer_http": "lab_ops_only"' $$L; \
@@ -113,6 +115,7 @@ test-commander: $(BIN_CMD)
 	grep -q '"model_is_not_commander": true' $$L; \
 	grep -q '"share": "state_matrix_only"' $$L; \
 	grep -q '"hold_flash": 1' $$L; \
+	grep -q '"python": 0' $$L; \
 	echo COMMANDER_LAW_OK
 
 test-filter: $(BIN_FILTER)

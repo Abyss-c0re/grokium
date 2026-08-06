@@ -81,7 +81,7 @@ int gk_commander_save(const gk_commander *C, const char *law_dir) {
   snprintf(path, sizeof path, "%s/commander.id", law_dir);
   f = fopen(path, "w");
   if (!f) return -1;
-  /* On-disk id plate: dual-wire honesty (Commander ≠ model; SMX ≠ peer HTTP). */
+  /* On-disk id plate: dual-wire honesty (Commander ≠ model · SMX ≠ peer HTTP · py=0). */
   fprintf(f,
     "{\n"
     "  \"schema\": \"grokium.commander.id.v1\",\n"
@@ -100,7 +100,8 @@ int gk_commander_save(const gk_commander *C, const char *law_dir) {
     "  \"hold_flash\": 1,\n"
     "  \"product_wire\": \"smx2\",\n"
     "  \"peer_http\": \"lab_ops_only\",\n"
-    "  \"peer_http_is_product_bus\": false\n"
+    "  \"peer_http_is_product_bus\": false,\n"
+    "  \"python\": 0\n"
     "}\n",
     GK_CMD_DOMAIN, GK_CMD_PRODUCT, GK_CMD_NOT, C->fingerprint_hex);
   fclose(f);
@@ -287,7 +288,7 @@ int gk_commander_install_nanobot_law(const gk_commander *C,
   snprintf(path, sizeof path, "%s/COMMANDER_LAW.json", lawdir);
   f = fopen(path, "w");
   if (!f) return -1;
-  /* On-disk nanobot law plate: dual-wire honesty (Commander ≠ model; SMX ≠ peer HTTP). */
+  /* On-disk nanobot law plate: dual-wire honesty (Commander ≠ model · py=0). */
   fprintf(f,
     "{\n"
     "  \"schema\": \"grokium.nanobot_commander_law.v1\",\n"
@@ -318,7 +319,8 @@ int gk_commander_install_nanobot_law(const gk_commander *C,
     "  \"hold_flash\": 1,\n"
     "  \"product_wire\": \"smx2\",\n"
     "  \"peer_http\": \"lab_ops_only\",\n"
-    "  \"peer_http_is_product_bus\": false\n"
+    "  \"peer_http_is_product_bus\": false,\n"
+    "  \"python\": 0\n"
     "}\n",
     GK_CMD_DOMAIN, GK_CMD_PRODUCT, GK_CMD_NOT,
     pk_hex, C->fingerprint_hex,
