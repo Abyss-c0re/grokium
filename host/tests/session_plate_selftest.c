@@ -17,6 +17,7 @@ static int plate_dual_wire(const char *plate) {
          strstr(plate, "\"peer_http\":\"lab_ops_only\"") &&
          strstr(plate, "\"peer_http_is_product_bus\":false") &&
          strstr(plate, "\"llm_is_commander\":false") &&
+         strstr(plate, "\"python\":0") &&
          strstr(plate, "\"share\":\"state_matrix_only\"") &&
          strstr(plate, "\"hold_flash\":1");
 }
@@ -119,6 +120,6 @@ int main(void) {
   }
 
   printf("HOST_SESSION_PLATE_OK shared=c_core dual_wire=honest id_safe=ok "
-         "meta_only=1 help=1\n");
+         "meta_only=1 help=1 python=0\n");
   return 0;
 }

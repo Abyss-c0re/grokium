@@ -96,7 +96,7 @@ int gk_session_pickup_deny_json(const char *id, const char *error, char *out,
              "\"error\":\"%s\",\"id\":\"%s\",\"content\":\"meta_only\","
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"llm_is_commander\":false,"
+             "\"llm_is_commander\":false,\"python\":0,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
              "\"resume_available\":false,"
              "\"hint\":\"%s\"}",
@@ -107,7 +107,7 @@ int gk_session_pickup_deny_json(const char *id, const char *error, char *out,
              "\"error\":\"%s\",\"content\":\"meta_only\","
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"llm_is_commander\":false,"
+             "\"llm_is_commander\":false,\"python\":0,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
              "\"resume_available\":false,"
              "\"hint\":\"%s\"}",
@@ -130,7 +130,7 @@ int gk_session_list_empty_json(const char *q, const char *import_dir,
              "\"error\":\"%s\",\"content\":\"meta_only\","
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"llm_is_commander\":false,"
+             "\"llm_is_commander\":false,\"python\":0,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
              "\"telemetry\":\"off\"}",
              qe, de, err);
@@ -141,7 +141,7 @@ int gk_session_list_empty_json(const char *q, const char *import_dir,
              "\"content\":\"meta_only\","
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"llm_is_commander\":false,"
+             "\"llm_is_commander\":false,\"python\":0,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
              "\"telemetry\":\"off\"}",
              qe, de);
@@ -151,14 +151,14 @@ int gk_session_list_empty_json(const char *q, const char *import_dir,
 
 int gk_session_help_json(char *out, size_t cap) {
   if (!out || cap < 64) return -1;
-  /* Shared dual-wire help: meta only · lab/ops ≠ product bus · no transcripts. */
+  /* Shared dual-wire help: meta only · lab/ops ≠ product bus · py=0 · no transcripts. */
   snprintf(out, cap,
            "{\"schema\":\"grokium.sessions.v1\",\"ok\":false,"
            "\"error\":\"need_query_or_pickup\",\"content\":\"meta_only\","
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"llm_is_commander\":false,\"telemetry\":\"off\","
+           "\"llm_is_commander\":false,\"python\":0,\"telemetry\":\"off\","
            "\"hint\":\"sessions [q] | sessions pickup|load <id> | no "
            "transcripts\"}");
   return 0;
@@ -314,7 +314,7 @@ void gk_session_list_json(const char *data_root, const char *q, char *out,
       "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
       "\"peer_http\":\"lab_ops_only\","
       "\"peer_http_is_product_bus\":false,"
-      "\"llm_is_commander\":false,"
+      "\"llm_is_commander\":false,\"python\":0,"
       "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
       "\"telemetry\":\"off\",\"q\":\"%s\",\"import_dir\":\"%s\","
       "\"sessions\":[",
@@ -411,7 +411,7 @@ int gk_session_pickup_json(const char *data_root, const char *id, char *out,
            "\"content\":\"meta_only\",\"product_wire\":\"smx2\","
            "\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
-           "\"llm_is_commander\":false,"
+           "\"llm_is_commander\":false,\"python\":0,"
            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
            "\"telemetry\":\"off\",\"resume\":\"host_tui_pickup\","
            "\"resume_available\":%s,"
