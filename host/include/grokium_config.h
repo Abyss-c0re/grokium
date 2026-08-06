@@ -234,4 +234,19 @@ void gkx_models_list_json(int n, const char *backend, const char *active,
  */
 void gkx_ready_json(int hub, int tools, int multiline, char *out, size_t cap);
 
+/*
+ * Dual-wire agents status plate (schema grokium.agents.v1).
+ * Host TUI /agents [status|show|help] — tools/braincells/turns/timeout +
+ * subagent running count. No free-text multi-line agents dump.
+ */
+void gkx_agents_json(int tools, int braincells, int max_turns, int timeout_sec,
+                     int sub_running, int sub_max, char *out, size_t cap);
+
+/*
+ * Dual-wire subagent cancel plate (schema grokium.subagent_cancel.v1).
+ * Host TUI /agents cancel ID — ok + sanitized id token only.
+ * Replaces free-text cancelled / cancel failed banners.
+ */
+void gkx_subagent_cancel_json(int ok, const char *id, char *out, size_t cap);
+
 #endif

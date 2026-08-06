@@ -355,6 +355,41 @@ int main(void) {
       !strstr(plate, "\"multiline\":false") || !plate_dual_wire(plate))
     return fail("ready off dual-wire plate");
 
+  /* TUI /agents status dual-wire (no free-text multi-line agents dump). */
+  gkx_agents_json(1, 1, 96, 900, 2, 8, plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.agents.v1\"") ||
+      !strstr(plate, "\"ok\":true") || !strstr(plate, "\"tools\":true") ||
+      !strstr(plate, "\"braincells\":true") ||
+      !strstr(plate, "\"max_turns\":96") ||
+      !strstr(plate, "\"timeout_sec\":900") ||
+      !strstr(plate, "\"sub_running\":2") || !strstr(plate, "\"sub_max\":8") ||
+      !strstr(plate, "\"cores\":\"local_and_grok\"") || !plate_dual_wire(plate)) {
+    fprintf(stderr, "settings_plate_selftest: agents fail: %.400s\n", plate);
+    return 1;
+  }
+  gkx_agents_json(0, 0, -1, -5, -3, 9999, plate, sizeof plate);
+  if (!strstr(plate, "\"tools\":false") ||
+      !strstr(plate, "\"braincells\":false") ||
+      !strstr(plate, "\"max_turns\":0") ||
+      !strstr(plate, "\"timeout_sec\":0") ||
+      !strstr(plate, "\"sub_running\":0") ||
+      !strstr(plate, "\"sub_max\":256") || !plate_dual_wire(plate))
+    return fail("agents clamp dual-wire plate");
+
+  /* TUI /agents cancel ID dual-wire (id sanitize · no free-text banner). */
+  gkx_subagent_cancel_json(1, "worker-1", plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.subagent_cancel.v1\"") ||
+      !strstr(plate, "\"ok\":true") ||
+      !strstr(plate, "\"action\":\"cancel\"") ||
+      !strstr(plate, "\"id\":\"worker-1\"") || !plate_dual_wire(plate))
+    return fail("subagent cancel ok dual-wire plate");
+  gkx_subagent_cancel_json(0, "bad\";drop/x", plate, sizeof plate);
+  if (!strstr(plate, "\"ok\":false") ||
+      !strstr(plate, "\"error\":\"cancel_failed\"") ||
+      !strstr(plate, "\"id\":\"bad_drop_x\"") || strstr(plate, "\";drop") ||
+      !plate_dual_wire(plate))
+    return fail("subagent cancel deny sanitize dual-wire plate");
+
   /* Dual-wire selftest success — no free-text HOST_SETTINGS_PLATE_OK. */
   {
     char okp[768];
@@ -367,13 +402,15 @@ int main(void) {
              "\"auth\":true,\"login\":true,\"session_clear\":true,"
              "\"interrupt\":true,\"empty_output\":true,\"tui_help\":true,"
              "\"cli_help\":true,\"models_list\":true,\"ready\":true,"
+             "\"agents\":true,\"subagent_cancel\":true,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"llm_is_commander\":false,\"hold_flash\":1,"
              "\"share\":\"state_matrix_only\",\"python\":0}");
     if (!strstr(okp, "\"schema\":\"grokium.settings_plate_selftest.v1\"") ||
         !strstr(okp, "\"ok\":true") || !strstr(okp, "\"empty_output\":true") ||
-        !strstr(okp, "\"ready\":true") ||
+        !strstr(okp, "\"ready\":true") || !strstr(okp, "\"agents\":true") ||
+        !strstr(okp, "\"subagent_cancel\":true") ||
         !strstr(okp, "\"product_wire\":\"smx2\"") ||
         !strstr(okp, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(okp, "\"peer_http_is_product_bus\":false") ||

@@ -142,6 +142,27 @@ int main(void) {
         !strstr(out, "smx_filter_deny"))
       return fail("ui_line coord deny human");
   }
+  /* Agents status + subagent cancel human lines (no raw JSON). */
+  {
+    const char *ag =
+        "{\"schema\":\"grokium.agents.v1\",\"ok\":true,\"tools\":true,"
+        "\"braincells\":true,\"max_turns\":96,\"sub_running\":1,"
+        "\"sub_max\":8}";
+    const char *cx =
+        "{\"schema\":\"grokium.subagent_cancel.v1\",\"ok\":false,"
+        "\"action\":\"cancel\",\"id\":\"worker1\","
+        "\"error\":\"cancel_failed\"}";
+    gkx_plate_ui_line(ag, 0, out, sizeof out);
+    if (!strstr(out, "agents") || !strstr(out, "tools=on") ||
+        !strstr(out, "turns=96") || !strstr(out, "sub=1/8") ||
+        strstr(out, "\"schema\""))
+      return fail("ui_line agents human");
+    gkx_plate_ui_line(cx, 0, out, sizeof out);
+    if (!strstr(out, "subagent") || !strstr(out, "cancel") ||
+        !strstr(out, "worker1") || !strstr(out, "deny") ||
+        strstr(out, "\"schema\""))
+      return fail("ui_line subagent cancel human");
+  }
   /* Integrity / contract / ability / commander human lines. */
   {
     const char *ir =

@@ -1356,40 +1356,22 @@ static void cmd_fleet(const char *arg);
 
 /* Perfect-assistant surface: tools · subagents · fleet · long budgets. */
 static void cmd_agents(const char *arg) {
-  char plate[640], line[200];
+  char plate[768];
   const char *sub = arg ? arg : "";
   while (*sub == ' ') sub++;
 
   if (!sub[0] || !strcmp(sub, "status") || !strcmp(sub, "show") ||
       !strcmp(sub, "help") || !strcmp(sub, "?")) {
-    snprintf(line, sizeof line,
-             "· agents · tools=%s · braincells=%s · turns=%d · timeout=%ds",
-             cfg.agent_tools ? "on" : "off",
-             cfg.agent_braincells ? "on" : "off", cfg.agent_max_turns,
-             cfg.agent_cmd_timeout_sec);
-    log_add(line);
-    snprintf(line, sizeof line,
-             "· agents · cores: local(llama tools) + grok(cloud tools) · "
-             "subagents explore|plan|general · /fleet deploy");
-    log_add(line);
-    {
-      char *list = ng_subagent_list_json();
-      int nrun = ng_subagent_running_count();
-      if (list && list[0] && strcmp(list, "[]") != 0) {
-        snprintf(line, sizeof line, "· subagents · running=%d · list below",
-                 nrun);
-        log_add(line);
-        log_add_block(list);
-      } else {
-        snprintf(line, sizeof line,
-                 "· subagents · running=%d · max=%d · spawn via agent tools",
-                 nrun, ng_subagent_max() > 0 ? ng_subagent_max() : 8);
-        log_add(line);
-      }
-      free(list);
-    }
-    log_add("· fleet · /fleet status|deploy|spawn-all|stop-all · /manager");
-    log_add("· long tasks · task board auto-extends turns · /mode agent");
+    char *list = ng_subagent_list_json();
+    int nrun = ng_subagent_running_count();
+    int smax = ng_subagent_max() > 0 ? ng_subagent_max() : 8;
+    /* Dual-wire agents status — no free-text multi-line agents dump. */
+    gkx_agents_json(cfg.agent_tools, cfg.agent_braincells, cfg.agent_max_turns,
+                    cfg.agent_cmd_timeout_sec, nrun, smax, plate, sizeof plate);
+    log_add(plate);
+    if (list && list[0] && strcmp(list, "[]") != 0)
+      log_add_block(list);
+    free(list);
     return;
   }
   if (!strcmp(sub, "fleet") || !strncmp(sub, "fleet ", 6)) {
@@ -1398,20 +1380,27 @@ static void cmd_agents(const char *arg) {
   }
   if (!strcmp(sub, "list") || !strcmp(sub, "subagents")) {
     char *list = ng_subagent_list_json();
-    if (list && list[0])
+    if (list && list[0] && strcmp(list, "[]") != 0)
       log_add_block(list);
-    else
-      log_add("· subagents · (none)");
+    else {
+      /* Empty list: dual-wire agents plate with sub_running=0 (no free-text). */
+      gkx_agents_json(cfg.agent_tools, cfg.agent_braincells,
+                      cfg.agent_max_turns, cfg.agent_cmd_timeout_sec, 0,
+                      ng_subagent_max() > 0 ? ng_subagent_max() : 8, plate,
+                      sizeof plate);
+      log_add(plate);
+    }
     free(list);
     return;
   }
   if (!strncmp(sub, "cancel ", 7)) {
     const char *id = sub + 7;
+    int ok;
     while (*id == ' ') id++;
-    if (ng_subagent_cancel(id) == 0)
-      log_add("· subagent · cancelled");
-    else
-      log_add("· subagent · cancel failed · check id");
+    ok = (ng_subagent_cancel(id) == 0);
+    /* Dual-wire cancel plate — no free-text cancelled/failed banners. */
+    gkx_subagent_cancel_json(ok, id, plate, sizeof plate);
+    log_add(plate);
     return;
   }
   grokium_need_subcmd_json(

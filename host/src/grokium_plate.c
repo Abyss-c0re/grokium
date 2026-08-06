@@ -111,6 +111,36 @@ int gkx_plate_ui_line(const char *ln, int debug_mode, char *out, size_t cap) {
              ml == 1 ? " · ml" : "");
     return 0;
   }
+  if (strcmp(short_s, "agents") == 0) {
+    {
+      int turns = plate_json_int(ln, "max_turns");
+      int nrun = plate_json_int(ln, "sub_running");
+      int smax = plate_json_int(ln, "sub_max");
+      int bc = plate_json_bool(ln, "braincells");
+      snprintf(out, cap,
+               "· agents · tools=%s · braincells=%s · turns=%d · "
+               "sub=%d/%d · /fleet /manager",
+               tools == 1 ? "on" : (tools == 0 ? "off" : "?"),
+               bc == 1 ? "on" : (bc == 0 ? "off" : "?"),
+               turns >= 0 ? turns : 0, nrun >= 0 ? nrun : 0,
+               smax >= 0 ? smax : 0);
+    }
+    return 0;
+  }
+  if (strcmp(short_s, "subagent_cancel") == 0) {
+    {
+      char id[48];
+      id[0] = 0;
+      plate_json_str(ln, "id", id, sizeof id);
+      if (ok == 1)
+        snprintf(out, cap, "· subagent · cancel · %s · ok",
+                 id[0] ? id : "?");
+      else
+        snprintf(out, cap, "· subagent · cancel · %s · deny",
+                 id[0] ? id : "?");
+    }
+    return 0;
+  }
   if (strcmp(short_s, "help") == 0 || strcmp(short_s, "cli_help") == 0) {
     snprintf(out, cap, "· help · /settings /model /backend /fleet /auth /shell /q");
     return 0;

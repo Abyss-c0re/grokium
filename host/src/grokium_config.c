@@ -791,3 +791,48 @@ void gkx_ready_json(int hub, int tools, int multiline, char *out, size_t cap) {
            hub ? "true" : "false", tools ? "true" : "false",
            multiline ? "true" : "false");
 }
+
+void gkx_agents_json(int tools, int braincells, int max_turns, int timeout_sec,
+                     int sub_running, int sub_max, char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  if (max_turns < 0) max_turns = 0;
+  if (max_turns > 9999) max_turns = 9999;
+  if (timeout_sec < 0) timeout_sec = 0;
+  if (timeout_sec > 86400) timeout_sec = 86400;
+  if (sub_running < 0) sub_running = 0;
+  if (sub_max < 0) sub_max = 0;
+  if (sub_max > 256) sub_max = 256;
+  /* Shared dual-wire agents status: TUI /agents (no free-text multi-line dump). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.agents.v1\",\"ok\":true,"
+           "\"action\":\"status\",\"tools\":%s,\"braincells\":%s,"
+           "\"max_turns\":%d,\"timeout_sec\":%d,"
+           "\"sub_running\":%d,\"sub_max\":%d,"
+           "\"cores\":\"local_and_grok\",\"share\":\"state_matrix_only\","
+           "\"hold_flash\":1,\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"commander_is_model\":false,"
+           "\"python\":0,\"telemetry\":\"off\","
+           "\"hint\":\"/agents list|fleet|cancel ID · /fleet · /manager · "
+           "/mode agent\"}",
+           tools ? "true" : "false", braincells ? "true" : "false", max_turns,
+           timeout_sec, sub_running, sub_max);
+}
+
+void gkx_subagent_cancel_json(int ok, const char *id, char *out, size_t cap) {
+  char id_tok[48];
+  if (!out || cap < 64) return;
+  settings_token(id, id_tok, sizeof id_tok);
+  if (!id_tok[0]) snprintf(id_tok, sizeof id_tok, "unknown");
+  /* Shared dual-wire cancel: TUI /agents cancel ID (id token only). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.subagent_cancel.v1\",\"ok\":%s,"
+           "\"action\":\"cancel\",\"id\":\"%s\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"python\":0%s}",
+           ok ? "true" : "false", id_tok,
+           ok ? "" : ",\"error\":\"cancel_failed\"");
+}
