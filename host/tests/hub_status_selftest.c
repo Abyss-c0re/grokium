@@ -100,6 +100,33 @@ int main(void) {
     return 1;
   }
 
-  printf("HOST_HUB_STATUS_OK dual_wire=honest peer_http=lab_ops_only stop=1\n");
+  /* Hostile lock/slots env must not break the dual-wire JSON plate. */
+  setenv("NANOBOT_LLM_LOCK", "/tmp/lk\"evil\\x", 1);
+  setenv("NANOBOT_LLM_SLOTS", "2\";drop", 1);
+  (void)gkx_hub_status(plate, sizeof plate);
+  if (strstr(plate, "lk\"evil") || strstr(plate, "evil\\x") ||
+      strstr(plate, "2\";drop") || strstr(plate, "\"drop\"") ||
+      !strstr(plate, "\"lock\":\"/tmp/lkevilx\"") ||
+      !strstr(plate, "\"slots\":\"2;drop\"") ||
+      !strstr(plate, "\"product_wire\":\"smx2\"") ||
+      !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+      !strstr(plate, "\"llm_is_commander\":false") ||
+      !strstr(plate, "\"hold_flash\":1")) {
+    fprintf(stderr, "hub_status_selftest: lock/slots inject fail: %s\n", plate);
+    return 1;
+  }
+  /* Quote-only lock collapses to safe dash placeholder. */
+  setenv("NANOBOT_LLM_LOCK", "\"", 1);
+  setenv("NANOBOT_LLM_SLOTS", "\\", 1);
+  (void)gkx_hub_status(plate, sizeof plate);
+  if (!strstr(plate, "\"lock\":\"-\"") || !strstr(plate, "\"slots\":\"-\"") ||
+      strstr(plate, "\"lock\":\"\"") ||
+      !strstr(plate, "\"peer_http\":\"lab_ops_only\"")) {
+    fprintf(stderr, "hub_status_selftest: empty-token fail: %s\n", plate);
+    return 1;
+  }
+
+  printf("HOST_HUB_STATUS_OK dual_wire=honest peer_http=lab_ops_only stop=1 "
+         "lock_slots_sanitize=1\n");
   return 0;
 }
