@@ -1256,10 +1256,8 @@ static void cmd_contract(const char *arg) {
       av[n++] = minset;
     }
     av[n] = NULL;
-    log_add("--- contract form (pure-C SMX filter · external cells) ---");
+    /* Capture prints shared contract_form plate — no free-text banner. */
     (void)run_c_core_capture("grokium-smx-filter", av);
-    log_add("  share=state_matrix_only · product_wire=smx2 · hold_flash=1");
-    log_add("  peer_http=lab_ops_only · Commander≠model");
     return;
   }
   /* validate without path: dual-wire need_path before shell-out */
@@ -1289,10 +1287,8 @@ static void cmd_contract(const char *arg) {
     log_add(plate);
     return;
   }
-  log_add("--- contract (pure-C SMX filter · external cells) ---");
+  /* Capture prints shared contract validate/form plates — no free-text banner. */
   (void)run_c_core_capture("grokium-smx-filter", av);
-  log_add("  share=state_matrix_only · product_wire=smx2 · hold_flash=1");
-  log_add("  peer_http=lab_ops_only · Commander≠model");
 }
 
 /* Fleet plate: pure-C grokium-fleet (honest pid/status). CubalC opt-in. */
