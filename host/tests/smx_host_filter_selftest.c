@@ -186,6 +186,24 @@ int main(void) {
         !strstr(plate, "\"llm_is_commander\":false") ||
         !strstr(plate, "\"hold_flash\":1"))
       return fail("mode need_subcmd dual-wire plate fail");
+    /* TUI /mode chat|agent|show share dual-wire success plate. */
+    grokium_mode_json(0, plate, sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.mode.v1\"") ||
+        !strstr(plate, "\"ok\":true") || !strstr(plate, "\"mode\":\"chat\"") ||
+        !strstr(plate, "\"tools\":0") ||
+        !strstr(plate, "\"resume\":\"host_local_not_smx\"") ||
+        !strstr(plate, "\"product_wire\":\"smx2\"") ||
+        !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+        !strstr(plate, "\"share\":\"state_matrix_only\"") ||
+        !strstr(plate, "\"llm_is_commander\":false") ||
+        !strstr(plate, "\"hold_flash\":1"))
+      return fail("mode chat dual-wire plate fail");
+    grokium_mode_json(1, plate, sizeof plate);
+    if (!strstr(plate, "\"mode\":\"agent\"") || !strstr(plate, "\"tools\":1") ||
+        !strstr(plate, "\"ok\":true") ||
+        !strstr(plate, "\"resume\":\"host_local_not_smx\"") ||
+        !strstr(plate, "\"peer_http\":\"lab_ops_only\""))
+      return fail("mode agent dual-wire plate fail");
     /* Generic dual-wire err (host cubalc/tool denials same builder). */
     grokium_err_json("cubalc", "missing_program", "cubalc/programs/<name.cubalc>",
                      plate, sizeof plate);
@@ -268,6 +286,6 @@ int main(void) {
   printf("HOST_SMX_FILTER_OK external=strict hold_flash=1 dual_wire=gate "
          "allow_plate=1 instinct_plate=1 manager_help_plate=1 license_plate=1 "
          "need_subcmd=1 commander_deny=1 law_help=1 mode_need_subcmd=1 "
-         "err_json=1 settings_attach_viz=1 shell_run_models=1\n");
+         "mode_ok=1 err_json=1 settings_attach_viz=1 shell_run_models=1\n");
   return 0;
 }

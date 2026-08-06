@@ -62,6 +62,21 @@ void grokium_license_json(char *out, size_t cap) {
            "\"telemetry\":\"off\",\"python\":0}");
 }
 
+void grokium_mode_json(int agent_tools, char *out, size_t cap) {
+  int tools = agent_tools ? 1 : 0;
+  if (!out || cap < 64) return;
+  /* Shared dual-wire mode plate: TUI /mode chat|agent|show (host UX). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.mode.v1\",\"ok\":true,"
+           "\"mode\":\"%s\",\"tools\":%d,"
+           "\"resume\":\"host_local_not_smx\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false}",
+           tools ? "agent" : "chat", tools);
+}
+
 /* Machine token for schema leaf / short fields (no free-text inject). */
 static void leaf_token(const char *in, char *out, size_t cap) {
   size_t i, o = 0;

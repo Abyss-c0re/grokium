@@ -1102,48 +1102,51 @@ static void cmd_status_show(void) {
 
 /* Mode is host UX: chat/agent toggle tools; resume = meta pickup honesty. */
 static void cmd_mode(const char *arg) {
-  char line[200];
+  char plate[512];
   const char *a = arg ? arg : "";
   while (*a == ' ') a++;
-  if (!a[0] || !strcmp(a, "show") || !strcmp(a, "?") || !strcmp(a, "help")) {
-    char plate[512];
-    snprintf(line, sizeof line,
-             "mode> %s · tools=%d · resume=host_local_not_smx (/pickup)",
-             cfg.agent_tools ? "agent" : "chat", cfg.agent_tools);
-    log_add(line);
-    /* Shared dual-wire need_subcmd (resume honesty stays on host-local line). */
+  if (!strcmp(a, "?") || !strcmp(a, "help")) {
+    /* Shared dual-wire need_subcmd (resume honesty in hint). */
     grokium_need_subcmd_json(
         "mode", "/mode chat|agent|resume|show resume=host_local_not_smx",
         plate, sizeof plate);
+    log_add(plate);
+    return;
+  }
+  if (!a[0] || !strcmp(a, "show")) {
+    /* Shared dual-wire mode plate — no free-text mode> banner. */
+    grokium_mode_json(cfg.agent_tools, plate, sizeof plate);
     log_add(plate);
     return;
   }
   if (!strcmp(a, "chat")) {
     cfg.agent_tools = 0;
     config_persist();
-    log_add("mode> chat · tools=0 · share=state_matrix_only");
+    /* Shared dual-wire mode plate (tools toggle = host UX). */
+    grokium_mode_json(0, plate, sizeof plate);
+    log_add(plate);
     return;
   }
   if (!strcmp(a, "agent")) {
     cfg.agent_tools = 1;
     config_persist();
-    log_add("mode> agent · tools=1 · share=state_matrix_only");
+    /* Shared dual-wire mode plate (tools toggle = host UX). */
+    grokium_mode_json(1, plate, sizeof plate);
+    log_add(plate);
     return;
   }
   if (!strcmp(a, "resume")) {
+    /* Host-local resume UX only (not SMX product bus). */
     log_add("mode> resume · /pickup <id> loads host-local chat_history");
     log_add("  last user/asst turns into TUI (not SMX product bus)");
     log_add("  /sessions [q] then /pickup <id> · share=state_matrix_only");
     return;
   }
-  {
-    char plate[512];
-    /* Unknown mode — shared dual-wire need_subcmd. */
-    grokium_need_subcmd_json(
-        "mode", "/mode chat|agent|resume|show resume=host_local_not_smx",
-        plate, sizeof plate);
-    log_add(plate);
-  }
+  /* Unknown mode — shared dual-wire need_subcmd. */
+  grokium_need_subcmd_json(
+      "mode", "/mode chat|agent|resume|show resume=host_local_not_smx", plate,
+      sizeof plate);
+  log_add(plate);
 }
 
 /* Hive Mind manager — motivate incomplete external contracts (SMX2). */
