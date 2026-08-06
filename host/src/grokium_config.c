@@ -468,14 +468,14 @@ void gkx_settings_json(const gkx_config *c, int saved, char *out, size_t cap) {
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"llm_is_commander\":false}");
+             "\"llm_is_commander\":false,\"python\":0}");
     return;
   }
   settings_token(c->active_backend, backend, sizeof backend);
   if (!backend[0]) snprintf(backend, sizeof backend, "local");
   settings_token(c->ui_theme, theme, sizeof theme);
   if (!theme[0]) snprintf(theme, sizeof theme, "glass");
-  /* Shared dual-wire settings plate: TUI show/save · lab/ops ≠ product bus. */
+  /* Shared dual-wire settings plate: TUI show/save · py=0 product path. */
   snprintf(out, cap,
            "{\"schema\":\"grokium.settings.v1\",\"ok\":true,"
            "\"saved\":%s,\"tools\":%d,\"braincells\":%d,"
@@ -484,7 +484,7 @@ void gkx_settings_json(const gkx_config *c, int saved, char *out, size_t cap) {
            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
-           "\"llm_is_commander\":false}",
+           "\"llm_is_commander\":false,\"python\":0}",
            saved ? "true" : "false", c->agent_tools ? 1 : 0,
            c->agent_braincells ? 1 : 0, c->ui_multiline ? 1 : 0,
            c->hub_enabled ? 1 : 0, c->agent_max_turns, backend, theme);

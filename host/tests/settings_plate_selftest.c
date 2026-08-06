@@ -17,7 +17,8 @@ static int plate_dual_wire(const char *p) {
          strstr(p, "\"peer_http_is_product_bus\":false") &&
          strstr(p, "\"share\":\"state_matrix_only\"") &&
          strstr(p, "\"hold_flash\":1") &&
-         strstr(p, "\"llm_is_commander\":false");
+         strstr(p, "\"llm_is_commander\":false") &&
+         strstr(p, "\"python\":0");
 }
 
 int main(void) {
@@ -143,6 +144,6 @@ int main(void) {
     return fail("context negative clamps to 0");
 
   printf("HOST_SETTINGS_PLATE_OK dual_wire=honest sanitize=1 saved=1 "
-         "no_config=1 backend=1 model=1 context=1\n");
+         "no_config=1 backend=1 model=1 context=1 python=0\n");
   return 0;
 }
