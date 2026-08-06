@@ -24,13 +24,14 @@ int main(void) {
   if (!gkx_path_is_image("a.jpg") || gkx_path_is_image("a.txt"))
     return fail("path_is_image");
 
-  if (gkx_media_plate_json("shot.png", 0, "need_image_path", plate,
+  if (gkx_media_plate_json("shot.png", 0, "need_image_path", 4096, plate,
                            sizeof plate) != 0)
     return fail("plate_json");
   if (!strstr(plate, "\"schema\":\"grokium.media.v1\"") ||
       !strstr(plate, "\"content\":\"meta_only\"") ||
       !strstr(plate, "\"path_is_image\":true") ||
       !strstr(plate, "\"mime\":\"image/png\"") ||
+      !strstr(plate, "\"size_bytes\":4096") ||
       !strstr(plate, "\"error\":\"need_image_path\"") ||
       !strstr(plate, "\"product_wire\":\"smx2\"") ||
       !strstr(plate, "\"peer_http\":\"lab_ops_only\"") ||
@@ -43,21 +44,31 @@ int main(void) {
     return 1;
   }
 
-  if (gkx_media_plate_json("readme.txt", 1, NULL, plate, sizeof plate) != 0)
+  if (gkx_media_plate_json("readme.txt", 1, NULL, 128, plate, sizeof plate) !=
+      0)
     return fail("plate ok text");
   if (!strstr(plate, "\"ok\":true") ||
       !strstr(plate, "\"path_is_image\":false") ||
       !strstr(plate, "\"mime\":\"text/plain\"") ||
+      !strstr(plate, "\"size_bytes\":128") ||
       !strstr(plate, "\"product_wire\":\"smx2\""))
     return fail("text plate honesty");
 
-  if (gkx_media_plate_json(NULL, 0, "path/with:spaces", plate, sizeof plate) !=
-      0)
+  if (gkx_media_plate_json("blob.bin", 1, NULL, 24, plate, sizeof plate) != 0)
+    return fail("plate binary");
+  if (!strstr(plate, "\"mime\":\"application/octet-stream\"") ||
+      !strstr(plate, "\"size_bytes\":24") ||
+      !strstr(plate, "\"path_is_image\":false") ||
+      !strstr(plate, "\"peer_http_is_product_bus\":false"))
+    return fail("binary size dual-wire plate");
+
+  if (gkx_media_plate_json(NULL, 0, "path/with:spaces", 0, plate,
+                           sizeof plate) != 0)
     return fail("plate null path");
   if (!strstr(plate, "\"error\":\"path_with_spaces\"") ||
-      strstr(plate, "path/with"))
+      !strstr(plate, "\"size_bytes\":0") || strstr(plate, "path/with"))
     return fail("error token sanitize");
 
-  printf("HOST_MEDIA_PLATE_OK dual_wire=honest mime=ok py=0\n");
+  printf("HOST_MEDIA_PLATE_OK dual_wire=honest mime=ok size_bytes=1 py=0\n");
   return 0;
 }

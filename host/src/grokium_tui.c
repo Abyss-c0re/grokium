@@ -1816,8 +1816,8 @@ static void do_command(const char *raw) {
     }
     {
       char plate[512];
-      /* Meta-only dual-wire media plate — no free-text path dump on log wire. */
-      if (gkx_media_plate_json(path, 1, NULL, plate, sizeof plate) == 0)
+      /* Meta-only dual-wire media plate — size on plate, no free-text path. */
+      if (gkx_media_plate_json(path, 1, NULL, raw_n, plate, sizeof plate) == 0)
         log_add(plate);
     }
     if (gkx_path_is_image(path)) {
@@ -1837,7 +1837,7 @@ static void do_command(const char *raw) {
       /* Final dual-wire media plate (ok/error; no image bytes). */
       if (gkx_media_plate_json(path, rc == 0 && reply[0],
                                rc == 0 ? NULL : (err[0] ? err : "vision_failed"),
-                               plate, sizeof plate) == 0)
+                               raw_n, plate, sizeof plate) == 0)
         log_add(plate);
     } else {
       const char *mime = gkx_mime_guess(path);
@@ -1855,17 +1855,13 @@ static void do_command(const char *raw) {
           free(msg);
         }
       } else {
-        /* binary raw hex preview + optional external viz */
-        char *hex = malloc(200);
+        /* Binary: size lives on media plate; hex head is host UX only. */
+        char hex[200];
         size_t i, h = 0;
-        if (hex) {
-          h = snprintf(hex, 200, "raw binary %zu bytes, head:", raw_n);
-          for (i = 0; i < raw_n && i < 24 && h + 4 < 200; i++)
-            h += (size_t)snprintf(hex + h, 200 - h, " %02x", raw[i]);
-          log_add(hex);
-          free(hex);
-        }
-        log_add("use /viz open <path> for desktop viewer, /viz vr <path> for VR cmd");
+        h = snprintf(hex, sizeof hex, "raw head:");
+        for (i = 0; i < raw_n && i < 24 && h + 4 < sizeof hex; i++)
+          h += (size_t)snprintf(hex + h, sizeof hex - h, " %02x", raw[i]);
+        log_add(hex);
       }
     }
     free(raw);

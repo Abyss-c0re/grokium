@@ -118,8 +118,8 @@ static void err_token(const char *in, char *out, size_t cap) {
   out[o] = 0;
 }
 
-int gkx_media_plate_json(const char *path, int ok, const char *error, char *out,
-                         size_t cap) {
+int gkx_media_plate_json(const char *path, int ok, const char *error,
+                         size_t size_bytes, char *out, size_t cap) {
   const char *mime;
   char err[64];
   int is_img;
@@ -132,13 +132,14 @@ int gkx_media_plate_json(const char *path, int ok, const char *error, char *out,
            "{\"schema\":\"grokium.media.v1\",\"ok\":%s,"
            "\"content\":\"meta_only\","
            "\"path_is_image\":%s,\"mime\":\"%s\","
+           "\"size_bytes\":%zu,"
            "\"error\":\"%s\","
            "\"vision\":\"lab_ops_only\","
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
            "\"llm_is_commander\":false,\"tools\":false,\"python\":0}",
-           ok ? "true" : "false", is_img ? "true" : "false", mime,
+           ok ? "true" : "false", is_img ? "true" : "false", mime, size_bytes,
            err[0] ? err : "");
   return 0;
 }

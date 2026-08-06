@@ -21,9 +21,10 @@ int gkx_path_is_image(const char *path);
  * Dual-wire honesty plate for media/vision lab path.
  * content is always meta_only (no image bytes on the plate).
  * error should be a short machine token (no free-text prose).
+ * size_bytes is honest file length (0 when unknown/unread).
  */
-int gkx_media_plate_json(const char *path, int ok, const char *error, char *out,
-                         size_t cap);
+int gkx_media_plate_json(const char *path, int ok, const char *error,
+                         size_t size_bytes, char *out, size_t cap);
 
 /* Vision chat: image path + prompt via nanobot vision path. */
 int gkx_chat_vision(const gkx_config *cfg, const char *prompt,
