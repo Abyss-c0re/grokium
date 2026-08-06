@@ -515,17 +515,20 @@ static void shell_run_direct(const char *cmd) {
       blk_append_str(live_asst, acc.line);
     }
     if (live_asst < 0) {
-      int a = blk_push(BK_ASST, NULL);
-      if (rc == 0 && reply[0])
+      if (rc == 0 && reply[0]) {
+        int a = blk_push(BK_ASST, NULL);
         blk_append_str(a, reply);
-      else {
-        char line[200];
-        snprintf(line, sizeof line, "shell exit=%d — see tool spoiler above", cr.exit_code);
-        blk_append_str(a, line);
-        if (cr.output) {
-          blk_append_str(a, "\n");
-          blk_append_str(a, cr.output);
-        }
+      } else {
+        char plate[512], line[120];
+        /* Shared dual-wire chat deny — shell body stays in tool spoiler only. */
+        grokium_chat_err_json(
+            err[0] ? err : "chat_fail",
+            "shell present failed · results in tool spoiler", plate,
+            sizeof plate);
+        log_add(plate);
+        snprintf(line, sizeof line, "shell exit=%d · see tool spoiler above",
+                 cr.exit_code);
+        log_add(line);
       }
     }
     live_think = live_tool = live_asst = -1;
