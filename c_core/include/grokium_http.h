@@ -10,7 +10,8 @@
  * Product talk remains SMX2; this HTTP surface is lab/ops only.
  * Bind is forced to 127.0.0.1; non-loopback host is refused.
  * Coord/publish paths sanitize via SMX filter (prose denied).
- * GET /v1/stream/smx — short SSE snapshot of latest matrix (bits only).
+ * GET /v1/stream/smx — short SSE snapshot (open/smx/end dual-wire plates;
+ * schema grokium.smx_stream.v1; no free-text SSE comments).
  * GET /v1/cube/status — AlgoCube bridge plate (digit/blueprint, dual-wire).
  * GET/POST /v1/sessions[/search|/pickup|/id] — import metas only (no transcripts).
  * GET /ui — minimal lab/ops HTML plate (dual-wire honesty; not product chat).

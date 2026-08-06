@@ -156,42 +156,50 @@ static void http_sse_event(int fd, const char *event, const char *data) {
   if (n > 0) (void)write(fd, line, (size_t)n);
 }
 
+/* Dual-wire SSE control plate (open/end/error) — no free-text SSE comments. */
+static void smx_sse_ctrl(int fd, const char *event, int ok, const char *phase,
+                         const char *err, unsigned long long seq) {
+  char body[384];
+  const char *ph = phase && phase[0] ? phase : "snapshot";
+  if (ok) {
+    snprintf(body, sizeof body,
+             "{\"schema\":\"grokium.smx_stream.v1\",\"ok\":true,"
+             "\"mode\":\"snapshot\",\"phase\":\"%s\",\"seq\":%llu,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"python\":0}",
+             ph, seq);
+  } else {
+    snprintf(body, sizeof body,
+             "{\"schema\":\"grokium.smx_stream.v1\",\"ok\":false,"
+             "\"mode\":\"snapshot\",\"phase\":\"%s\",\"error\":\"%s\","
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"python\":0}",
+             ph, err && err[0] ? err : "stream_failed");
+  }
+  http_sse_event(fd, event && event[0] ? event : "end", body);
+}
+
 /* Snapshot SSE of latest matrix. Sequential serve: short-lived by design
  * so lab/ops does not starve other loopback clients. Real multi-peer talk
  * stays on the product SMX2 bus. */
 static void smx_sse_snapshot(int fd, const gk_consolidator *C) {
   char payload[GK_HTTP_RESP_MAX];
-  char end[320];
-  static const char note[] =
-      ": grokium smx stream bits-only state_matrix_only\n\n";
-  /* SSE control events carry dual-wire honesty (lab/ops ≠ product bus). */
+  /* SSE control events carry dual-wire honesty (lab/ops ≠ product bus).
+   * No free-text comment lines — open/end are grokium.smx_stream.v1 plates. */
   http_sse_headers(fd);
-  (void)write(fd, note, sizeof note - 1);
+  smx_sse_ctrl(fd, "open", 1, "open", NULL, C ? C->matrix.seq : 0ULL);
   if (!C) {
-    http_sse_event(fd, "error",
-                   "{\"ok\":false,\"error\":\"no_matrix\","
-                   "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                   "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-                   "\"peer_http_is_product_bus\":false,"
-                   "\"llm_is_commander\":false,\"python\":0}");
-    http_sse_event(fd, "end",
-                   "{\"ok\":false,\"mode\":\"snapshot\","
-                   "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-                   "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-                   "\"peer_http_is_product_bus\":false,"
-                   "\"llm_is_commander\":false,\"python\":0}");
+    smx_sse_ctrl(fd, "error", 0, "error", "no_matrix", 0ULL);
+    smx_sse_ctrl(fd, "end", 0, "end", "no_matrix", 0ULL);
     return;
   }
   (void)gk_matrix_json(C, payload, sizeof payload);
   http_sse_event(fd, "smx", payload);
-  snprintf(end, sizeof end,
-           "{\"ok\":true,\"mode\":\"snapshot\",\"seq\":%llu,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"llm_is_commander\":false,\"python\":0}",
-           (unsigned long long)C->matrix.seq);
-  http_sse_event(fd, "end", end);
+  smx_sse_ctrl(fd, "end", 1, "end", NULL, (unsigned long long)C->matrix.seq);
 }
 
 static int read_request(int fd, char *buf, size_t cap, size_t *out_n) {
