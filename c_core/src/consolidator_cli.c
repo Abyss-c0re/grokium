@@ -214,6 +214,39 @@ int main(int argc, char **argv) {
               ability);
       return 1;
     }
+    /* Grade inject must not break ability / CONSOLIDATE.json plates. */
+    {
+      gk_consolidator G;
+      char ab[640], body[1024];
+      FILE *gf;
+      size_t gn;
+      G = C;
+      snprintf(G.grade, sizeof G.grade, "OK\";evil:true");
+      gk_ability(&G, now, ab, sizeof ab);
+      if (!plate_dual_wire_ok(ab) || strstr(ab, "\"evil\"") ||
+          strstr(ab, "OK\"") || !strstr(ab, "\"grade\":\"OK__evil_true\"")) {
+        fprintf(stderr, "selftest: ability grade inject fail: %.250s\n", ab);
+        return 1;
+      }
+      if (gk_save_dir(&G, "/tmp/gk_cons_grade_inj") != 0) {
+        fprintf(stderr, "selftest: grade inject save_dir failed\n");
+        return 1;
+      }
+      gf = fopen("/tmp/gk_cons_grade_inj/CONSOLIDATE.json", "r");
+      if (!gf) {
+        fprintf(stderr, "selftest: grade inject CONSOLIDATE missing\n");
+        return 1;
+      }
+      gn = fread(body, 1, sizeof body - 1, gf);
+      body[gn] = 0;
+      fclose(gf);
+      if (!strstr(body, "\"grade\":\"OK__evil_true\"") ||
+          strstr(body, "\"evil\"") ||
+          !strstr(body, "\"product_wire\":\"smx2\"")) {
+        fprintf(stderr, "selftest: CONSOLIDATE grade inject fail: %s\n", body);
+        return 1;
+      }
+    }
     /* Live SMX plate (same builder as GET /v1/matrix/latest). */
     {
       char mx[GROKIUM_CELLS + 512];
