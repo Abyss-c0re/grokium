@@ -505,3 +505,22 @@ void gkx_backend_json(const char *backend, int saved, char *out, size_t cap) {
            "\"llm_is_commander\":false,\"tools\":false,\"python\":0}",
            be, saved ? "true" : "false");
 }
+
+void gkx_model_json(const char *backend, const char *model, int saved,
+                    char *out, size_t cap) {
+  char be[48], mo[48];
+  if (!out || cap < 64) return;
+  settings_token(backend, be, sizeof be);
+  if (!be[0]) snprintf(be, sizeof be, "local");
+  settings_token(model, mo, sizeof mo);
+  if (!mo[0]) snprintf(mo, sizeof mo, "auto");
+  /* Shared dual-wire model plate: TUI /model set (LLM ≠ commander). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.model.v1\",\"ok\":true,"
+           "\"backend\":\"%s\",\"model\":\"%s\",\"saved\":%s,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"tools\":false,\"python\":0}",
+           be, mo, saved ? "true" : "false");
+}

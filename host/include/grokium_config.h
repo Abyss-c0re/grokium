@@ -121,4 +121,12 @@ void gkx_settings_json(const gkx_config *c, int saved, char *out, size_t cap);
  */
 void gkx_backend_json(const char *backend, int saved, char *out, size_t cap);
 
+/*
+ * Dual-wire model plate (schema grokium.model.v1).
+ * Host TUI /model <id|local|grok> after prefs persist — backend/model tokenized.
+ * LLM ≠ commander; product bus SMX2; peer HTTP lab/ops only.
+ */
+void gkx_model_json(const char *backend, const char *model, int saved,
+                    char *out, size_t cap);
+
 #endif

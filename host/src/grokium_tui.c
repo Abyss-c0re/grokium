@@ -1687,8 +1687,14 @@ static void do_command(const char *raw) {
       snprintf(cfg.active_backend, sizeof cfg.active_backend,
                strncmp(rest, "grok", 4) == 0 ? "grok" : "local");
     }
-    gkx_config_save_prefs(&cfg, state_dir);
-    log_add("model set");
+    {
+      char plate[512];
+      gkx_config_save_prefs(&cfg, state_dir);
+      /* Dual-wire model plate — no free-text "model set" banner. */
+      gkx_model_json(cfg.active_backend, cfg.active_model, 1, plate,
+                     sizeof plate);
+      log_add(plate);
+    }
     return;
   }
   if (strcmp(cmd, "context") == 0 || strcmp(cmd, "ctx") == 0) {
@@ -1698,15 +1704,6 @@ static void do_command(const char *raw) {
     }
     char line[80];
     snprintf(line, sizeof line, "context_window=%d", cfg.context_window);
-    log_add(line);
-    return;
-  }
-  if (strcmp(cmd, "settings") == 0) {
-    char line[160];
-    snprintf(line, sizeof line, "backend=%s model=%s ctx=%d slots=%d",
-             cfg.active_backend, cfg.active_model, cfg.context_window, cfg.llm_slots);
-    log_add(line);
-    snprintf(line, sizeof line, "base=%s", cfg.local_base_url);
     log_add(line);
     return;
   }
