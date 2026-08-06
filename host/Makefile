@@ -106,7 +106,15 @@ out/session_plate_selftest: tests/session_plate_selftest.c \
 	$(CC) $(CFLAGS) -o $@ tests/session_plate_selftest.c $(C_CORE)/src/session.c
 
 test-status: out/status_probe_selftest
-	@./out/status_probe_selftest
+	@set -e; \
+	ST=$$(./out/status_probe_selftest); \
+	echo "$$ST" | grep -q '"schema":"grokium.status_probe_selftest.v1"'; \
+	echo "$$ST" | grep -q '"ok":true'; \
+	echo "$$ST" | grep -q '"fleet_n":6'; \
+	echo "$$ST" | grep -q '"healthz":true'; \
+	echo "$$ST" | grep -q '"product_wire":"smx2"'; \
+	echo "$$ST" | grep -q '"python":0'; \
+	echo "$$ST" | grep -qv HOST_STATUS_PROBE_OK
 
 test-version-compat: out/version_compat_selftest
 	@./out/version_compat_selftest

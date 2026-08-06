@@ -146,7 +146,32 @@ int main(void) {
     return 1;
   }
 
-  printf("HOST_STATUS_PROBE_OK fleet_n=6 fleet_alive=1 matrix_bits=8 "
-         "grade=SPARSE dual_wire=honest fleet_load=1 dual_bits=1 healthz=1\n");
+  /* Dual-wire selftest success — no free-text HOST_STATUS_PROBE_OK. */
+  {
+    char okp[640];
+    snprintf(okp, sizeof okp,
+             "{\"schema\":\"grokium.status_probe_selftest.v1\",\"ok\":true,"
+             "\"fleet_n\":6,\"fleet_alive\":1,\"matrix_bits\":8,"
+             "\"grade\":\"SPARSE\",\"dual_wire\":true,\"fleet_load\":true,"
+             "\"dual_bits\":true,\"healthz\":true,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"hold_flash\":1,"
+             "\"share\":\"state_matrix_only\",\"python\":0}");
+    if (!strstr(okp, "\"schema\":\"grokium.status_probe_selftest.v1\"") ||
+        !strstr(okp, "\"ok\":true") || !strstr(okp, "\"fleet_n\":6") ||
+        !strstr(okp, "\"healthz\":true") ||
+        !strstr(okp, "\"product_wire\":\"smx2\"") ||
+        !strstr(okp, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(okp, "\"peer_http_is_product_bus\":false") ||
+        !strstr(okp, "\"llm_is_commander\":false") ||
+        !strstr(okp, "\"hold_flash\":1") ||
+        !strstr(okp, "\"share\":\"state_matrix_only\"") ||
+        !strstr(okp, "\"python\":0")) {
+      fprintf(stderr, "status_probe_selftest: ok plate fail: %.200s\n", okp);
+      return 1;
+    }
+    printf("%s\n", okp);
+  }
   return 0;
 }
