@@ -184,12 +184,12 @@ static void plate_token(const char *in, char *out, size_t cap) {
   out[o] = 0;
 }
 
-/* Shared dual-wire tails for coord ingest plates (CLI + HTTP + host). */
+/* Shared dual-wire tails for coord ingest plates (CLI + HTTP + host; py=0). */
 #define COORD_DUAL_WIRE_TAIL                                               \
   "\"share\":\"state_matrix_only\",\"hold_flash\":1,"                      \
   "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","              \
   "\"peer_http_is_product_bus\":false,"                                    \
-  "\"llm_on_hot_path\":false,\"llm_is_commander\":false"
+  "\"llm_on_hot_path\":false,\"llm_is_commander\":false,\"python\":0"
 
 void gk_coord_err_json(const char *error, char *out, size_t cap) {
   char err_tok[56];
@@ -245,7 +245,8 @@ int gk_matrix_json(const gk_consolidator *C, char *out, size_t cap) {
              "\"hold_flash\":1,\"product_wire\":\"smx2\","
              "\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"llm_on_hot_path\":false,\"llm_is_commander\":false}");
+             "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
+             "\"python\":0}");
     return -1;
   }
   smx_sha256_hex(&C->matrix, hex);
@@ -263,7 +264,7 @@ int gk_matrix_json(const gk_consolidator *C, char *out, size_t cap) {
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-           "\"bits\":\"%s\"}",
+           "\"python\":0,\"bits\":\"%s\"}",
            (unsigned long long)C->matrix.seq, C->matrix.bits_set, host_tok,
            hex, grade_tok, bits);
   return 0;
@@ -300,14 +301,15 @@ void gk_save_json(const gk_consolidator *C, const char *dir, char *out,
   plate_token(C && C->grade[0] ? C->grade : "EMPTY", grade_tok,
               sizeof grade_tok);
   if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
-  /* Shared dual-wire save ack (CLI save · lab/ops ≠ product bus). */
+  /* Shared dual-wire save ack (CLI save · lab/ops ≠ product bus · py=0). */
   snprintf(out, cap,
            "{\"schema\":\"grokium.consolidator_save.v1\",\"ok\":true,"
            "\"dir\":\"%s\",\"grade\":\"%s\",\"share\":\"state_matrix_only\","
            "\"hold_flash\":1,\"product_wire\":\"smx2\","
            "\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
-           "\"llm_is_commander\":false,\"llm_on_hot_path\":false}",
+           "\"llm_is_commander\":false,\"llm_on_hot_path\":false,"
+           "\"python\":0}",
            dir_esc, grade_tok);
 }
 
@@ -377,7 +379,7 @@ int gk_cube_status_json(const gk_consolidator *C, int hold_flash,
            "\"containers_path\":\"%s\",\"containers_n\":%d,"
            "\"matrix_path\":\"%s\",\"matrix_files_n\":%d,"
            "\"llm_is_commander\":false,\"commander_is_model\":false,"
-           "\"llm_on_hot_path\":false}",
+           "\"llm_on_hot_path\":false,\"python\":0}",
            hold_flash ? 1 : 0, C ? C->matrix.bits_set : 0, grade_tok,
            (unsigned long long)(C ? C->matrix.seq : 0), hex, dig, bp_json,
            cpath_esc, ncont, mpath_esc, nmat);

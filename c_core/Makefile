@@ -233,6 +233,7 @@ test-consolidate: $(BUILD)/grokium-consolidate
 	echo "$$H" | grep -q '"llm_is_commander":false'; \
 	echo "$$H" | grep -q '"hold_flash":1'; \
 	echo "$$H" | grep -q '"share":"state_matrix_only"'; \
+	echo "$$H" | grep -q '"python":0'; \
 	$(BUILD)/grokium-consolidate selftest
 
 test-serve: $(BUILD)/grokium-serve

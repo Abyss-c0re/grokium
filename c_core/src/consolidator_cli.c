@@ -20,7 +20,8 @@ static int plate_dual_wire_ok(const char *p) {
          strstr(p, "\"peer_http_is_product_bus\":false") &&
          strstr(p, "\"llm_is_commander\":false") &&
          strstr(p, "\"hold_flash\":1") &&
-         strstr(p, "\"share\":\"state_matrix_only\"");
+         strstr(p, "\"share\":\"state_matrix_only\"") &&
+         strstr(p, "\"python\":0");
 }
 
 static void emit_need_subcmd(void) {
