@@ -293,6 +293,7 @@ static int write_latest(const char *root, int ok, const char *agg,
           "  \"peer_http\": \"lab_ops_only\",\n"
           "  \"peer_http_is_product_bus\": false,\n"
           "  \"llm_is_commander\": false,\n"
+          "  \"python\": 0,\n"
           "  \"findings\": [\n"
           "    {\"id\": \"privacy_flags\", \"ok\": %s},\n"
           "    {\"id\": \"code_seal\", \"ok\": %s, \"n_files\": %d, "
@@ -325,7 +326,7 @@ int gk_integrity_tick(const char *repo_root, char *json_out, size_t cap) {
                "\"hold_flash\":1,\"product_wire\":\"smx2\","
                "\"peer_http\":\"lab_ops_only\","
                "\"peer_http_is_product_bus\":false,"
-               "\"llm_is_commander\":false}");
+               "\"llm_is_commander\":false,\"python\":0}");
     return -1;
   }
   lines[0] = 0;
@@ -373,7 +374,8 @@ int gk_integrity_tick(const char *repo_root, char *json_out, size_t cap) {
              "\"hold_flash\":1,\"product_wire\":\"smx2\","
              "\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"llm_is_commander\":false,\"bad_prefix\":\"%.120s\"}",
+             "\"llm_is_commander\":false,\"python\":0,"
+             "\"bad_prefix\":\"%.120s\"}",
              ok ? "true" : "false", priv ? "true" : "false",
              seal_ok ? "true" : "false", n, bad, live_agg, exp_agg,
              lines[0] ? lines : "");
@@ -394,7 +396,7 @@ int gk_integrity_policy(const char *repo_root, char *json_out, size_t cap) {
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"llm_is_commander\":false}");
+             "\"llm_is_commander\":false,\"python\":0}");
     return -1;
   }
   return 0;
@@ -415,7 +417,7 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
                "\"error\":\"no_files\",\"share\":\"state_matrix_only\","
                "\"hold_flash\":1,\"product_wire\":\"smx2\","
                "\"peer_http_is_product_bus\":false,"
-               "\"llm_is_commander\":false}");
+               "\"llm_is_commander\":false,\"python\":0}");
     return -1;
   }
   aggregate_hex(ents, n, agg);
@@ -431,7 +433,7 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
                "\"error\":\"write_privacy\",\"share\":\"state_matrix_only\","
                "\"hold_flash\":1,\"product_wire\":\"smx2\","
                "\"peer_http_is_product_bus\":false,"
-               "\"llm_is_commander\":false}");
+               "\"llm_is_commander\":false,\"python\":0}");
     return -1;
   }
   fprintf(f,
@@ -453,6 +455,7 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
           "  \"peer_http\": \"lab_ops_only\",\n"
           "  \"peer_http_is_product_bus\": false,\n"
           "  \"llm_is_commander\": false,\n"
+          "  \"python\": 0,\n"
           "  \"model_is_not_commander\": true,\n"
           "  \"stream\": \"smx_realtime_bits\",\n"
           "  \"fail_closed\": true\n"
@@ -469,10 +472,10 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
                "\"error\":\"write_seal\",\"share\":\"state_matrix_only\","
                "\"hold_flash\":1,\"product_wire\":\"smx2\","
                "\"peer_http_is_product_bus\":false,"
-               "\"llm_is_commander\":false}");
+               "\"llm_is_commander\":false,\"python\":0}");
     return -1;
   }
-  /* On-disk code seal plate: dual-wire honesty (integrity ≠ product bus). */
+  /* On-disk code seal plate: dual-wire honesty (integrity ≠ product bus · py=0). */
   fprintf(f,
           "{\n"
           "  \"schema\": \"grokium.code_seal.v1\",\n"
@@ -495,6 +498,7 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
           "  \"peer_http\": \"lab_ops_only\",\n"
           "  \"peer_http_is_product_bus\": false,\n"
           "  \"llm_is_commander\": false,\n"
+          "  \"python\": 0,\n"
           "  \"model_is_not_commander\": true,\n"
           "  \"ts\": %ld\n"
           "}\n",
@@ -521,6 +525,7 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
             "  \"peer_http\": \"lab_ops_only\",\n"
             "  \"peer_http_is_product_bus\": false,\n"
             "  \"llm_is_commander\": false,\n"
+            "  \"python\": 0,\n"
             "  \"model_is_not_commander\": true,\n"
             "  \"stream\": \"smx_realtime_bits\",\n"
             "  \"fail_closed\": true,\n"
@@ -543,7 +548,7 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"llm_is_commander\":false}",
+             "\"llm_is_commander\":false,\"python\":0}",
              n, agg);
   return 0;
 }

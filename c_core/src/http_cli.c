@@ -949,7 +949,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: integrity tick dual-wire fail: %.400s\n", resp);
       fails++;
     } else if (strstr(b, "\"ok\":true")) {

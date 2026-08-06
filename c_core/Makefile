@@ -256,24 +256,30 @@ test-integrity: $(BUILD)/grokium-integrity
 	echo "$$H" | grep -q '"product_wire":"smx2"'; \
 	echo "$$H" | grep -q '"peer_http_is_product_bus":false'; \
 	echo "$$H" | grep -q '"llm_is_commander":false'; \
+	echo "$$H" | grep -q '"python":0'; \
 	echo "$$H" | grep -q '"hint":"tick|policy|reseal"'; \
 	R=$$($(BUILD)/grokium-integrity reseal ..); \
 	echo "$$R" | grep -q '"ok":true'; \
 	echo "$$R" | grep -q '"product_wire":"smx2"'; \
+	echo "$$R" | grep -q '"python":0'; \
 	grep -q '"product_wire": "smx2"' ../data/integrity/CODE_SEAL.json; \
 	grep -q '"peer_http": "lab_ops_only"' ../data/integrity/CODE_SEAL.json; \
 	grep -q '"llm_is_commander": false' ../data/integrity/CODE_SEAL.json; \
 	grep -q '"peer_http_is_product_bus": false' ../data/integrity/CODE_SEAL.json; \
+	grep -q '"python": 0' ../data/integrity/CODE_SEAL.json; \
 	grep -q '"product_wire": "smx2"' ../data/integrity/POLICY.json; \
 	grep -q '"llm_is_commander": false' ../data/integrity/POLICY.json; \
 	grep -q '"model_is_not_commander": true' ../data/integrity/POLICY.json; \
+	grep -q '"python": 0' ../data/integrity/POLICY.json; \
 	T=$$($(BUILD)/grokium-integrity tick ..); \
 	echo "$$T" | grep -q '"ok":true'; \
 	echo "$$T" | grep -q '"product_wire":"smx2"'; \
 	echo "$$T" | grep -q '"peer_http_is_product_bus":false'; \
 	echo "$$T" | grep -q '"llm_is_commander":false'; \
 	echo "$$T" | grep -q '"hold_flash":1'; \
+	echo "$$T" | grep -q '"python":0'; \
 	grep -q '"product_wire": "smx2"' ../data/integrity/LATEST.json; \
+	grep -q '"python": 0' ../data/integrity/LATEST.json; \
 	grep -q '"schema": "grokium.privacy_canonical.v1"' \
 	  ../data/integrity/PRIVACY_CANONICAL.json; \
 	grep -q '"product_wire": "smx2"' ../data/integrity/PRIVACY_CANONICAL.json; \
@@ -281,6 +287,7 @@ test-integrity: $(BUILD)/grokium-integrity
 	  ../data/integrity/PRIVACY_CANONICAL.json; \
 	grep -q '"llm_is_commander": false' \
 	  ../data/integrity/PRIVACY_CANONICAL.json; \
+	grep -q '"python": 0' ../data/integrity/PRIVACY_CANONICAL.json; \
 	grep -q '"telemetry": false' ../data/integrity/PRIVACY_CANONICAL.json; \
 	echo "$$T" | grep -q '"privacy_ok":true'; \
 	$(BUILD)/grokium-integrity policy .. | grep -q state_matrix_only; \
