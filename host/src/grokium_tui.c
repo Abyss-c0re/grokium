@@ -1347,19 +1347,24 @@ static void cmd_fleet(const char *arg) {
 }
 
 static void do_login(int device) {
-  endwin();
-  printf("\n=== Grokium /login (optional cloud) ===\n");
-  printf("Uses official `grok login` if installed. Not affiliated with xAI.\n\n");
-  const char *grok = getenv("GROK_CLI");
-  if (!grok || !grok[0]) grok = "grok";
+  char plate[512], tok[64], dummy[8];
+  int has = 0;
+  const char *grok;
   char *av[6];
   int ac = 0;
+  pid_t pid;
+
+  endwin();
+  /* Optional cloud opt-in via external grok CLI — dual-wire only (no free-text
+   * affiliation banner / "token OK" prose). */
+  grok = getenv("GROK_CLI");
+  if (!grok || !grok[0]) grok = "grok";
   av[ac++] = (char *)grok;
   av[ac++] = "login";
   if (device) av[ac++] = "--device-auth";
   else av[ac++] = "--oauth";
   av[ac] = NULL;
-  pid_t pid = fork();
+  pid = fork();
   if (pid == 0) {
     execvp(grok, av);
     _exit(127);
@@ -1368,16 +1373,16 @@ static void do_login(int device) {
     int st = 0;
     waitpid(pid, &st, 0);
   }
-  char tok[64];
   if (grokium_load_grok_token(tok, sizeof tok) == 0) {
-    printf("token OK\n");
+    has = 1;
     snprintf(cfg.active_backend, sizeof cfg.active_backend, "grok");
     snprintf(cfg.active_model, sizeof cfg.active_model, "%s", cfg.grok_model);
     gkx_config_save_prefs(&cfg, state_dir);
   }
-  printf("Press Enter…\n");
-  char dummy[8];
-  fgets(dummy, sizeof dummy, stdin);
+  /* Dual-wire login result on stdout (TTY handoff) then TUI log. */
+  gkx_login_json(has, device, plate, sizeof plate);
+  printf("%s\n", plate);
+  (void)fgets(dummy, sizeof dummy, stdin);
   initscr();
   cbreak();
   noecho();
@@ -1394,6 +1399,7 @@ static void do_login(int device) {
     init_pair(6, COLOR_MAGENTA, -1);
   }
   curs_set(1);
+  log_add(plate);
 }
 
 static void cmd_model_list(void) {

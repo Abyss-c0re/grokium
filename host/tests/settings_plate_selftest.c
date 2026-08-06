@@ -237,6 +237,25 @@ int main(void) {
   if (!strstr(plate, "\"backend\":\"local\"") || !plate_dual_wire(plate))
     return fail("auth null backend defaults local");
 
+  /* /login|/grok dual-wire (no free-text affiliation / token OK banners). */
+  gkx_login_json(1, 0, plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.login.v1\"") ||
+      !strstr(plate, "\"ok\":true") || !strstr(plate, "\"has_token\":true") ||
+      !strstr(plate, "\"method\":\"oauth\"") ||
+      !strstr(plate, "\"opt_in\":\"cloud_auth\"") ||
+      !strstr(plate, "\"local_first\":true") ||
+      !strstr(plate, "\"surface\":\"host_tui\"") ||
+      !strstr(plate, "press_enter") ||
+      !strstr(plate, "\"commander_is_model\":false") ||
+      !strstr(plate, "\"telemetry\":\"off\"") || !plate_dual_wire(plate)) {
+    fprintf(stderr, "settings_plate_selftest: login oauth fail: %.400s\n", plate);
+    return 1;
+  }
+  gkx_login_json(0, 1, plate, sizeof plate);
+  if (!strstr(plate, "\"ok\":false") || !strstr(plate, "\"has_token\":false") ||
+      !strstr(plate, "\"method\":\"device_auth\"") || !plate_dual_wire(plate))
+    return fail("login device_auth dual-wire plate");
+
   /* /clear|/cls|/new dual-wire (no free-text (cleared)/(new session)). */
   gkx_session_clear_json(0, plate, sizeof plate);
   if (!strstr(plate, "\"schema\":\"grokium.session_clear.v1\"") ||
@@ -299,7 +318,7 @@ int main(void) {
 
   printf("HOST_SETTINGS_PLATE_OK dual_wire=honest sanitize=1 saved=1 "
          "no_config=1 backend=1 model=1 context=1 multiline=1 spoilers=1 "
-         "debug=1 always_approve=1 auth=1 session_clear=1 interrupt=1 "
+         "debug=1 always_approve=1 auth=1 login=1 session_clear=1 interrupt=1 "
          "empty_output=1 tui_help=1 ready=1 python=0\n");
   return 0;
 }

@@ -648,6 +648,24 @@ void gkx_auth_json(int has_token, const char *backend, char *out, size_t cap) {
            has_token ? "true" : "false", be);
 }
 
+void gkx_login_json(int has_token, int device, char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Shared dual-wire login: TUI /login|/grok — cloud opt-in · never secrets. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.login.v1\",\"ok\":%s,"
+           "\"has_token\":%s,\"method\":\"%s\","
+           "\"surface\":\"host_tui\",\"opt_in\":\"cloud_auth\","
+           "\"local_first\":true,\"share\":\"state_matrix_only\","
+           "\"hold_flash\":1,\"product_wire\":\"smx2\","
+           "\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"commander_is_model\":false,"
+           "\"python\":0,\"telemetry\":\"off\","
+           "\"hint\":\"press_enter · /auth · /backend local\"}",
+           has_token ? "true" : "false", has_token ? "true" : "false",
+           device ? "device_auth" : "oauth");
+}
+
 void gkx_session_clear_json(int is_new, char *out, size_t cap) {
   if (!out || cap < 64) return;
   /* Shared dual-wire clear plate: TUI /clear|/cls|/new (host-local UX). */
