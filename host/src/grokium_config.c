@@ -538,3 +538,18 @@ void gkx_context_json(int context_window, int saved, char *out, size_t cap) {
            "\"llm_is_commander\":false,\"tools\":false,\"python\":0}",
            ctx, saved ? "true" : "false");
 }
+
+void gkx_multiline_json(int on, int saved, char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Shared dual-wire multiline plate: TUI /multiline|/ml (host UX · py=0). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.multiline.v1\",\"ok\":true,"
+           "\"multiline\":%s,\"saved\":%s,"
+           "\"enter\":\"%s\",\"send\":\"%s\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"tools\":false,\"python\":0}",
+           on ? "true" : "false", saved ? "true" : "false",
+           on ? "newline" : "send", on ? "alt_enter_or_ctrl_s" : "alt_enter");
+}

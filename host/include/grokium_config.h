@@ -136,4 +136,11 @@ void gkx_model_json(const char *backend, const char *model, int saved,
  */
 void gkx_context_json(int context_window, int saved, char *out, size_t cap);
 
+/*
+ * Dual-wire multiline plate (schema grokium.multiline.v1).
+ * Host TUI /multiline|/ml [on|off] — composer newline UX (LLM ≠ commander).
+ * on!=0 → multiline enabled; saved=1 after prefs persist.
+ */
+void gkx_multiline_json(int on, int saved, char *out, size_t cap);
+
 #endif

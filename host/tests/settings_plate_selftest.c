@@ -143,7 +143,26 @@ int main(void) {
   if (!strstr(plate, "\"context_window\":0") || !plate_dual_wire(plate))
     return fail("context negative clamps to 0");
 
+  /* /multiline|/ml dual-wire (host UX · no free-text ON/OFF banner). */
+  gkx_multiline_json(1, 1, plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.multiline.v1\"") ||
+      !strstr(plate, "\"ok\":true") || !strstr(plate, "\"multiline\":true") ||
+      !strstr(plate, "\"saved\":true") ||
+      !strstr(plate, "\"enter\":\"newline\"") ||
+      !strstr(plate, "\"send\":\"alt_enter_or_ctrl_s\"") ||
+      !plate_dual_wire(plate)) {
+    fprintf(stderr, "settings_plate_selftest: multiline on fail: %.400s\n",
+            plate);
+    return 1;
+  }
+  gkx_multiline_json(0, 0, plate, sizeof plate);
+  if (!strstr(plate, "\"multiline\":false") ||
+      !strstr(plate, "\"saved\":false") ||
+      !strstr(plate, "\"enter\":\"send\"") ||
+      !strstr(plate, "\"send\":\"alt_enter\"") || !plate_dual_wire(plate))
+    return fail("multiline off dual-wire plate");
+
   printf("HOST_SETTINGS_PLATE_OK dual_wire=honest sanitize=1 saved=1 "
-         "no_config=1 backend=1 model=1 context=1 python=0\n");
+         "no_config=1 backend=1 model=1 context=1 multiline=1 python=0\n");
   return 0;
 }

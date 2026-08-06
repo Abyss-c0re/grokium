@@ -1474,6 +1474,8 @@ static void do_command(const char *raw) {
     return;
   }
   if (strcmp(cmd, "multiline") == 0 || strcmp(cmd, "ml") == 0) {
+    char plate[512], path[PATH_MAX];
+    int saved;
     if (rest[0]) {
       if (strcmp(rest, "on") == 0 || strcmp(rest, "1") == 0)
         cfg.ui_multiline = 1;
@@ -1481,10 +1483,17 @@ static void do_command(const char *raw) {
         cfg.ui_multiline = 0;
     } else
       cfg.ui_multiline = !cfg.ui_multiline;
-    log_add(cfg.ui_multiline
-                ? "multiline ON — Enter = newline · Alt+Enter / Ctrl+S = send"
-                : "multiline OFF — Enter = send · Alt+Enter = newline");
-    config_persist();
+    gkx_config_resolve_save_path(&cfg, path, sizeof path);
+    saved = (gkx_config_save(&cfg, path) == 0);
+    /* Dual-wire multiline plate only — no free-text ON/OFF banner. */
+    if (saved) {
+      gkx_multiline_json(cfg.ui_multiline, 1, plate, sizeof plate);
+      log_add(plate);
+    } else {
+      grokium_err_json("settings", "save_failed",
+                       "/settings save|reload|path|show", plate, sizeof plate);
+      log_add(plate);
+    }
     return;
   }
   if (strcmp(cmd, "settings") == 0 || strcmp(cmd, "config") == 0) {
