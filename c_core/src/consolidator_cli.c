@@ -285,6 +285,40 @@ int main(int argc, char **argv) {
                   plate);
           return 1;
         }
+        /* Dual-wire disk body passes through (TUI /smx uses same builder). */
+        if (smx_disk_plate_json(plate, body, sizeof body) != 0 ||
+            !strstr(body, "\"product_wire\":\"smx2\"") ||
+            !strstr(body, "\"python\":0") ||
+            !strstr(body, "\"schema\":\"grokium.smx.v1\"")) {
+          fprintf(stderr, "selftest: smx_disk_plate dual pass fail: %.200s\n",
+                  body);
+          return 1;
+        }
+        /* Legacy sot_bits LATEST → dual-wire rewrite (no nested plate dump). */
+        {
+          const char *legacy =
+              "{\"schema\":\"grokium.smx.v1\",\"law\":\"state_matrix_share_only\","
+              "\"plate\":{\"schema\":\"nexus_coord.v1\",\"from\":\"pve\"},"
+              "\"sot_bits\":\"1111000011110000\"}";
+          if (smx_disk_plate_json(legacy, body, sizeof body) != 0 ||
+              !strstr(body, "\"schema\":\"grokium.smx.v1\"") ||
+              !strstr(body, "\"ok\":true") ||
+              !strstr(body, "\"bits_set\":8") ||
+              !strstr(body, "\"source\":\"disk\"") ||
+              !strstr(body, "\"product_wire\":\"smx2\"") ||
+              !strstr(body, "\"peer_http_is_product_bus\":false") ||
+              !strstr(body, "\"llm_is_commander\":false") ||
+              !strstr(body, "\"python\":0") ||
+              !strstr(body, "\"bits\":\"1111000011110000\"") ||
+              strstr(body, "nexus_coord") || strstr(body, "pve")) {
+            fprintf(stderr, "selftest: smx_disk_plate legacy fail: %.300s\n",
+                    body);
+            return 1;
+          }
+        }
+        if (smx_disk_plate_json("", body, sizeof body) == 0 ||
+            smx_disk_plate_json("{\"schema\":\"x\"}", body, sizeof body) == 0)
+          return 1; /* empty / no bit field must fail */
       }
       /* Hostile host_id must not break on-disk matrix plate. */
       {

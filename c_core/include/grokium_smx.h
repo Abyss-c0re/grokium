@@ -32,6 +32,13 @@ int smx_load_bin(grokium_smx *m, const char *path);
  */
 int smx_plate_json(const grokium_smx *m, int algodigit, char *out, size_t cap);
 int smx_save_json(const grokium_smx *m, const char *path, int algodigit);
+/*
+ * Dual-wire plate from on-disk LATEST/matrix JSON body.
+ * Dual-wire smx plates pass through (compact copy); legacy sot_bits LATEST
+ * is rewritten with product_wire/py=0 honesty (no nested free-form plate).
+ * Returns 0 ok, -1 on bad args / empty body / no bit field.
+ */
+int smx_disk_plate_json(const char *body, char *out, size_t cap);
 /* SHA-256 of cells (hex out[65]) */
 void smx_sha256_hex(const grokium_smx *m, char out_hex[65]);
 #endif

@@ -12,6 +12,7 @@
 #include "grokium_llama.h"
 #include "grokium_plate.h"
 #include "grokium_smx_filter.h"
+#include "grokium_smx.h"
 #include "grokium_consolidator.h"
 #include "util.h"
 #include "ng_sched.h"
@@ -750,7 +751,7 @@ static void cmd_coord_ingest(const char *plate) {
 static void cmd_smx_latest(void) {
   char path[PATH_MAX];
   FILE *f;
-  char buf[8192];
+  char buf[8192], plate[1024];
   size_t n;
   char *av[2];
   snprintf(path, sizeof path, "%s/data/matrix/LATEST.json", root);
@@ -759,9 +760,11 @@ static void cmd_smx_latest(void) {
     n = fread(buf, 1, sizeof buf - 1, f);
     buf[n] = 0;
     fclose(f);
-    /* On-disk SMX plate only — no free-text dual-wire banner. */
-    log_add_block(buf);
-    return;
+    /* Dual-wire disk plate — never dump legacy free-form LATEST raw. */
+    if (smx_disk_plate_json(buf, plate, sizeof plate) == 0) {
+      log_add(plate);
+      return;
+    }
   }
   /* fallback: consolidator ability plate (no transcript dump) */
   av[0] = "ability";
