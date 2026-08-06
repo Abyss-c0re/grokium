@@ -173,13 +173,13 @@ static void smx_sse_snapshot(int fd, const gk_consolidator *C) {
                    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
                    "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
                    "\"peer_http_is_product_bus\":false,"
-                   "\"llm_is_commander\":false}");
+                   "\"llm_is_commander\":false,\"python\":0}");
     http_sse_event(fd, "end",
                    "{\"ok\":false,\"mode\":\"snapshot\","
                    "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
                    "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
                    "\"peer_http_is_product_bus\":false,"
-                   "\"llm_is_commander\":false}");
+                   "\"llm_is_commander\":false,\"python\":0}");
     return;
   }
   (void)gk_matrix_json(C, payload, sizeof payload);
@@ -189,7 +189,7 @@ static void smx_sse_snapshot(int fd, const gk_consolidator *C) {
            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
-           "\"llm_is_commander\":false}",
+           "\"llm_is_commander\":false,\"python\":0}",
            (unsigned long long)C->matrix.seq);
   http_sse_event(fd, "end", end);
 }
@@ -602,7 +602,7 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
         "<div><b>peer_http</b>: lab_ops_only</div>\n"
         "<div><b>matrix_bits</b>: %u · <b>grade</b>: %s</div>\n"
         "<div><b>fleet_n</b>: %d · <b>hold_flash</b>: %d</div>\n"
-        "<div><b>llm_is_commander</b>: false</div>\n"
+        "<div><b>llm_is_commander</b>: false · <b>python</b>: 0</div>\n"
         "</div>\n"
         "<p><b>JSON routes</b></p>\n"
         "<ul>\n"

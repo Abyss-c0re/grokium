@@ -188,6 +188,7 @@ static int selftest(void) {
       !strstr(b, "\"peer_http_is_product_bus\":false") ||
       !strstr(b, "\"llm_is_commander\":false") ||
       !strstr(b, "\"share\":\"state_matrix_only\"") ||
+      !strstr(b, "\"python\":0") ||
       !strstr(resp, "X-Grokium-Product-Wire: smx2")) {
     fprintf(stderr, "selftest: healthz dual-wire fail: %.400s\n", b);
     fails++;
@@ -233,6 +234,7 @@ static int selftest(void) {
            !strstr(body_of(resp), "product_wire") ||
            !strstr(body_of(resp), "lab_ops_only") ||
            !strstr(body_of(resp), "llm_is_commander") ||
+           !strstr(body_of(resp), "python") ||
            !strstr(body_of(resp), "state matrix only")) {
     fprintf(stderr, "selftest: /ui fail: %.300s\n", resp);
     fails++;
@@ -644,7 +646,8 @@ static int selftest(void) {
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
-        !strstr(b, "\"llm_is_commander\":false")) {
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: smx SSE dual-wire fail: %.400s\n", b);
       fails++;
     }

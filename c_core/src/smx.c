@@ -150,7 +150,7 @@ int smx_plate_json(const grokium_smx *m, int algodigit, char *out, size_t cap) {
   smx_sha256_hex(m, hex);
   host_token(m->host_id, host_tok, sizeof host_tok);
   if (!host_tok[0]) snprintf(host_tok, sizeof host_tok, "host");
-  /* Compact plate: dual-wire honesty; bits truncated (disk/lab inspect). */
+  /* Compact plate: dual-wire honesty · py=0; bits truncated (disk/lab inspect). */
   snprintf(out, cap,
            "{\"schema\":\"grokium.smx.v1\",\"ok\":true,"
            "\"seq\":%llu,\"bits_set\":%u,\"ticks\":%u,"
@@ -159,7 +159,7 @@ int smx_plate_json(const grokium_smx *m, int algodigit, char *out, size_t cap) {
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"llm_on_hot_path\":false,\"llm_is_commander\":false,"
-           "\"bits\":\"%.64s...\"}",
+           "\"python\":0,\"bits\":\"%.64s...\"}",
            (unsigned long long)m->seq, m->bits_set, m->ticks, host_tok,
            algodigit, hex, bits);
   return 0;

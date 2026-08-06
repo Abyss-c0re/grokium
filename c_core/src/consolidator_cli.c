@@ -268,7 +268,8 @@ int main(int argc, char **argv) {
           !strstr(body, "\"peer_http\":\"lab_ops_only\"") ||
           !strstr(body, "\"peer_http_is_product_bus\":false") ||
           !strstr(body, "\"llm_is_commander\":false") ||
-          !strstr(body, "\"share\":\"state_matrix_only\"")) {
+          !strstr(body, "\"share\":\"state_matrix_only\"") ||
+          !strstr(body, "\"python\":0")) {
         fprintf(stderr, "selftest: matrix.json dual-wire fail: %s\n", body);
         return 1;
       }
@@ -278,6 +279,7 @@ int main(int argc, char **argv) {
         if (smx_plate_json(&C.matrix, 0, plate, sizeof plate) != 0 ||
             !strstr(plate, "\"product_wire\":\"smx2\"") ||
             !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+            !strstr(plate, "\"python\":0") ||
             !strstr(plate, "\"bits\":\"") || !strstr(plate, "...\"")) {
           fprintf(stderr, "selftest: smx_plate_json dual-wire fail: %.200s\n",
                   plate);
