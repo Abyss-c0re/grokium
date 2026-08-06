@@ -51,7 +51,14 @@ $(BUILD)/session_plate_selftest: tests/session_plate_selftest.c src/session.c \
 	$(CC) $(CFLAGS) -o $@ tests/session_plate_selftest.c src/session.c
 
 test-session-plate: $(BUILD)/session_plate_selftest
-	@$(BUILD)/session_plate_selftest
+	@set -e; \
+	ST=$$($(BUILD)/session_plate_selftest); \
+	echo "$$ST" | grep -q '"schema":"grokium.session_plate_selftest.v1"'; \
+	echo "$$ST" | grep -q '"ok":true'; \
+	echo "$$ST" | grep -q '"id_safe":true'; \
+	echo "$$ST" | grep -q '"product_wire":"smx2"'; \
+	echo "$$ST" | grep -q '"python":0'; \
+	echo "$$ST" | grep -qv C_CORE_SESSION_PLATE_OK
 
 # Law / license / mode dual-wire plates — pure C, no HTTP/nanobot.
 $(BUILD)/law_plate_selftest: tests/law_plate_selftest.c src/law.c \
@@ -59,7 +66,14 @@ $(BUILD)/law_plate_selftest: tests/law_plate_selftest.c src/law.c \
 	$(CC) $(CFLAGS) -o $@ tests/law_plate_selftest.c src/law.c
 
 test-law-plate: $(BUILD)/law_plate_selftest
-	@$(BUILD)/law_plate_selftest
+	@set -e; \
+	ST=$$($(BUILD)/law_plate_selftest); \
+	echo "$$ST" | grep -q '"schema":"grokium.law_plate_selftest.v1"'; \
+	echo "$$ST" | grep -q '"ok":true'; \
+	echo "$$ST" | grep -q '"commander_ok":true'; \
+	echo "$$ST" | grep -q '"product_wire":"smx2"'; \
+	echo "$$ST" | grep -q '"python":0'; \
+	echo "$$ST" | grep -qv C_CORE_LAW_PLATE_OK
 
 clean:
 	rm -f $(BIN_CMD) $(BIN_FILTER) $(BUILD)/grokium-fleet \

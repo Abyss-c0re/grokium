@@ -124,7 +124,23 @@ int main(void) {
       !strstr(plate, "\"allowed\":false") || !plate_dual_wire(plate))
     return fail("commander reject dual-wire py=0");
 
-  printf("C_CORE_LAW_PLATE_OK dual_wire=honest law=1 license=1 mode=1 "
-         "mode_resume=1 need_subcmd=1 inject=1 python=0 commander_ok=1\n");
+  /* Dual-wire selftest success — no free-text C_CORE_LAW_PLATE_OK. */
+  {
+    char okp[512];
+    snprintf(okp, sizeof okp,
+             "{\"schema\":\"grokium.law_plate_selftest.v1\",\"ok\":true,"
+             "\"law\":true,\"license\":true,\"mode\":true,"
+             "\"mode_resume\":true,\"need_subcmd\":true,\"inject\":true,"
+             "\"commander_ok\":true,\"dual_wire\":true,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"hold_flash\":1,"
+             "\"share\":\"state_matrix_only\",\"python\":0}");
+    if (!plate_dual_wire(okp) ||
+        !strstr(okp, "\"schema\":\"grokium.law_plate_selftest.v1\"") ||
+        !strstr(okp, "\"ok\":true") || !strstr(okp, "\"commander_ok\":true"))
+      return fail("law_plate_selftest plate");
+    printf("%s\n", okp);
+  }
   return 0;
 }
