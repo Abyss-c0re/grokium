@@ -78,6 +78,31 @@ int main(int argc, char **argv) {
               "grokium-smx-filter: manager help dual-wire fail: %.200s\n", den);
       return 1;
     }
+    /* Deny error leaves must sanitize quote/control inject (match fleet/coord). */
+    grokium_manager_tick_err_json("bad\"err;x", den, sizeof den);
+    if (!plate_dual_wire_ok(den) || strstr(den, "bad\"err") ||
+        !strstr(den, "\"error\":\"bad_err_x\"") ||
+        !strstr(den, "\"schema\":\"grokium.manager_tick.v1\"")) {
+      fprintf(stderr, "grokium-smx-filter: manager err sanitize fail: %.200s\n",
+              den);
+      return 1;
+    }
+    grokium_contract_form_err_json("form\"bad;y", den, sizeof den);
+    if (!plate_dual_wire_ok(den) || strstr(den, "form\"bad") ||
+        !strstr(den, "\"error\":\"form_bad_y\"") ||
+        !strstr(den, "\"schema\":\"grokium.contract_form.v1\"")) {
+      fprintf(stderr, "grokium-smx-filter: form err sanitize fail: %.200s\n",
+              den);
+      return 1;
+    }
+    grokium_contract_validate_err_json("val\"bad;z", den, sizeof den);
+    if (!plate_dual_wire_ok(den) || strstr(den, "val\"bad") ||
+        !strstr(den, "\"error\":\"val_bad_z\"") ||
+        !strstr(den, "\"schema\":\"grokium.contract_validate.v1\"")) {
+      fprintf(stderr,
+              "grokium-smx-filter: validate err sanitize fail: %.200s\n", den);
+      return 1;
+    }
   }
   if (argc < 2 || !strcmp(argv[1], "help") || !strcmp(argv[1], "-h") ||
       !strcmp(argv[1], "--help")) {

@@ -604,6 +604,24 @@ static void path_escape(const char *in, char *out, size_t cap) {
   out[o] = 0;
 }
 
+/* Machine token for deny error leaves (no free-text / quote inject). */
+static void err_token(const char *in, char *out, size_t cap) {
+  size_t i, o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!in || !in[0]) return;
+  for (i = 0; in[i] && o + 1 < cap && o < 48; i++) {
+    unsigned char c = (unsigned char)in[i];
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.')
+      out[o++] = (char)c;
+    else if (c == ' ' || c == '/' || c == ':' || c == '"' || c == '\\' ||
+             c == '\'' || c == ',' || c == ';')
+      out[o++] = '_';
+  }
+  out[o] = 0;
+}
+
 void grokium_manager_tick_json(int motivated, const char *dir, char *out,
                                size_t cap) {
   char dir_esc[640];
@@ -625,10 +643,13 @@ void grokium_manager_tick_json(int motivated, const char *dir, char *out,
 }
 
 void grokium_manager_tick_err_json(const char *error, char *out, size_t cap) {
-  const char *err = error && error[0] ? error : "manager_tick_failed";
+  char err_tok[56];
   if (!out || cap < 64) return;
+  err_token(error && error[0] ? error : "manager_tick_failed", err_tok,
+            sizeof err_tok);
+  if (!err_tok[0]) snprintf(err_tok, sizeof err_tok, "manager_tick_failed");
   /* Shared dual-wire help/deny: host TUI /manager help + CLI manager-tick help. */
-  if (!strcmp(err, "need_dir_or_run")) {
+  if (!strcmp(err_tok, "need_dir_or_run")) {
     snprintf(out, cap,
              "{\"schema\":\"grokium.manager_tick.v1\",\"ok\":false,"
              "\"error\":\"need_dir_or_run\",\"wire\":\"smx_motivate\","
@@ -640,7 +661,7 @@ void grokium_manager_tick_err_json(const char *error, char *out, size_t cap) {
              "smx-filter\"}");
     return;
   }
-  /* Known error tokens only — not free-form caller prose. */
+  /* Machine error token only — not free-form caller prose. */
   snprintf(out, cap,
            "{\"schema\":\"grokium.manager_tick.v1\",\"ok\":false,"
            "\"error\":\"%s\",\"wire\":\"smx_motivate\","
@@ -648,7 +669,7 @@ void grokium_manager_tick_err_json(const char *error, char *out, size_t cap) {
            "\"peer_http_is_product_bus\":false,"
            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
            "\"llm_on_hot_path\":false,\"llm_is_commander\":false}",
-           err);
+           err_tok);
 }
 
 void grokium_instinct_json(char *out, size_t cap) {
@@ -689,9 +710,11 @@ void grokium_smx_allow_json(int allow, int prose, char *out, size_t cap) {
   "\"llm_on_hot_path\":false,\"llm_is_commander\":false"
 
 void grokium_contract_form_err_json(const char *error, char *out, size_t cap) {
-  const char *err = error && error[0] ? error : "form_failed";
+  char err_tok[56];
   if (!out || cap < 64) return;
-  if (!strcmp(err, "need_assignee_and_task")) {
+  err_token(error && error[0] ? error : "form_failed", err_tok, sizeof err_tok);
+  if (!err_tok[0]) snprintf(err_tok, sizeof err_tok, "form_failed");
+  if (!strcmp(err_tok, "need_assignee_and_task")) {
     snprintf(out, cap,
              "{\"schema\":\"grokium.contract_form.v1\",\"ok\":false,"
              "\"error\":\"need_assignee_and_task\"," CONTRACT_DUAL_WIRE_TAIL ","
@@ -701,7 +724,7 @@ void grokium_contract_form_err_json(const char *error, char *out, size_t cap) {
   snprintf(out, cap,
            "{\"schema\":\"grokium.contract_form.v1\",\"ok\":false,"
            "\"error\":\"%s\"," CONTRACT_DUAL_WIRE_TAIL "}",
-           err);
+           err_tok);
 }
 
 void grokium_contract_form_json(const grokium_contract *c, char *out,
@@ -726,9 +749,12 @@ void grokium_contract_form_json(const grokium_contract *c, char *out,
 
 void grokium_contract_validate_err_json(const char *error, char *out,
                                         size_t cap) {
-  const char *err = error && error[0] ? error : "contract_not_found";
+  char err_tok[56];
   if (!out || cap < 64) return;
-  if (!strcmp(err, "need_path")) {
+  err_token(error && error[0] ? error : "contract_not_found", err_tok,
+            sizeof err_tok);
+  if (!err_tok[0]) snprintf(err_tok, sizeof err_tok, "contract_not_found");
+  if (!strcmp(err_tok, "need_path")) {
     snprintf(out, cap,
              "{\"schema\":\"grokium.contract_validate.v1\",\"ok\":false,"
              "\"error\":\"need_path\"," CONTRACT_DUAL_WIRE_TAIL ","
@@ -738,7 +764,7 @@ void grokium_contract_validate_err_json(const char *error, char *out,
   snprintf(out, cap,
            "{\"schema\":\"grokium.contract_validate.v1\",\"ok\":false,"
            "\"error\":\"%s\"," CONTRACT_DUAL_WIRE_TAIL "}",
-           err);
+           err_tok);
 }
 
 void grokium_contract_validate_json(const grokium_contract *c, int rc,

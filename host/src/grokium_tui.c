@@ -1173,7 +1173,7 @@ static void cmd_manager_tick(const char *arg) {
     log_add(plate);
     return;
   }
-  log_add("--- manager-tick (nb-manager · incomplete contracts → NexusCore) ---");
+  /* Capture prints shared grokium.manager_tick.v1 — no free-text banner. */
   av[n++] = "manager-tick";
   if (p[0] && strcmp(p, "tick") != 0) {
     /* optional contract dir (relative under repo) */
@@ -1184,9 +1184,6 @@ static void cmd_manager_tick(const char *arg) {
   }
   av[n] = NULL;
   (void)run_c_core_capture("grokium-smx-filter", av);
-  log_add("  share=state_matrix_only · product_wire=smx2 · hold_flash=1");
-  log_add("  peer_http=lab_ops_only · wire=smx_motivate · Commander≠model");
-  log_add("  contracts under data/contracts · nb-manager motivates incomplete");
 }
 
 /* Parse --flag VALUE from plate (VALUE may include spaces until next --). */
