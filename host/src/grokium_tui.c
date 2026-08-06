@@ -1725,7 +1725,10 @@ static void do_command(const char *raw) {
     }
     if (rest[0] && strcmp(rest, "start") == 0) {
       if (gkx_hub_ensure(&cfg) == 0) {
-        log_add("hub: ready");
+        char plate[640];
+        /* Shared dual-wire hub status after ensure (match CLI hub start). */
+        gkx_hub_status(plate, sizeof plate);
+        log_add(plate);
       } else {
         char plate[512];
         /* Shared dual-wire hub_start_failed. */
