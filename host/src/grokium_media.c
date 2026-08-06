@@ -303,3 +303,24 @@ int gkx_viz_open(const gkx_config *cfg, const char *path, int vr) {
   /* don't wait — desktop/VR viewer independent */
   return 0;
 }
+
+int gkx_viz_plate_json(int ok, int vr, const char *error, char *out,
+                       size_t cap) {
+  char err[64];
+  if (!out || cap < 64) return -1;
+  err_token(error, err, sizeof err);
+  /* Lab/ops viz plate: no path dump; product bus remains SMX2. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.viz.v1\",\"ok\":%s,"
+           "\"action\":\"%s\",\"vr\":%s,"
+           "\"content\":\"meta_only\","
+           "\"error\":\"%s\","
+           "\"viewer\":\"lab_ops_only\","
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"llm_is_commander\":false,\"tools\":false,\"python\":0}",
+           ok ? "true" : "false", vr ? "vr" : "open", vr ? "true" : "false",
+           err[0] ? err : "");
+  return 0;
+}

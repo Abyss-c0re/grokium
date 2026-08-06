@@ -37,4 +37,12 @@ char *gkx_viz_term2d_bars(const double *ys, int n, int width, int height);
 /* Open path with desktop or VR viewer command from config (%s = path). */
 int gkx_viz_open(const gkx_config *cfg, const char *path, int vr);
 
+/*
+ * Dual-wire honesty plate for /viz open|vr success (and optional fail).
+ * content is always meta_only (no path dump on the plate).
+ * action is open (vr=0) or vr (vr!=0). error is a short machine token.
+ */
+int gkx_viz_plate_json(int ok, int vr, const char *error, char *out,
+                       size_t cap);
+
 #endif

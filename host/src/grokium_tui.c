@@ -1894,7 +1894,10 @@ static void do_command(const char *raw) {
         return;
       }
       if (gkx_viz_open(&cfg, arg, 0) == 0) {
-        log_add("opened (desktop cmd)");
+        char plate[512];
+        /* Dual-wire open success — no free-text path/banner. */
+        if (gkx_viz_plate_json(1, 0, NULL, plate, sizeof plate) == 0)
+          log_add(plate);
       } else {
         char plate[512];
         /* Shared dual-wire open_failed (no free-text-only). */
@@ -1914,7 +1917,10 @@ static void do_command(const char *raw) {
         return;
       }
       if (gkx_viz_open(&cfg, arg, 1) == 0) {
-        log_add("opened (vr/desktop cmd)");
+        char plate[512];
+        /* Dual-wire vr success — no free-text path/banner. */
+        if (gkx_viz_plate_json(1, 1, NULL, plate, sizeof plate) == 0)
+          log_add(plate);
       } else {
         char plate[512];
         grokium_err_json("viz", "open_failed",

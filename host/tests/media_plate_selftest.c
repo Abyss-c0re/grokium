@@ -69,6 +69,38 @@ int main(void) {
       !strstr(plate, "\"size_bytes\":0") || strstr(plate, "path/with"))
     return fail("error token sanitize");
 
-  printf("HOST_MEDIA_PLATE_OK dual_wire=honest mime=ok size_bytes=1 py=0\n");
+  /* /viz open|vr success dual-wire plate (meta_only · no path dump). */
+  if (gkx_viz_plate_json(1, 0, NULL, plate, sizeof plate) != 0)
+    return fail("viz open plate");
+  if (!strstr(plate, "\"schema\":\"grokium.viz.v1\"") ||
+      !strstr(plate, "\"ok\":true") || !strstr(plate, "\"action\":\"open\"") ||
+      !strstr(plate, "\"vr\":false") ||
+      !strstr(plate, "\"content\":\"meta_only\"") ||
+      !strstr(plate, "\"viewer\":\"lab_ops_only\"") ||
+      !strstr(plate, "\"product_wire\":\"smx2\"") ||
+      !strstr(plate, "\"peer_http\":\"lab_ops_only\"") ||
+      !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+      !strstr(plate, "\"hold_flash\":1") ||
+      !strstr(plate, "\"llm_is_commander\":false") ||
+      !strstr(plate, "\"python\":0")) {
+    fprintf(stderr, "media_plate_selftest: viz open dual-wire fail: %s\n",
+            plate);
+    return 1;
+  }
+  if (gkx_viz_plate_json(1, 1, NULL, plate, sizeof plate) != 0)
+    return fail("viz vr plate");
+  if (!strstr(plate, "\"action\":\"vr\"") || !strstr(plate, "\"vr\":true") ||
+      !strstr(plate, "\"ok\":true") ||
+      !strstr(plate, "\"product_wire\":\"smx2\""))
+    return fail("viz vr dual-wire plate");
+  if (gkx_viz_plate_json(0, 0, "open/failed:path", plate, sizeof plate) != 0)
+    return fail("viz fail plate");
+  if (!strstr(plate, "\"ok\":false") ||
+      !strstr(plate, "\"error\":\"open_failed_path\"") ||
+      strstr(plate, "open/failed"))
+    return fail("viz error token sanitize");
+
+  printf("HOST_MEDIA_PLATE_OK dual_wire=honest mime=ok size_bytes=1 "
+         "viz=1 py=0\n");
   return 0;
 }
