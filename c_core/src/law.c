@@ -73,7 +73,7 @@ void grokium_mode_json(int agent_tools, char *out, size_t cap) {
            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
            "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
-           "\"llm_is_commander\":false}",
+           "\"llm_is_commander\":false,\"python\":0}",
            tools ? "agent" : "chat", tools);
 }
 
@@ -129,7 +129,7 @@ void grokium_err_json(const char *schema_leaf, const char *error,
   } else {
     hint_tok[0] = 0;
   }
-  /* Shared dual-wire deny: product bus SMX2; peer HTTP lab/ops only. */
+  /* Shared dual-wire deny: product bus SMX2; peer HTTP lab/ops only; py=0. */
   if (hint_tok[0]) {
     snprintf(out, cap,
              "{\"schema\":\"grokium.%s.v1\",\"ok\":false,"
@@ -137,7 +137,7 @@ void grokium_err_json(const char *schema_leaf, const char *error,
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"llm_is_commander\":false,\"hint\":\"%s\"}",
+             "\"llm_is_commander\":false,\"python\":0,\"hint\":\"%s\"}",
              leaf, err, hint_tok);
   } else {
     snprintf(out, cap,
@@ -146,7 +146,7 @@ void grokium_err_json(const char *schema_leaf, const char *error,
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"llm_is_commander\":false}",
+             "\"llm_is_commander\":false,\"python\":0}",
              leaf, err);
   }
 }
@@ -174,7 +174,7 @@ void grokium_commander_deny_json(const char *schema_leaf, const char *error,
   } else {
     hint_tok[0] = 0;
   }
-  /* Commander = Ed25519 residual only; LLM is never commander. */
+  /* Commander = Ed25519 residual only; LLM is never commander; py=0. */
   if (hint_tok[0]) {
     snprintf(out, cap,
              "{\"schema\":\"grokium.%s.v1\",\"ok\":false,"
@@ -184,7 +184,7 @@ void grokium_commander_deny_json(const char *schema_leaf, const char *error,
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"commander\":\"ed25519\",\"not\":\"grok_model\","
-             "\"hint\":\"%s\"}",
+             "\"python\":0,\"hint\":\"%s\"}",
              leaf, err, hint_tok);
   } else {
     snprintf(out, cap,
@@ -194,7 +194,8 @@ void grokium_commander_deny_json(const char *schema_leaf, const char *error,
              "\"peer_http_is_product_bus\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
-             "\"commander\":\"ed25519\",\"not\":\"grok_model\"}",
+             "\"commander\":\"ed25519\",\"not\":\"grok_model\","
+             "\"python\":0}",
              leaf, err);
   }
 }

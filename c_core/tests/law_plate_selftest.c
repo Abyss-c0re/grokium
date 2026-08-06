@@ -56,13 +56,13 @@ int main(void) {
       !strstr(plate, "\"ok\":true") || !strstr(plate, "\"mode\":\"chat\"") ||
       !strstr(plate, "\"tools\":0") ||
       !strstr(plate, "\"resume\":\"host_local_not_smx\"") ||
-      !plate_dual_wire(plate))
+      !strstr(plate, "\"python\":0") || !plate_dual_wire(plate))
     return fail("mode chat dual-wire plate");
 
   grokium_mode_json(1, plate, sizeof plate);
   if (!strstr(plate, "\"mode\":\"agent\"") || !strstr(plate, "\"tools\":1") ||
       !strstr(plate, "\"resume\":\"host_local_not_smx\"") ||
-      !plate_dual_wire(plate))
+      !strstr(plate, "\"python\":0") || !plate_dual_wire(plate))
     return fail("mode agent dual-wire plate");
 
   grokium_need_subcmd_json(
@@ -71,7 +71,8 @@ int main(void) {
   if (!strstr(plate, "\"schema\":\"grokium.mode.v1\"") ||
       !strstr(plate, "\"ok\":false") ||
       !strstr(plate, "\"error\":\"need_subcmd\"") ||
-      !strstr(plate, "resume=host_local_not_smx") || !plate_dual_wire(plate))
+      !strstr(plate, "resume=host_local_not_smx") ||
+      !strstr(plate, "\"python\":0") || !plate_dual_wire(plate))
     return fail("mode need_subcmd dual-wire plate");
 
   /* Schema/error inject must sanitize (no free-text quote breakout). */
@@ -79,10 +80,22 @@ int main(void) {
                    sizeof plate);
   if (!strstr(plate, "\"schema\":\"grokium.xeviltrue.v1\"") ||
       strstr(plate, "\"evil\"") || !strstr(plate, "\"error\":\"baddrop\"") ||
-      !strstr(plate, "a_b") || !plate_dual_wire(plate))
+      !strstr(plate, "a_b") || !strstr(plate, "\"python\":0") ||
+      !plate_dual_wire(plate))
     return fail("err_json inject sanitize");
 
+  /* Commander deny shares py=0 honesty (Commander ≠ model). */
+  grokium_commander_deny_json("commander", "need_subcmd",
+                              "keygen|show|verify", plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.commander.v1\"") ||
+      !strstr(plate, "\"ok\":false") ||
+      !strstr(plate, "\"error\":\"need_subcmd\"") ||
+      !strstr(plate, "\"commander\":\"ed25519\"") ||
+      !strstr(plate, "\"not\":\"grok_model\"") ||
+      !strstr(plate, "\"python\":0") || !plate_dual_wire(plate))
+    return fail("commander deny dual-wire py=0");
+
   printf("C_CORE_LAW_PLATE_OK dual_wire=honest law=1 license=1 mode=1 "
-         "need_subcmd=1 inject=1\n");
+         "need_subcmd=1 inject=1 python=0 commander_deny=1\n");
   return 0;
 }
