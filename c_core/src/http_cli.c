@@ -849,7 +849,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"share\":\"state_matrix_only\"") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: llama probe dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -864,7 +865,8 @@ static int selftest(void) {
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: chat need_message dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -879,7 +881,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"share\":\"state_matrix_only\"") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: chat honesty fail: %.400s\n", resp);
       fails++;
     }
@@ -894,7 +897,8 @@ static int selftest(void) {
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: agent tools dual-wire fail: %.400s\n", b);
       fails++;
     }
@@ -907,7 +911,8 @@ static int selftest(void) {
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
-        !strstr(b, "\"hold_flash\":1")) {
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: agent need_message dual-wire fail: %.400s\n",
               b);
       fails++;
@@ -923,7 +928,8 @@ static int selftest(void) {
         !strstr(b, "tool_agent\":\"host_nanobot") ||
         !strstr(b, "llm_is_commander\":false") ||
         !strstr(b, "\"product_wire\":\"smx2\"") ||
-        !strstr(b, "\"peer_http_is_product_bus\":false")) {
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: agent honesty fail: %.400s\n", resp);
       fails++;
     }
@@ -997,7 +1003,8 @@ static int plate_dual_wire_ok(const char *p) {
          strstr(p, "\"peer_http_is_product_bus\":false") &&
          strstr(p, "\"llm_is_commander\":false") &&
          strstr(p, "\"hold_flash\":1") &&
-         strstr(p, "\"share\":\"state_matrix_only\"");
+         strstr(p, "\"share\":\"state_matrix_only\"") &&
+         strstr(p, "\"python\":0");
 }
 
 static void emit_need_subcmd(void) {

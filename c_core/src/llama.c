@@ -103,7 +103,7 @@ int grokium_llama_probe(char *json_out, size_t cap) {
              "\"commander_is_model\":false,\"product_wire\":\"smx2\","
              "\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,\"python\":0}");
     return 0;
   }
   fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -186,7 +186,7 @@ done:
                "\"commander_is_model\":false,\"product_wire\":\"smx2\","
                "\"peer_http\":\"lab_ops_only\","
                "\"peer_http_is_product_bus\":false,"
-               "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
+               "\"share\":\"state_matrix_only\",\"hold_flash\":1,\"python\":0}",
                port, path_tok, err_tok);
       return 0;
     }
@@ -198,7 +198,7 @@ done:
              "\"commander_is_model\":false,\"product_wire\":\"smx2\","
              "\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1}",
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,\"python\":0}",
              code, port, path_tok, model_tok);
   }
   return 0;
@@ -333,7 +333,7 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,\"python\":0}");
     return 0;
   }
 
@@ -348,7 +348,7 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,\"python\":0}");
     return 0;
   }
   (void)path_models;
@@ -359,7 +359,7 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,\"python\":0}");
     return 0;
   }
 
@@ -377,7 +377,7 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
              "\"llm_is_commander\":false,\"commander_is_model\":false,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
-             "\"share\":\"state_matrix_only\",\"hold_flash\":1}");
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,\"python\":0}");
     return 0;
   }
 
@@ -444,7 +444,7 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
              "\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"local_first\":true}",
+             "\"python\":0,\"local_first\":true}",
              code);
     return 0;
   }
@@ -457,7 +457,7 @@ int grokium_llama_chat(const char *message, char *json_out, size_t cap) {
            "\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"local_first\":true,\"telemetry\":\"off\"}",
+           "\"python\":0,\"local_first\":true,\"telemetry\":\"off\"}",
            code, content_esc);
   return 0;
 
@@ -475,7 +475,7 @@ fail:
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"local_first\":true}",
+             "\"python\":0,\"local_first\":true}",
              err_tok, port);
   }
   return 0;
@@ -535,7 +535,7 @@ void grokium_chat_err_json(const char *error, const char *hint, char *out,
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"local_first\":true,\"telemetry\":\"off\"}",
+             "\"python\":0,\"local_first\":true,\"telemetry\":\"off\"}",
              err_tok, h);
   } else {
     snprintf(out, cap,
@@ -545,7 +545,7 @@ void grokium_chat_err_json(const char *error, const char *hint, char *out,
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"local_first\":true,\"telemetry\":\"off\"}",
+             "\"python\":0,\"local_first\":true,\"telemetry\":\"off\"}",
              err_tok);
   }
 }
@@ -584,7 +584,7 @@ void grokium_agent_err_json(const char *error, const char *hint, char *out,
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"local_first\":true,\"telemetry\":\"off\"}",
+             "\"python\":0,\"local_first\":true,\"telemetry\":\"off\"}",
              err_tok, h);
   } else {
     snprintf(out, cap,
@@ -596,7 +596,7 @@ void grokium_agent_err_json(const char *error, const char *hint, char *out,
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-             "\"local_first\":true,\"telemetry\":\"off\"}",
+             "\"python\":0,\"local_first\":true,\"telemetry\":\"off\"}",
              err_tok);
   }
 }
@@ -618,6 +618,6 @@ void grokium_agent_ok_json(const char *content, char *out, size_t cap) {
            "\"peer_http\":\"lab_ops_only\","
            "\"peer_http_is_product_bus\":false,"
            "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"local_first\":true,\"telemetry\":\"off\"}",
+           "\"python\":0,\"local_first\":true,\"telemetry\":\"off\"}",
            content_esc);
 }
