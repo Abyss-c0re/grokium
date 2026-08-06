@@ -238,9 +238,24 @@ int main(void) {
       !strstr(plate, "\"content\":\"meta_only\"") || !plate_dual_wire(plate))
     return fail("empty_output dual-wire plate");
 
+  /* TUI /help dual-wire (no free-text multi-line usage dump). */
+  gkx_tui_help_json(plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.help.v1\"") ||
+      !strstr(plate, "\"ok\":false") ||
+      !strstr(plate, "\"error\":\"need_cmd\"") ||
+      !strstr(plate, "\"surface\":\"host_tui\"") ||
+      !strstr(plate, "/settings") || !strstr(plate, "/smx") ||
+      !strstr(plate, "/fleet") || !strstr(plate, "/commander") ||
+      !strstr(plate, "Alt+Enter") ||
+      !strstr(plate, "\"commander_is_model\":false") ||
+      !plate_dual_wire(plate)) {
+    fprintf(stderr, "settings_plate_selftest: tui help fail: %.500s\n", plate);
+    return 1;
+  }
+
   printf("HOST_SETTINGS_PLATE_OK dual_wire=honest sanitize=1 saved=1 "
          "no_config=1 backend=1 model=1 context=1 multiline=1 spoilers=1 "
          "debug=1 always_approve=1 auth=1 session_clear=1 interrupt=1 "
-         "empty_output=1 python=0\n");
+         "empty_output=1 tui_help=1 python=0\n");
   return 0;
 }

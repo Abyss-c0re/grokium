@@ -647,3 +647,20 @@ void gkx_empty_output_json(char *out, size_t cap) {
            "\"peer_http_is_product_bus\":false,"
            "\"llm_is_commander\":false,\"tools\":false,\"python\":0}");
 }
+
+void gkx_tui_help_json(char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Shared dual-wire TUI help: command index · SMX2≠peer HTTP · py=0. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.help.v1\",\"ok\":false,"
+           "\"error\":\"need_cmd\",\"surface\":\"host_tui\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"tools\":false,\"python\":0,"
+           "\"commander_is_model\":false,"
+           "\"hint\":\"/settings|/coord|/smx|/sessions|/pickup|/mode|/law|"
+           "/license|/status|/fleet|/manager|/contract|/hub|/integrity|"
+           "/commander|/attach|/viz|/model|/shell|/q · multiline "
+           "Alt+Enter/Ctrl+S · spoilers Tab\"}");
+}

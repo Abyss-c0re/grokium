@@ -1450,26 +1450,10 @@ static void do_command(const char *raw) {
     exit(0);
   }
   if (strcmp(cmd, "help") == 0 || strcmp(cmd, "h") == 0 || strcmp(cmd, "?") == 0) {
-    log_add("--- pure C TUI (config-driven) ---");
-    log_add("  /settings [key=val|save|reload|path]");
-    log_add("  multiline: Enter=nl · Alt+Enter/Ctrl+S=send");
-    log_add("  spoilers: Tab · e/E/c · click");
-    log_add("  /coord <plate>  fold NEXUS_COORD/SMX via filter (fail-closed)");
-    log_add("  /smx            latest StateMatrix plate (bits only)");
-    log_add("  /sessions [q]   imported session metas");
-    log_add("  /pickup|/load <id>  meta + host-local history resume");
-    log_add("  /mode chat|agent|resume  tools toggle · resume=host-local");
-    log_add("  /law            Cube Standards plate (share=state_matrix_only)");
-    log_add("  /license        Apache-2.0 · not xAI · Commander≠model plate");
-    log_add("  /status         dual-wire honesty (fleet+matrix · SMX2≠peer HTTP)");
-    log_add("  /fleet [status|deploy|save|spawn|note-pid|separate|stop-all]");
-    log_add("  /manager [DIR]  motivate incomplete contracts (nb-manager)");
-    log_add("  /contract form|validate|…  external cell contracts (SMX filter)");
-    log_add("  /hub [start|stop]  LLM request hub");
-    log_add("  /integrity      CODE_SEAL + privacy fail-closed tick");
-    log_add("  /commander      Ed25519 law fingerprint (≠ model)");
-    log_add("  /attach /viz · ! shell · /model · /settings · /q");
-    log_add("  product_wire=smx2 · peer_http=lab_ops_only · Commander≠model");
+    char plate[768];
+    /* Dual-wire help plate — no free-text multi-line usage dump. */
+    gkx_tui_help_json(plate, sizeof plate);
+    log_add(plate);
     return;
   }
   if (strcmp(cmd, "shell") == 0 || strcmp(cmd, "sh") == 0 || strcmp(cmd, "run") == 0) {

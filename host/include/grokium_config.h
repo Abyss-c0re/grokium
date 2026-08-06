@@ -189,4 +189,10 @@ void gkx_interrupt_json(char *out, size_t cap);
  */
 void gkx_empty_output_json(char *out, size_t cap);
 
+/*
+ * Dual-wire TUI help plate (schema grokium.help.v1).
+ * Host TUI /help|/h|/? — command index + dual-wire honesty (no free-text dump).
+ */
+void gkx_tui_help_json(char *out, size_t cap);
+
 #endif
