@@ -9,6 +9,7 @@
 #include "grokium_session.h"
 #include "grokium_status.h"
 #include "grokium_law.h"
+#include "grokium_llama.h"
 #include "grokium_plate.h"
 #include "grokium_smx_filter.h"
 #include "grokium_consolidator.h"
@@ -566,12 +567,14 @@ static void chat_send(const char *msg) {
     if (rc == 0 && reply[0]) {
       int a = blk_push(BK_ASST, NULL);
       blk_append_str(a, reply);
-    } else if (rc == 1) {
-      log_add("cube> (empty)");
-      if (err[0]) log_add(err);
     } else {
-      log_add("cube> (fail)");
-      if (err[0]) log_add(err);
+      char plate[512];
+      /* Shared dual-wire chat deny (CLI -p / serve) — no free-text err dump. */
+      grokium_chat_err_json(err[0] ? err
+                                   : (rc == 1 ? "empty_reply" : "chat_fail"),
+                            "chat · check local llama / hub", plate,
+                            sizeof plate);
+      log_add(plate);
     }
   }
   /* seal think title after stream */
