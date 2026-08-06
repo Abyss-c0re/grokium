@@ -269,7 +269,14 @@ test-serve: $(BUILD)/grokium-serve
 	echo "$$H" | grep -q '"llm_is_commander":false'; \
 	echo "$$H" | grep -q '"hold_flash":1'; \
 	echo "$$H" | grep -q '"share":"state_matrix_only"'; \
-	$(BUILD)/grokium-serve selftest
+	ST=$$($(BUILD)/grokium-serve selftest); \
+	echo "$$ST" | grep -q '"schema":"grokium.serve_selftest.v1"'; \
+	echo "$$ST" | grep -q '"ok":true'; \
+	echo "$$ST" | grep -q '"smx_filter":true'; \
+	echo "$$ST" | grep -q '"non_loopback_refuse":true'; \
+	echo "$$ST" | grep -q '"product_wire":"smx2"'; \
+	echo "$$ST" | grep -q '"python":0'; \
+	echo "$$ST" | grep -qv LOOPBACK_HTTP_OK
 
 test-integrity: $(BUILD)/grokium-integrity
 	@set -e; \

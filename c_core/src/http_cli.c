@@ -1035,11 +1035,36 @@ static int selftest(void) {
     fprintf(stderr, "LOOPBACK_HTTP_FAIL fails=%d\n", fails);
     return 1;
   }
-  printf("LOOPBACK_HTTP_OK port=%d dual_wire=honest smx_filter=on "
-         "contracts=on commander=on llama_probe=on smx_sse=on chat=on "
-         "cube_status=on sessions=on ui=on agent=on integrity=on "
-         "non_loopback_refuse=1\n",
-         port);
+  /* Dual-wire selftest success — no free-text LOOPBACK_HTTP_OK banner. */
+  {
+    char okp[768];
+    snprintf(okp, sizeof okp,
+             "{\"schema\":\"grokium.serve_selftest.v1\",\"ok\":true,"
+             "\"port\":%d,\"dual_wire\":true,\"smx_filter\":true,"
+             "\"contracts\":true,\"commander\":true,\"llama_probe\":true,"
+             "\"smx_sse\":true,\"chat\":true,\"cube_status\":true,"
+             "\"sessions\":true,\"ui\":true,\"agent\":true,"
+             "\"integrity\":true,\"non_loopback_refuse\":true,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"hold_flash\":1,"
+             "\"share\":\"state_matrix_only\",\"python\":0}",
+             port);
+    if (!strstr(okp, "\"schema\":\"grokium.serve_selftest.v1\"") ||
+        !strstr(okp, "\"ok\":true") || !strstr(okp, "\"smx_filter\":true") ||
+        !strstr(okp, "\"product_wire\":\"smx2\"") ||
+        !strstr(okp, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(okp, "\"peer_http_is_product_bus\":false") ||
+        !strstr(okp, "\"llm_is_commander\":false") ||
+        !strstr(okp, "\"hold_flash\":1") ||
+        !strstr(okp, "\"share\":\"state_matrix_only\"") ||
+        !strstr(okp, "\"python\":0") ||
+        !strstr(okp, "\"non_loopback_refuse\":true")) {
+      fprintf(stderr, "selftest: serve_selftest plate fail: %.200s\n", okp);
+      return 1;
+    }
+    printf("%s\n", okp);
+  }
   return 0;
 }
 
