@@ -177,4 +177,16 @@ void gkx_auth_json(int has_token, const char *backend, char *out, size_t cap);
  */
 void gkx_session_clear_json(int is_new, char *out, size_t cap);
 
+/*
+ * Dual-wire interrupt plate (schema grokium.interrupt.v1).
+ * Host TUI Ctrl+C with empty input — no free-text (interrupt) banner.
+ */
+void gkx_interrupt_json(char *out, size_t cap);
+
+/*
+ * Dual-wire empty-output plate (schema grokium.empty_output.v1).
+ * Host TUI c_core capture / tool with no stdout — no free-text (no output).
+ */
+void gkx_empty_output_json(char *out, size_t cap);
+
 #endif

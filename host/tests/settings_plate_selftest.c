@@ -223,8 +223,24 @@ int main(void) {
       !strstr(plate, "\"content\":\"host_local\"") || !plate_dual_wire(plate))
     return fail("session new dual-wire plate");
 
+  /* Ctrl+C empty input dual-wire (no free-text (interrupt) banner). */
+  gkx_interrupt_json(plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.interrupt.v1\"") ||
+      !strstr(plate, "\"ok\":true") ||
+      !strstr(plate, "\"action\":\"interrupt\"") ||
+      !strstr(plate, "\"key\":\"ctrl_c\"") || !plate_dual_wire(plate))
+    return fail("interrupt dual-wire plate");
+
+  /* c_core capture empty stdout dual-wire (no free-text (no output)). */
+  gkx_empty_output_json(plate, sizeof plate);
+  if (!strstr(plate, "\"schema\":\"grokium.empty_output.v1\"") ||
+      !strstr(plate, "\"ok\":true") || !strstr(plate, "\"empty\":true") ||
+      !strstr(plate, "\"content\":\"meta_only\"") || !plate_dual_wire(plate))
+    return fail("empty_output dual-wire plate");
+
   printf("HOST_SETTINGS_PLATE_OK dual_wire=honest sanitize=1 saved=1 "
          "no_config=1 backend=1 model=1 context=1 multiline=1 spoilers=1 "
-         "debug=1 always_approve=1 auth=1 session_clear=1 python=0\n");
+         "debug=1 always_approve=1 auth=1 session_clear=1 interrupt=1 "
+         "empty_output=1 python=0\n");
   return 0;
 }

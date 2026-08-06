@@ -623,3 +623,27 @@ void gkx_session_clear_json(int is_new, char *out, size_t cap) {
            "\"llm_is_commander\":false,\"tools\":false,\"python\":0}",
            is_new ? "new" : "clear");
 }
+
+void gkx_interrupt_json(char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Shared dual-wire interrupt: TUI Ctrl+C empty input (host UX · py=0). */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.interrupt.v1\",\"ok\":true,"
+           "\"action\":\"interrupt\",\"key\":\"ctrl_c\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"tools\":false,\"python\":0}");
+}
+
+void gkx_empty_output_json(char *out, size_t cap) {
+  if (!out || cap < 64) return;
+  /* Shared dual-wire empty capture: TUI c_core tool with no stdout. */
+  snprintf(out, cap,
+           "{\"schema\":\"grokium.empty_output.v1\",\"ok\":true,"
+           "\"empty\":true,\"content\":\"meta_only\","
+           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+           "\"peer_http_is_product_bus\":false,"
+           "\"llm_is_commander\":false,\"tools\":false,\"python\":0}");
+}

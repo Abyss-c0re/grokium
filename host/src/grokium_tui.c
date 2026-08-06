@@ -711,8 +711,12 @@ static int run_c_core_capture(const char *name, char *const args[]) {
   waitpid(pid, &st, 0);
   if (acc[0])
     log_add_block(acc);
-  else
-    log_add("(no output)");
+  else {
+    char plate[512];
+    /* Dual-wire empty capture — no free-text (no output) banner. */
+    gkx_empty_output_json(plate, sizeof plate);
+    log_add(plate);
+  }
   return WIFEXITED(st) ? WEXITSTATUS(st) : 1;
 }
 
@@ -1906,17 +1910,12 @@ static void do_command(const char *raw) {
     sub[0] = arg[0] = 0;
     sscanf(rest, "%31s %511s", sub, arg);
     if (!sub[0] || !strcmp(sub, "help") || !strcmp(sub, "?")) {
-      log_add("/viz term <n1,n2,...>   terminal 2D bars");
-      log_add("/viz open <path>        desktop viewer (config viz.desktop_cmd)");
-      log_add("/viz vr <path>          VR/desktop cmd (viz.vr_cmd or desktop)");
-      log_add("No hard-coded VR SDK — set viz.vr_cmd = \"your-viewer %s\"");
-      {
-        char plate[512];
-        /* Shared dual-wire need_subcmd (no free-text-only). */
-        grokium_need_subcmd_json("viz", "/viz term|open|vr", plate,
-                                 sizeof plate);
-        log_add(plate);
-      }
+      char plate[512];
+      /* Dual-wire need_subcmd only — no free-text viz help banner lines. */
+      grokium_need_subcmd_json(
+          "viz", "/viz term|open|vr · no hard-coded VR SDK", plate,
+          sizeof plate);
+      log_add(plate);
       return;
     }
     if (!strcmp(sub, "open")) {
@@ -2413,8 +2412,12 @@ int grokium_tui(int argc, char **argv) {
       if (in_len > 0) {
         in_len = in_cur = 0;
         input[0] = 0;
-      } else
-        log_add("(interrupt)");
+      } else {
+        char plate[512];
+        /* Dual-wire interrupt plate — no free-text (interrupt) banner. */
+        gkx_interrupt_json(plate, sizeof plate);
+        log_add(plate);
+      }
       continue;
     }
 
