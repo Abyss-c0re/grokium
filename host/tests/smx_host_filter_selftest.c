@@ -268,8 +268,20 @@ int main(void) {
         !strstr(plate, "\"error\":\"need_cmd\"") ||
         !strstr(plate, "! <command>") ||
         !strstr(plate, "\"product_wire\":\"smx2\"") ||
-        !strstr(plate, "\"llm_is_commander\":false"))
+        !strstr(plate, "\"llm_is_commander\":false") ||
+        !strstr(plate, "\"python\":0"))
       return fail("shell need_cmd dual-wire plate fail");
+    /* TUI shell present-fail exit plate (no free-text shell exit=N banner). */
+    grokium_err_json("shell", "present_failed_exit_1", "results in tool spoiler",
+                     plate, sizeof plate);
+    if (!strstr(plate, "\"schema\":\"grokium.shell.v1\"") ||
+        !strstr(plate, "\"error\":\"present_failed_exit_1\"") ||
+        !strstr(plate, "results in tool spoiler") ||
+        !strstr(plate, "\"product_wire\":\"smx2\"") ||
+        !strstr(plate, "\"peer_http_is_product_bus\":false") ||
+        !strstr(plate, "\"hold_flash\":1") ||
+        !strstr(plate, "\"python\":0"))
+      return fail("shell present_failed exit dual-wire plate fail");
     grokium_err_json("run", "need_path", "run <file.cubalc>", plate,
                      sizeof plate);
     if (!strstr(plate, "\"schema\":\"grokium.run.v1\"") ||
@@ -288,6 +300,7 @@ int main(void) {
   printf("HOST_SMX_FILTER_OK external=strict hold_flash=1 dual_wire=gate "
          "allow_plate=1 instinct_plate=1 manager_help_plate=1 license_plate=1 "
          "need_subcmd=1 commander_deny=1 law_help=1 mode_need_subcmd=1 "
-         "mode_ok=1 err_json=1 settings_attach_viz=1 shell_run_models=1\n");
+         "mode_ok=1 err_json=1 settings_attach_viz=1 shell_run_models=1 "
+         "shell_present_exit=1 python=0\n");
   return 0;
 }
