@@ -186,6 +186,7 @@ static int privacy_ok(const char *root) {
   if (!strstr(body, "state_matrix_only")) return 0;
   /* Dual-wire + Commander ≠ model honesty on the privacy plate itself. */
   if (!strstr(body, "\"product_wire\"") || !strstr(body, "smx2")) return 0;
+  if (!strstr(body, "lab_ops_only")) return 0;
   if (!strstr(body, "\"peer_http_is_product_bus\"") ||
       (!strstr(body, "\"peer_http_is_product_bus\":false") &&
        !strstr(body, "\"peer_http_is_product_bus\": false")))
@@ -195,6 +196,7 @@ static int privacy_ok(const char *root) {
        !strstr(body, "\"llm_is_commander\": false")))
     return 0;
   if (!strstr(body, "hold_flash")) return 0;
+  if (!strstr(body, "python")) return 0;
   return 1;
 }
 

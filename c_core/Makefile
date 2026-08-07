@@ -363,6 +363,8 @@ test-integrity: $(BUILD)/grokium-integrity
 	grep -q '"schema": "grokium.privacy_canonical.v1"' \
 	  ../data/integrity/PRIVACY_CANONICAL.json; \
 	grep -q '"product_wire": "smx2"' ../data/integrity/PRIVACY_CANONICAL.json; \
+	grep -q '"peer_http": "lab_ops_only"' \
+	  ../data/integrity/PRIVACY_CANONICAL.json; \
 	grep -q '"peer_http_is_product_bus": false' \
 	  ../data/integrity/PRIVACY_CANONICAL.json; \
 	grep -q '"llm_is_commander": false' \
@@ -370,6 +372,17 @@ test-integrity: $(BUILD)/grokium-integrity
 	grep -q '"python": 0' ../data/integrity/PRIVACY_CANONICAL.json; \
 	grep -q '"telemetry": false' ../data/integrity/PRIVACY_CANONICAL.json; \
 	echo "$$T" | grep -q '"privacy_ok":true'; \
+	PR=$$(mktemp -d /tmp/gk_bad_privacy_XXXXXX); \
+	mkdir -p "$$PR/data/integrity"; \
+	cp ../data/integrity/CODE_SEAL.json "$$PR/data/integrity/"; \
+	printf '%s\n' \
+	  '{"schema":"grokium.privacy_canonical.v1","telemetry":false,"share":"state_matrix_only"}' \
+	  >"$$PR/data/integrity/PRIVACY_CANONICAL.json"; \
+	BT=$$($(BUILD)/grokium-integrity tick "$$PR" 2>/dev/null || true); \
+	rm -rf "$$PR"; \
+	echo "$$BT" | grep -q '"privacy_ok":false'; \
+	echo "$$BT" | grep -q '"product_wire":"smx2"'; \
+	echo "$$BT" | grep -q '"peer_http":"lab_ops_only"'; \
 	P=$$($(BUILD)/grokium-integrity policy ..); \
 	echo "$$P" | grep -q state_matrix_only; \
 	echo "$$P" | grep -q product_wire; \
