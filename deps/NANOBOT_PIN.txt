@@ -1,6 +1,6 @@
 # nanobot pin — embeddable C agent core (ours). Not xAI.
 repo=https://github.com/Abyss-c0re/nanobot
-commit=e534743c660926d3a7d291b92b24d25d1d066d74
+commit=2c3f6b7672dd1480834858d4b7c47a6613ca7934
 version=0.5.3
 path=deps/nanobot
 braincells=1
