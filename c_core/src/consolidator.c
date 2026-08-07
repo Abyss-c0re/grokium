@@ -26,6 +26,25 @@ void gk_init(gk_consolidator *C, const char *host_id) {
   C->seal_ok = 0;
   C->pack_seq = 0;
   C->last_seal_ts = 0;
+  C->plate_n_items = 0;
+  C->plate_n_concepts = 0;
+}
+
+/* Ability/CONSOLIDATE counts: live slots when hydrated, else disk plate meta. */
+static void report_counts(const gk_consolidator *C, int *n_items,
+                          int *n_concepts) {
+  if (!C) {
+    if (n_items) *n_items = 0;
+    if (n_concepts) *n_concepts = 0;
+    return;
+  }
+  if (C->n_items > 0) {
+    if (n_items) *n_items = C->n_items;
+    if (n_concepts) *n_concepts = C->n_concepts;
+  } else {
+    if (n_items) *n_items = C->plate_n_items;
+    if (n_concepts) *n_concepts = C->plate_n_concepts;
+  }
 }
 
 static int find_item_by_hash(const gk_consolidator *C, const uint8_t h[32]) {
@@ -84,8 +103,14 @@ int gk_consolidate(gk_consolidator *C, double now_ts) {
   float best_str = 0;
   if (!C) return -1;
   if (C->n_items == 0) {
-    snprintf(C->grade, sizeof C->grade, "EMPTY");
-    C->seal_ok = 0;
+    /*
+     * No live items (typical after disk load): keep sealed matrix/grade.
+     * Never demote to EMPTY or invent ghost zero-hash slots.
+     */
+    if (C->matrix.bits_set == 0) {
+      snprintf(C->grade, sizeof C->grade, "EMPTY");
+      C->seal_ok = 0;
+    }
     return 0;
   }
 
@@ -139,6 +164,9 @@ int gk_consolidate(gk_consolidator *C, double now_ts) {
     snprintf(C->grade, sizeof C->grade, "OK");
 
   C->seal_ok = (C->matrix.bits_set > 0 && strcmp(C->grade, "EMPTY") != 0);
+  /* Plate meta tracks last real consolidate (ability/CONSOLIDATE honesty). */
+  C->plate_n_items = C->n_items;
+  C->plate_n_concepts = C->n_concepts;
   return C->n_concepts;
 }
 
@@ -166,7 +194,7 @@ static void plate_token(const char *in, char *out, size_t cap) {
 int gk_ability_ex(const gk_consolidator *C, double now_ts, int loaded,
                   const char *dir, char *json_out, size_t cap) {
   double age;
-  int fresh;
+  int fresh, n_items, n_concepts;
   char grade_tok[32], dir_esc[256];
   const char *source;
   int loaded_flag;
@@ -175,6 +203,7 @@ int gk_ability_ex(const gk_consolidator *C, double now_ts, int loaded,
   fresh = (C->last_seal_ts > 0 && age <= (double)GK_SEAL_TTL_SEC);
   plate_token(C->grade, grade_tok, sizeof grade_tok);
   if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
+  report_counts(C, &n_items, &n_concepts);
   /*
    * Load honesty: live memory (HTTP/CLI in-process) vs disk hit/miss.
    * Disk miss still yields EMPTY grade but loaded=false (no silent pretence).
@@ -206,7 +235,7 @@ int gk_ability_ex(const gk_consolidator *C, double now_ts, int loaded,
              "\"llm\":false,\"llm_is_commander\":false,"
              "\"llm_on_hot_path\":false,\"python\":0}",
              grade_tok, C->seal_ok ? "true" : "false",
-             fresh ? "true" : "false", C->n_items, C->n_concepts,
+             fresh ? "true" : "false", n_items, n_concepts,
              C->matrix.bits_set, (unsigned long long)C->pack_seq,
              GK_SEAL_TTL_SEC, source, loaded_flag ? "true" : "false",
              dir_esc);
@@ -223,7 +252,7 @@ int gk_ability_ex(const gk_consolidator *C, double now_ts, int loaded,
              "\"llm\":false,\"llm_is_commander\":false,"
              "\"llm_on_hot_path\":false,\"python\":0}",
              grade_tok, C->seal_ok ? "true" : "false",
-             fresh ? "true" : "false", C->n_items, C->n_concepts,
+             fresh ? "true" : "false", n_items, n_concepts,
              C->matrix.bits_set, (unsigned long long)C->pack_seq,
              GK_SEAL_TTL_SEC, source, loaded_flag ? "true" : "false");
   }
@@ -532,8 +561,10 @@ int gk_save_dir(const gk_consolidator *C, const char *dir) {
   /* On-disk consolidator plate: dual-wire honesty (lab/ops ≠ product bus). */
   {
     char grade_tok[32];
+    int n_items, n_concepts;
     plate_token(C->grade, grade_tok, sizeof grade_tok);
     if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
+    report_counts(C, &n_items, &n_concepts);
     fprintf(f,
             "{\"schema\":\"grokium.consolidate.v1\",\"ok\":true,"
             "\"grade\":\"%s\",\"n_items\":%d,\"n_concepts\":%d,"
@@ -544,7 +575,7 @@ int gk_save_dir(const gk_consolidator *C, const char *dir) {
             "\"peer_http_is_product_bus\":false,"
             "\"llm_is_commander\":false,\"llm_on_hot_path\":false,"
             "\"python\":0}\n",
-            grade_tok, C->n_items, C->n_concepts, C->matrix.bits_set, hex,
+            grade_tok, n_items, n_concepts, C->matrix.bits_set, hex,
             (unsigned long long)C->pack_seq, C->seal_ok ? "true" : "false",
             (long long)(C->last_seal_ts > 0 ? C->last_seal_ts : 0),
             GK_SEAL_TTL_SEC);
@@ -643,7 +674,9 @@ int gk_load_dir(gk_consolidator *C, const char *dir) {
   smx_load_bin(&C->concept_mx, path);
   /*
    * Restore dual-wire meta from CONSOLIDATE.json when present.
-   * matrix.bin alone under-reports n_items/n_concepts/pack_seq/last_seal_ts.
+   * matrix.bin alone under-reports counts/pack_seq/last_seal_ts.
+   * Item bodies are not persisted — keep n_items/n_concepts at 0 (no ghosts);
+   * plate_n_* carries ability/CONSOLIDATE count honesty after load.
    * last_seal_ts enables honest ability fresh= within GK_SEAL_TTL_SEC.
    */
   snprintf(path, sizeof path, "%s/CONSOLIDATE.json", dir);
@@ -657,9 +690,12 @@ int gk_load_dir(gk_consolidator *C, const char *dir) {
     pack_i = plate_json_int(body, "pack_seq", -1);
     seal_ts = plate_json_ll(body, "last_seal_ts", -1);
     plate_json_str(body, "grade", grade_tok, sizeof grade_tok);
-    if (n_items >= 0 && n_items <= GK_MAX_ITEMS) C->n_items = n_items;
+    /* Meta only — live slots stay empty (items not on disk). */
+    if (n_items >= 0 && n_items <= GK_MAX_ITEMS) C->plate_n_items = n_items;
     if (n_concepts >= 0 && n_concepts <= GK_MAX_CONCEPTS)
-      C->n_concepts = n_concepts;
+      C->plate_n_concepts = n_concepts;
+    C->n_items = 0;
+    C->n_concepts = 0;
     if (pack_i >= 0) C->pack_seq = (uint64_t)pack_i;
     if (seal_ts > 0) C->last_seal_ts = (double)seal_ts;
     if (grade_tok[0])

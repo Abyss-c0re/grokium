@@ -34,9 +34,11 @@ typedef struct {
 
 typedef struct {
   gk_item items[GK_MAX_ITEMS];
-  int n_items;
+  int n_items;            /* live hydrated slots only (0 after disk load) */
   gk_concept concepts[GK_MAX_CONCEPTS];
-  int n_concepts;
+  int n_concepts;         /* live distilled concepts (0 after disk load) */
+  int plate_n_items;      /* plate meta: last consolidate or CONSOLIDATE.json */
+  int plate_n_concepts;   /* plate meta (items themselves are not persisted) */
   grokium_smx matrix;     /* SoT after consolidate */
   grokium_smx concept_mx; /* distilled concept lattice */
   double last_seal_ts;

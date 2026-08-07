@@ -245,6 +245,14 @@ int main(int argc, char **argv) {
         fprintf(stderr, "selftest: load honesty load_dir failed\n");
         return 1;
       }
+      /* Live slots empty after load — counts are plate meta only (no ghosts). */
+      if (L.n_items != 0 || L.n_concepts != 0 || L.plate_n_items != 2 ||
+          L.plate_n_concepts != 2) {
+        fprintf(stderr,
+                "selftest: load ghost slots n=%d/%d plate=%d/%d\n", L.n_items,
+                L.n_concepts, L.plate_n_items, L.plate_n_concepts);
+        return 1;
+      }
       gk_ability_ex(&L, now, 1, ldir, ab, sizeof ab);
       if (!plate_dual_wire_ok(ab) || !strstr(ab, "\"source\":\"disk\"") ||
           !strstr(ab, "\"loaded\":true") || !strstr(ab, ldir) ||
@@ -255,6 +263,33 @@ int main(int argc, char **argv) {
         fprintf(stderr, "selftest: ability load-hit honesty fail: %.250s\n",
                 ab);
         return 1;
+      }
+      /* Re-consolidate with no live items must not demote sealed matrix. */
+      {
+        char grade_before[16];
+        int seal_before = L.seal_ok;
+        unsigned bits_before = L.matrix.bits_set;
+        uint64_t seq_before = L.pack_seq;
+        snprintf(grade_before, sizeof grade_before, "%s", L.grade);
+        gk_consolidate(&L, now);
+        if (L.n_items != 0 || L.seal_ok != seal_before ||
+            L.matrix.bits_set != bits_before || L.pack_seq != seq_before ||
+            strcmp(L.grade, grade_before) != 0) {
+          fprintf(stderr,
+                  "selftest: re-consolidate after load demoted seal "
+                  "grade=%s seal=%d bits=%u seq=%llu\n",
+                  L.grade, L.seal_ok, L.matrix.bits_set,
+                  (unsigned long long)L.pack_seq);
+          return 1;
+        }
+        gk_ability_ex(&L, now, 1, ldir, ab, sizeof ab);
+        if (!strstr(ab, "\"n_items\":2") || !strstr(ab, "\"n_concepts\":2") ||
+            !strstr(ab, "\"seal_ok\":true")) {
+          fprintf(stderr,
+                  "selftest: ability after re-consolidate demoted: %.250s\n",
+                  ab);
+          return 1;
+        }
       }
       /* CONSOLIDATE must persist last_seal_ts for fresh honesty. */
       {
