@@ -250,10 +250,33 @@ int main(int argc, char **argv) {
           !strstr(ab, "\"loaded\":true") || !strstr(ab, ldir) ||
           !strstr(ab, "\"bits_set\":") ||
           !strstr(ab, "\"n_items\":2") || !strstr(ab, "\"n_concepts\":2") ||
-          !strstr(ab, "\"pack_seq\":1")) {
+          !strstr(ab, "\"pack_seq\":1") ||
+          !strstr(ab, "\"fresh\":true") || L.last_seal_ts <= 0) {
         fprintf(stderr, "selftest: ability load-hit honesty fail: %.250s\n",
                 ab);
         return 1;
+      }
+      /* CONSOLIDATE must persist last_seal_ts for fresh honesty. */
+      {
+        char cpath[400], cbody[1024];
+        FILE *cf;
+        size_t cn;
+        snprintf(cpath, sizeof cpath, "%s/CONSOLIDATE.json", ldir);
+        cf = fopen(cpath, "r");
+        if (!cf) {
+          fprintf(stderr, "selftest: load-hit CONSOLIDATE missing\n");
+          return 1;
+        }
+        cn = fread(cbody, 1, sizeof cbody - 1, cf);
+        cbody[cn] = 0;
+        fclose(cf);
+        if (!strstr(cbody, "\"last_seal_ts\":") ||
+            !strstr(cbody, "\"ttl_sec\":") ||
+            !plate_dual_wire_ok(cbody)) {
+          fprintf(stderr, "selftest: CONSOLIDATE seal_ts fail: %.250s\n",
+                  cbody);
+          return 1;
+        }
       }
     }
     /* Grade inject must not break ability / CONSOLIDATE.json plates. */
@@ -345,7 +368,9 @@ int main(int argc, char **argv) {
           !strstr(body, "\"peer_http_is_product_bus\":false") ||
           !strstr(body, "\"llm_is_commander\":false") ||
           !strstr(body, "\"share\":\"state_matrix_only\"") ||
-          !strstr(body, "\"hold_flash\":1")) {
+          !strstr(body, "\"hold_flash\":1") ||
+          !strstr(body, "\"last_seal_ts\":") ||
+          !strstr(body, "\"ttl_sec\":")) {
         fprintf(stderr, "selftest: CONSOLIDATE.json dual-wire fail: %s\n",
                 body);
         return 1;

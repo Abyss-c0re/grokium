@@ -534,13 +534,16 @@ int gk_save_dir(const gk_consolidator *C, const char *dir) {
             "{\"schema\":\"grokium.consolidate.v1\",\"ok\":true,"
             "\"grade\":\"%s\",\"n_items\":%d,\"n_concepts\":%d,"
             "\"bits_set\":%u,\"sha256\":\"%s\",\"pack_seq\":%llu,"
-            "\"seal_ok\":%s,\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+            "\"seal_ok\":%s,\"last_seal_ts\":%lld,"
+            "\"ttl_sec\":%d,\"share\":\"state_matrix_only\",\"hold_flash\":1,"
             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
             "\"peer_http_is_product_bus\":false,"
             "\"llm_is_commander\":false,\"llm_on_hot_path\":false,"
             "\"python\":0}\n",
             grade_tok, C->n_items, C->n_concepts, C->matrix.bits_set, hex,
-            (unsigned long long)C->pack_seq, C->seal_ok ? "true" : "false");
+            (unsigned long long)C->pack_seq, C->seal_ok ? "true" : "false",
+            (long long)(C->last_seal_ts > 0 ? C->last_seal_ts : 0),
+            GK_SEAL_TTL_SEC);
   }
   fclose(f);
   return 0;
@@ -601,11 +604,33 @@ static void plate_json_str(const char *body, const char *key, char *out,
   out[o] = 0;
 }
 
+/* Read non-negative long long leaf after "key": (unix ts · pack_seq-scale). */
+static long long plate_json_ll(const char *body, const char *key, long long def) {
+  char pat[48];
+  const char *p;
+  long long v = 0;
+  if (!body || !key || !key[0]) return def;
+  snprintf(pat, sizeof pat, "\"%s\"", key);
+  p = strstr(body, pat);
+  if (!p) return def;
+  p = strchr(p + strlen(pat), ':');
+  if (!p) return def;
+  p++;
+  while (*p == ' ' || *p == '\t') p++;
+  if (*p < '0' || *p > '9') return def;
+  while (*p >= '0' && *p <= '9' && v < 1000000000000000LL) {
+    v = v * 10LL + (long long)(*p - '0');
+    p++;
+  }
+  return v;
+}
+
 int gk_load_dir(gk_consolidator *C, const char *dir) {
   char path[512], body[2048], grade_tok[32];
   FILE *f;
   size_t nread;
   int n_items, n_concepts, pack_i;
+  long long seal_ts;
   if (!C || !dir) return -1;
   gk_init(C, "loaded");
   snprintf(path, sizeof path, "%s/matrix.bin", dir);
@@ -614,7 +639,8 @@ int gk_load_dir(gk_consolidator *C, const char *dir) {
   smx_load_bin(&C->concept_mx, path);
   /*
    * Restore dual-wire meta from CONSOLIDATE.json when present.
-   * matrix.bin alone under-reports n_items/n_concepts/pack_seq on ability.
+   * matrix.bin alone under-reports n_items/n_concepts/pack_seq/last_seal_ts.
+   * last_seal_ts enables honest ability fresh= within GK_SEAL_TTL_SEC.
    */
   snprintf(path, sizeof path, "%s/CONSOLIDATE.json", dir);
   f = fopen(path, "r");
@@ -625,11 +651,13 @@ int gk_load_dir(gk_consolidator *C, const char *dir) {
     n_items = plate_json_int(body, "n_items", -1);
     n_concepts = plate_json_int(body, "n_concepts", -1);
     pack_i = plate_json_int(body, "pack_seq", -1);
+    seal_ts = plate_json_ll(body, "last_seal_ts", -1);
     plate_json_str(body, "grade", grade_tok, sizeof grade_tok);
     if (n_items >= 0 && n_items <= GK_MAX_ITEMS) C->n_items = n_items;
     if (n_concepts >= 0 && n_concepts <= GK_MAX_CONCEPTS)
       C->n_concepts = n_concepts;
     if (pack_i >= 0) C->pack_seq = (uint64_t)pack_i;
+    if (seal_ts > 0) C->last_seal_ts = (double)seal_ts;
     if (grade_tok[0])
       snprintf(C->grade, sizeof C->grade, "%s", grade_tok);
     /* seal_ok is JSON bool true|false on the dual-wire plate. */
