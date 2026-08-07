@@ -121,7 +121,8 @@ static int selftest(void) {
   char resp[4096];
   const char *b;
   int st, fails = 0;
-  setenv("GROKIUM_SERVE_MAX", "52", 1);
+  /* Headroom for coord dual-wire/HOLD_FLASH deny cases beyond base 52. */
+  setenv("GROKIUM_SERVE_MAX", "56", 1);
   /* Integrity tick needs repo root (CODE_SEAL + privacy plate). */
   set_repo_root_env();
   {
@@ -463,7 +464,7 @@ static int selftest(void) {
   /* HOLD_FLASH sticky: omit ack is not a silent opt-out. */
   if (http_post("127.0.0.1", port, "/v1/coord",
                 "NEXUS_COORD v1 | type=seed | share=state_matrix_only | "
-                "product_wire=smx2 |",
+                "product_wire=smx2 | peer_http=lab_ops_only |",
                 resp, sizeof resp) < 0)
     fails++;
   else {
@@ -475,6 +476,23 @@ static int selftest(void) {
         !strstr(b, "\"hold_flash\":1") ||
         !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: HOLD_FLASH omit deny dual-wire fail: %.400s\n",
+              b);
+      fails++;
+    }
+  }
+  /* External dual-wire honesty: HOLD_FLASH alone is not enough.
+   * Also locks n==64 NEXUS_COORD short-circuit bypass (sha256 free pass). */
+  if (http_post("127.0.0.1", port, "/v1/coord",
+                "NEXUS_COORD v1 | type=seed | HOLD_FLASH=ack_held |",
+                resp, sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "403") && !strstr(b, "smx_filter_deny")) ||
+        !strstr(b, "\"schema\":\"grokium.coord.v1\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"hold_flash\":1") || !strstr(b, "\"python\":0")) {
+      fprintf(stderr, "selftest: external dual-wire omit deny fail: %.400s\n",
               b);
       fails++;
     }
