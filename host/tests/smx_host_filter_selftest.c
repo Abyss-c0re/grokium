@@ -63,6 +63,20 @@ int main(void) {
   if (grokium_smx_filter_allow_frame(&L, (const uint8_t *)prefix_only,
                                      strlen(prefix_only), 1))
     return fail("NEXUS_COORD prefix-only smuggle must be denied");
+  /* n==64 free pass is sha256 hex only — not arbitrary 64-byte blobs. */
+  {
+    char junk64[65], hex64[65];
+    int i;
+    for (i = 0; i < 64; i++) {
+      junk64[i] = 'G'; /* not a hex digit */
+      hex64[i] = (i & 1) ? 'f' : '0';
+    }
+    junk64[64] = hex64[64] = 0;
+    if (grokium_smx_filter_allow_frame(&L, (const uint8_t *)junk64, 64, 1))
+      return fail("non-hex 64-byte blob must be denied");
+    if (!grokium_smx_filter_allow_frame(&L, (const uint8_t *)hex64, 64, 1))
+      return fail("sha256 hex64 digest denied");
+  }
   if (grokium_smx_filter_is_prose(prose, strlen(prose)) != 1)
     return fail("is_prose should flag chat");
   if (grokium_smx_filter_is_prose(good, strlen(good)) != 0)

@@ -41,7 +41,8 @@ typedef struct {
 /* Filter gate: 1 = allow SMX frame toward core / external; 0 = deny.
  * NEXUS_COORD requires machine plate shape (| key=value |) and HOLD_FLASH ack
  * (ack_held or hold_flash=1). External origin also requires dual-wire honesty
- * (share=state_matrix_only · product_wire=smx2 · peer_http=lab_ops_only). */
+ * (share=state_matrix_only · product_wire=smx2 · peer_http=lab_ops_only).
+ * Length-64 free pass is sha256 hex only; 0/1 bit lattices need ≥32 bits. */
 int grokium_smx_filter_allow_frame(const grokium_law *law,
                                    const uint8_t *frame, size_t n,
                                    int from_external);

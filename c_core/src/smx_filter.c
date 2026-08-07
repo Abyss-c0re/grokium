@@ -68,6 +68,34 @@ static int bounded_has(const char *s, size_t n, const char *needle) {
   return 0;
 }
 
+/* Exactly 64 hex chars — sha256 digest free pass (not arbitrary 64-byte blobs). */
+static int is_sha256_hex64(const char *s, size_t n) {
+  size_t i;
+  if (!s || n != 64) return 0;
+  for (i = 0; i < 64; i++) {
+    unsigned char c = (unsigned char)s[i];
+    if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
+          (c >= 'A' && c <= 'F')))
+      return 0;
+  }
+  return 1;
+}
+
+/* Pure 0/1 SMX bit lattice (spaces/newlines ok); min 32 bits. */
+static int is_bits_frame(const char *s, size_t n) {
+  size_t i, ok = 0;
+  if (!s || n == 0) return 0;
+  for (i = 0; i < n && i < 4096; i++) {
+    if (s[i] == '0' || s[i] == '1')
+      ok++;
+    else if (s[i] == '\n' || s[i] == ' ' || s[i] == '\t' || s[i] == '\r')
+      continue;
+    else
+      return 0;
+  }
+  return ok >= 32;
+}
+
 /*
  * NEXUS_COORD must be a machine plate: | key=value | segments.
  * Prefix alone is not enough — deny chat smuggling after the header.
@@ -187,8 +215,8 @@ int grokium_smx_filter_allow_frame(const grokium_law *law,
 
   /* External origin: stricter — only SMX/NEXUS_COORD/CBLC/01, no free JSON chat */
   if (from_external) {
-    /* NEXUS_COORD before n==64 short-circuit (sha256 digests are 64 hex chars;
-     * a 64-byte NEXUS_COORD must not skip HOLD_FLASH / dual-wire honesty). */
+    /* NEXUS_COORD before digest/bit free-pass (must not skip HOLD_FLASH /
+     * dual-wire honesty even when length is 64). */
     if (n >= 11 && !memcmp(frame, "NEXUS_COORD", 11)) {
       /* Shape + HOLD_FLASH ack, then dual-wire product-bus honesty. */
       if (!nexus_coord_plate_ok(s, n)) return 0;
@@ -197,7 +225,8 @@ int grokium_smx_filter_allow_frame(const grokium_law *law,
       if (!bounded_has(s, n, "peer_http=lab_ops_only")) return 0;
       return 1;
     }
-    if (n == 64 || n == 512) return 1;
+    /* sha256 hex digest only — not arbitrary 64-byte blobs. */
+    if (is_sha256_hex64(s, n)) return 1;
     if (n >= 4 && !memcmp(frame, "CBLC", 4)) return 1;
     if (n >= 2 && frame[0] == '{') {
       /* contract plates only — must declare schema contract/smx */
@@ -211,36 +240,20 @@ int grokium_smx_filter_allow_frame(const grokium_law *law,
       }
       return 0;
     }
-    {
-      size_t i, ok = 0;
-      for (i = 0; i < n && i < 512; i++) {
-        if (frame[i] == '0' || frame[i] == '1') ok++;
-        else if (frame[i] == '\n' || frame[i] == ' ') continue;
-        else break;
-      }
-      if (ok >= 32 && i == n) return 1;
-    }
+    if (is_bits_frame(s, n)) return 1;
     return 0;
   }
 
   /* Internal (core → filter): same shapes plus broader machine plates */
   if (n >= 11 && !memcmp(frame, "NEXUS_COORD", 11))
     return nexus_coord_plate_ok(s, n);
-  if (n == 64 || n == 512) return 1;
+  if (is_sha256_hex64(s, n)) return 1;
   if (n >= 4 && !memcmp(frame, "CBLC", 4)) return 1;
   if (n >= 2 && frame[0] == '{') {
     if (grokium_smx_filter_is_prose(s, n)) return 0;
     return 1;
   }
-  {
-    size_t i, ok = 0;
-    for (i = 0; i < n && i < 512; i++) {
-      if (frame[i] == '0' || frame[i] == '1') ok++;
-      else if (frame[i] == '\n' || frame[i] == ' ') continue;
-      else break;
-    }
-    if (ok >= 32 && i == n) return 1;
-  }
+  if (is_bits_frame(s, n)) return 1;
   return 0;
 }
 
