@@ -188,6 +188,25 @@ static int fleet_selftest(void) {
       fprintf(stderr, "selftest: spawn_failed dual-wire fail: %.200s\n", den);
       return 1;
     }
+    fleet_spawn_err_json("spawn_all_none", den, sizeof den);
+    if (!strstr(den, "\"schema\":\"grokium.nanobot_spawn.v1\"") ||
+        !strstr(den, "\"error\":\"spawn_all_none\"") ||
+        !plate_dual_wire_ok(den) || strstr(den, "\"ok\":true")) {
+      fprintf(stderr, "selftest: spawn_all_none dual-wire fail: %.200s\n", den);
+      return 1;
+    }
+    /* Empty binary → spawn_all returns 0; callers must not ok:true. */
+    {
+      gk_fleet Z;
+      int zn;
+      fleet_default_roles(&Z);
+      Z.binary[0] = 0;
+      zn = fleet_spawn_all(&Z);
+      if (zn != 0) {
+        fprintf(stderr, "selftest: empty binary spawn_all n=%d want 0\n", zn);
+        return 1;
+      }
+    }
     fleet_separate_err_json("need_bot_id", den, sizeof den);
     if (!strstr(den, "\"schema\":\"grokium.nanobot_separate.v1\"") ||
         !strstr(den, "\"error\":\"need_bot_id\"") || !plate_dual_wire_ok(den)) {
@@ -594,11 +613,17 @@ int main(int argc, char **argv) {
       printf("%s\n", plate);
       return 1;
     }
+    /* Zero successes must not print ok:true (match HTTP spawn-all honesty). */
+    if (n == 0) {
+      fleet_spawn_err_json("spawn_all_none", plate, sizeof plate);
+      printf("%s\n", plate);
+      return 1;
+    }
     fleet_save(&F, path);
     /* Shared nanobot_spawn plate (id="*") — same as HTTP empty-body spawn. */
     fleet_spawn_json(&F, "*", n, path, plate, sizeof plate);
     printf("%s\n", plate);
-    return n > 0 ? 0 : 1;
+    return 0;
   }
   if (!strcmp(argv[1], "note-pid")) {
     char plate[1024];

@@ -844,6 +844,12 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
           http_reply(cfd, 500, "application/json", resp);
           return;
         }
+        /* Zero successes is not ok:true (missing binary / all exec fails). */
+        if (n == 0) {
+          fleet_spawn_err_json("spawn_all_none", resp, sizeof resp);
+          http_reply(cfd, 500, "application/json", resp);
+          return;
+        }
       }
       snprintf(plate, sizeof plate, "%s/home/FLEET.json", root);
       fleet_save(F, plate);

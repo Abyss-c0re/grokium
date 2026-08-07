@@ -55,7 +55,8 @@ void fleet_deploy_json(gk_fleet *F, const char *path, char *out, size_t cap);
  */
 void fleet_spawn_json(gk_fleet *F, const char *id, int spawned,
                       const char *path, char *out, size_t cap);
-/* Dual-wire spawn deny (spawn_failed | spawn_all_failed | no_fleet | need_bot_id). */
+/* Dual-wire spawn deny (spawn_failed | spawn_all_failed | spawn_all_none |
+ * no_fleet | need_bot_id). spawn_all_none = zero successes (no ok:true plate). */
 void fleet_spawn_err_json(const char *error, char *out, size_t cap);
 /*
  * Dual-wire separate ack (schema grokium.nanobot_separate.v1).
