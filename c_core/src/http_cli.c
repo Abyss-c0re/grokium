@@ -681,7 +681,8 @@ static int selftest(void) {
     fails++;
   else {
     b = body_of(resp);
-    /* Stream unit: open+smx+end dual-wire plates · no free-text SSE comment. */
+    /* Stream unit: open+smx+end dual-wire plates · machine-token phase/event
+     * (no free-text SSE comments; phase/error leaves sanitize like other plates). */
     if (!strstr(resp, "text/event-stream") ||
         !strstr(resp, "X-Grokium-Product-Wire: smx2") ||
         !strstr(resp, "X-Grokium-Peer-HTTP: lab_ops_only") ||
@@ -698,6 +699,8 @@ static int selftest(void) {
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
         !strstr(b, "\"python\":0") ||
+        /* Phase/event must stay machine tokens (quote/prose would break plate). */
+        strstr(b, "\"phase\":\"open\";") || strstr(b, "\"phase\":\"end\";") ||
         strstr(resp, "bits-only state_matrix_only") ||
         strstr(resp, ": grokium smx stream")) {
       fprintf(stderr, "selftest: smx SSE dual-wire fail: %.500s\n", b);

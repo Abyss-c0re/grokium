@@ -156,11 +156,16 @@ static void http_sse_event(int fd, const char *event, const char *data) {
   if (n > 0) (void)write(fd, line, (size_t)n);
 }
 
-/* Dual-wire SSE control plate (open/end/error) — no free-text SSE comments. */
+/* Dual-wire SSE control plate (open/end/error) — no free-text SSE comments.
+ * phase/error/event are machine tokens only (defense vs inject if callers widen). */
 static void smx_sse_ctrl(int fd, const char *event, int ok, const char *phase,
                          const char *err, unsigned long long seq) {
   char body[384];
-  const char *ph = phase && phase[0] ? phase : "snapshot";
+  char ph_tok[48], err_tok[48], ev_tok[48];
+  machine_token(phase && phase[0] ? phase : "snapshot", ph_tok, sizeof ph_tok);
+  if (!ph_tok[0]) snprintf(ph_tok, sizeof ph_tok, "snapshot");
+  machine_token(event && event[0] ? event : "end", ev_tok, sizeof ev_tok);
+  if (!ev_tok[0]) snprintf(ev_tok, sizeof ev_tok, "end");
   if (ok) {
     snprintf(body, sizeof body,
              "{\"schema\":\"grokium.smx_stream.v1\",\"ok\":true,"
@@ -169,8 +174,11 @@ static void smx_sse_ctrl(int fd, const char *event, int ok, const char *phase,
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"llm_is_commander\":false,\"python\":0}",
-             ph, seq);
+             ph_tok, seq);
   } else {
+    machine_token(err && err[0] ? err : "stream_failed", err_tok,
+                  sizeof err_tok);
+    if (!err_tok[0]) snprintf(err_tok, sizeof err_tok, "stream_failed");
     snprintf(body, sizeof body,
              "{\"schema\":\"grokium.smx_stream.v1\",\"ok\":false,"
              "\"mode\":\"snapshot\",\"phase\":\"%s\",\"error\":\"%s\","
@@ -178,9 +186,9 @@ static void smx_sse_ctrl(int fd, const char *event, int ok, const char *phase,
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
              "\"peer_http_is_product_bus\":false,"
              "\"llm_is_commander\":false,\"python\":0}",
-             ph, err && err[0] ? err : "stream_failed");
+             ph_tok, err_tok);
   }
-  http_sse_event(fd, event && event[0] ? event : "end", body);
+  http_sse_event(fd, ev_tok, body);
 }
 
 /* Snapshot SSE of latest matrix. Sequential serve: short-lived by design
