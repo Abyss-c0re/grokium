@@ -1,1 +1,6 @@
-7fda4c10873e549d0141b4ff08271f2337afb45d
+# braincube pin — LHLAM decision core (research). Not xAI.
+repo=https://github.com/Abyss-c0re/braincube
+commit=7fda4c10873e549d0141b4ff08271f2337afb45d
+path=deps/braincube
+role=decision-core
+cells=nanobot-braincells
