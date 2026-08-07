@@ -343,13 +343,22 @@ int gkx_plate_ui_line(const char *ln, int debug_mode, char *out, size_t cap) {
   }
   if (strcmp(short_s, "ability") == 0) {
     {
-      char grade[32];
-      grade[0] = 0;
+      char grade[32], source[24];
+      int loaded = plate_json_bool(ln, "loaded");
+      grade[0] = source[0] = 0;
       plate_json_str(ln, "grade", grade, sizeof grade);
-      snprintf(out, cap, "· ability · %s%s%s",
+      plate_json_str(ln, "source", source, sizeof source);
+      /* Load honesty: live memory vs disk hit/miss (consolidator ability_ex). */
+      snprintf(out, cap, "· ability · %s%s%s%s%s%s",
                grade[0] ? grade : (ok == 1 ? "ok" : "deny"),
                plate_json_bool(ln, "seal_ok") == 1 ? " · seal" : "",
-               plate_json_bool(ln, "fresh") == 1 ? " · fresh" : "");
+               plate_json_bool(ln, "fresh") == 1 ? " · fresh" : "",
+               source[0] ? " · " : "", source[0] ? source : "",
+               strcmp(source, "disk") == 0
+                   ? (loaded == 1   ? " · loaded"
+                      : loaded == 0 ? " · miss"
+                                    : "")
+                   : "");
     }
     return 0;
   }

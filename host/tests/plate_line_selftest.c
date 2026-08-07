@@ -186,7 +186,16 @@ int main(void) {
         "\"id\":\"c1\",\"assignee\":\"nb-manager\"}";
     const char *ab =
         "{\"schema\":\"grokium.ability.v1\",\"ok\":true,"
-        "\"grade\":\"STRONG\",\"seal_ok\":true,\"fresh\":true}";
+        "\"grade\":\"STRONG\",\"seal_ok\":true,\"fresh\":true,"
+        "\"source\":\"live\",\"loaded\":true}";
+    const char *ab_miss =
+        "{\"schema\":\"grokium.ability.v1\",\"ok\":true,"
+        "\"grade\":\"EMPTY\",\"seal_ok\":false,\"fresh\":false,"
+        "\"source\":\"disk\",\"loaded\":false}";
+    const char *ab_hit =
+        "{\"schema\":\"grokium.ability.v1\",\"ok\":true,"
+        "\"grade\":\"OK\",\"seal_ok\":true,\"fresh\":false,"
+        "\"source\":\"disk\",\"loaded\":true}";
     const char *cmd =
         "{\"schema\":\"grokium.commander.v1\",\"ok\":true,"
         "\"fingerprint\":\"deadbeef\",\"has_sk\":true}";
@@ -210,8 +219,19 @@ int main(void) {
       return fail("ui_line contract form human");
     gkx_plate_ui_line(ab, 0, out, sizeof out);
     if (!strstr(out, "ability") || !strstr(out, "STRONG") ||
-        !strstr(out, "seal") || !strstr(out, "fresh"))
-      return fail("ui_line ability human");
+        !strstr(out, "seal") || !strstr(out, "fresh") ||
+        !strstr(out, "live") || strstr(out, "miss"))
+      return fail("ui_line ability live human");
+    gkx_plate_ui_line(ab_miss, 0, out, sizeof out);
+    if (!strstr(out, "ability") || !strstr(out, "EMPTY") ||
+        !strstr(out, "disk") || !strstr(out, "miss") ||
+        strstr(out, "loaded"))
+      return fail("ui_line ability disk-miss human");
+    gkx_plate_ui_line(ab_hit, 0, out, sizeof out);
+    if (!strstr(out, "ability") || !strstr(out, "OK") ||
+        !strstr(out, "disk") || !strstr(out, "loaded") ||
+        strstr(out, "miss"))
+      return fail("ui_line ability disk-hit human");
     gkx_plate_ui_line(cmd, 0, out, sizeof out);
     if (!strstr(out, "commander") || !strstr(out, "deadbeef") ||
         !strstr(out, "sk"))
