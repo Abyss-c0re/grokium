@@ -232,7 +232,7 @@ int gk_ability_ex(const gk_consolidator *C, double now_ts, int loaded,
 
 int gk_ability(const gk_consolidator *C, double now_ts, char *json_out,
                size_t cap) {
-  /* Live in-process consolidator (HTTP /v1/ability · save ABILITY.json). */
+  /* Live in-process consolidator only (HTTP /v1/ability · CLI ability). */
   return gk_ability_ex(C, now_ts, -1, NULL, json_out, cap);
 }
 
@@ -502,7 +502,7 @@ int gk_save_dir(const gk_consolidator *C, const char *dir) {
   FILE *f;
   char bits[GROKIUM_CELLS + 1];
   char hex[65];
-  char ability[512];
+  char ability[768];
   if (!C || !dir) return -1;
   mkdir(dir, 0755);
   snprintf(path, sizeof path, "%s/matrix.bin", dir);
@@ -516,7 +516,11 @@ int gk_save_dir(const gk_consolidator *C, const char *dir) {
   publish_matrix_latest(C, dir);
   smx_bits_ascii(&C->matrix, bits, sizeof bits);
   smx_sha256_hex(&C->matrix, hex);
-  gk_ability(C, 0, ability, sizeof ability);
+  /*
+   * On-disk ABILITY.json is a disk artifact — source=disk · loaded=true · dir
+   * set (not source=live from the in-process HTTP/CLI ability path).
+   */
+  if (gk_ability_ex(C, 0, 1, dir, ability, sizeof ability) != 0) return -1;
   snprintf(path, sizeof path, "%s/ABILITY.json", dir);
   f = fopen(path, "w");
   if (!f) return -1;

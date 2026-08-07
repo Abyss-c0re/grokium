@@ -50,13 +50,14 @@ void gk_init(gk_consolidator *C, const char *host_id);
 int  gk_ingest(gk_consolidator *C, const char *id, const void *data, size_t n, double now_ts);
 /* Recency decay + novelty vs existing; build StateMatrix + concepts */
 int  gk_consolidate(gk_consolidator *C, double now_ts);
-/* Ability card: grade + seal (no LLM heartbeat eval). source=live. */
+/* Ability card: grade + seal (no LLM heartbeat eval). Live memory only. */
 int  gk_ability(const gk_consolidator *C, double now_ts,
                 char *json_out, size_t cap);
 /*
  * Dual-wire ability with load honesty (schema grokium.ability.v1).
  * loaded=1 disk hit · 0 disk miss (empty init) · -1 live memory (HTTP/CLI).
  * dir optional JSON-escaped when source=disk. No free-text path inject.
+ * On-disk ABILITY.json must use loaded=1 + dir (source=disk), never live.
  */
 int  gk_ability_ex(const gk_consolidator *C, double now_ts, int loaded,
                    const char *dir, char *json_out, size_t cap);

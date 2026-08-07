@@ -375,6 +375,30 @@ int main(int argc, char **argv) {
                 body);
         return 1;
       }
+      /* On-disk ABILITY.json is a disk artifact — never source=live. */
+      f = fopen("/tmp/gk_consolidate_selftest/ABILITY.json", "r");
+      if (!f) {
+        fprintf(stderr, "selftest: ABILITY.json missing after save\n");
+        return 1;
+      }
+      n = fread(body, 1, sizeof body - 1, f);
+      body[n] = 0;
+      fclose(f);
+      if (!strstr(body, "\"schema\":\"grokium.ability.v1\"") ||
+          !strstr(body, "\"source\":\"disk\"") ||
+          !strstr(body, "\"loaded\":true") ||
+          !strstr(body, "\"dir\":\"") ||
+          !strstr(body, "/tmp/gk_consolidate_selftest") ||
+          strstr(body, "\"source\":\"live\"") ||
+          !strstr(body, "\"product_wire\":\"smx2\"") ||
+          !strstr(body, "\"peer_http_is_product_bus\":false") ||
+          !strstr(body, "\"llm_is_commander\":false") ||
+          !strstr(body, "\"share\":\"state_matrix_only\"") ||
+          !strstr(body, "\"python\":0")) {
+        fprintf(stderr, "selftest: ABILITY.json disk honesty fail: %s\n",
+                body);
+        return 1;
+      }
       f = fopen("/tmp/gk_consolidate_selftest/matrix.json", "r");
       if (!f) {
         fprintf(stderr, "selftest: matrix.json missing\n");
