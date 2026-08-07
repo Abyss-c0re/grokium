@@ -125,6 +125,16 @@ static int nexus_coord_plate_ok(const char *s, size_t n) {
     }
   }
   if (pipes < 1 || eqs < 1) return 0;
+  /*
+   * HOLD_FLASH is sticky (Cube Standards): machine plate must ack hold.
+   * Omitting HOLD_FLASH is not a silent opt-out; clearing (=0) is denied
+   * earlier in allow_frame.
+   */
+  if (!bounded_has(s, n, "HOLD_FLASH=ack_held") &&
+      !bounded_has(s, n, "hold_flash=ack_held") &&
+      !bounded_has(s, n, "hold_flash=1") &&
+      !bounded_has(s, n, "HOLD_FLASH=1"))
+    return 0;
   return 1;
 }
 

@@ -39,7 +39,8 @@ typedef struct {
 } grokium_contract;
 
 /* Filter gate: 1 = allow SMX frame toward core / external; 0 = deny.
- * NEXUS_COORD requires machine plate shape (| key=value |); prefix alone is not enough. */
+ * NEXUS_COORD requires machine plate shape (| key=value |) and HOLD_FLASH ack
+ * (ack_held or hold_flash=1); prefix alone / omitted hold is not enough. */
 int grokium_smx_filter_allow_frame(const grokium_law *law,
                                    const uint8_t *frame, size_t n,
                                    int from_external);

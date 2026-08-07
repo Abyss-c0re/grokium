@@ -460,6 +460,25 @@ static int selftest(void) {
       fails++;
     }
   }
+  /* HOLD_FLASH sticky: omit ack is not a silent opt-out. */
+  if (http_post("127.0.0.1", port, "/v1/coord",
+                "NEXUS_COORD v1 | type=seed | share=state_matrix_only | "
+                "product_wire=smx2 |",
+                resp, sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "403") && !strstr(b, "smx_filter_deny")) ||
+        !strstr(b, "\"schema\":\"grokium.coord.v1\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(b, "\"hold_flash\":1") ||
+        !strstr(b, "\"python\":0")) {
+      fprintf(stderr, "selftest: HOLD_FLASH omit deny dual-wire fail: %.400s\n",
+              b);
+      fails++;
+    }
+  }
   if (http_get("127.0.0.1", port, "/v1/nanobot/status", resp, sizeof resp) < 0)
     fails++;
   else {
