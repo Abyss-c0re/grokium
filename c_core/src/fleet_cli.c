@@ -106,9 +106,9 @@ static int fleet_selftest(void) {
     fprintf(stderr, "selftest: deploy/save failed\n");
     return 1;
   }
-  /* PURPOSE.txt on deploy: dual-wire honesty for each bot home. */
+  /* PURPOSE.txt on deploy: dual-wire JSON plate for each bot home. */
   {
-    char pp[400], pb[512];
+    char pp[400], pb[640];
     FILE *pf;
     size_t pn;
     snprintf(pp, sizeof pp, "%s/PURPOSE.txt", F.bots[0].home);
@@ -120,15 +120,48 @@ static int fleet_selftest(void) {
     pn = fread(pb, 1, sizeof pb - 1, pf);
     pb[pn] = 0;
     fclose(pf);
-    if (!strstr(pb, "product_wire=smx2") ||
-        !strstr(pb, "peer_http=lab_ops_only") ||
-        !strstr(pb, "peer_http_is_product_bus=0") ||
-        !strstr(pb, "llm_is_commander=0") ||
-        !strstr(pb, "python=0") ||
-        !strstr(pb, "share=state_matrix_only") ||
-        !strstr(pb, "hold_flash=1")) {
+    if (!strstr(pb, "\"schema\":\"grokium.purpose.v1\"") ||
+        !strstr(pb, "\"product_wire\":\"smx2\"") ||
+        !strstr(pb, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(pb, "\"peer_http_is_product_bus\":false") ||
+        !strstr(pb, "\"llm_is_commander\":false") ||
+        !strstr(pb, "\"python\":0") ||
+        !strstr(pb, "\"share\":\"state_matrix_only\"") ||
+        !strstr(pb, "\"hold_flash\":1") ||
+        !strstr(pb, "\"id\":\"") || !strstr(pb, "\"wire\":\"")) {
       fprintf(stderr, "selftest: PURPOSE dual-wire fail: %.200s\n", pb);
       return 1;
+    }
+    /* Purpose inject must not break JSON PURPOSE plate. */
+    {
+      char ib[640];
+      FILE *ipf;
+      size_t in;
+      snprintf(F.bots[0].purpose, sizeof F.bots[0].purpose, "evil\";x:true");
+      if (fleet_deploy(&F) != 0) {
+        fprintf(stderr, "selftest: PURPOSE inject deploy failed\n");
+        return 1;
+      }
+      ipf = fopen(pp, "r");
+      if (!ipf) {
+        fprintf(stderr, "selftest: PURPOSE inject open failed\n");
+        return 1;
+      }
+      in = fread(ib, 1, sizeof ib - 1, ipf);
+      ib[in] = 0;
+      fclose(ipf);
+      if (strstr(ib, "evil\"") || strstr(ib, "\"x\":true") ||
+          !strstr(ib, "\"schema\":\"grokium.purpose.v1\"") ||
+          !strstr(ib, "evil__x_true") || !plate_dual_wire_ok(ib)) {
+        fprintf(stderr, "selftest: PURPOSE inject sanitize fail: %.200s\n", ib);
+        return 1;
+      }
+      /* Restore defaults after inject check so later pid tests stay clean. */
+      fleet_default_roles(&F);
+      if (fleet_deploy(&F) != 0 || fleet_save(&F, path) != 0) {
+        fprintf(stderr, "selftest: PURPOSE restore deploy failed\n");
+        return 1;
+      }
     }
   }
   /* Deny plates dual-wire (usage/spawn/note/separate missing args). */

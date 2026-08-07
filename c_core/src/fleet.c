@@ -142,20 +142,31 @@ void fleet_defaults_json(const gk_fleet *F, char *out, size_t cap) {
 }
 
 /* Per-bot purpose plate: dual-wire honesty (SMX2 ≠ peer HTTP lab/ops). */
+/*
+ * Dual-wire PURPOSE plate under bot home (schema grokium.purpose.v1).
+ * Machine tokens only — no free-text key=value essay; inject-sanitize id/purpose.
+ */
 static int write_purpose_plate(const gk_bot *b) {
-  char purpose[320];
+  char purpose[320], id_tok[56], pur_tok[64];
   FILE *pf;
   if (!b || !b->home[0]) return -1;
   mkdir(b->home, 0755);
   snprintf(purpose, sizeof purpose, "%s/PURPOSE.txt", b->home);
   pf = fopen(purpose, "w");
   if (!pf) return -1;
+  err_token(b->id, id_tok, sizeof id_tok);
+  err_token(b->purpose, pur_tok, sizeof pur_tok);
+  if (!id_tok[0]) snprintf(id_tok, sizeof id_tok, "bot");
+  if (!pur_tok[0]) snprintf(pur_tok, sizeof pur_tok, "assigned");
   fprintf(pf,
-          "id=%s\npurpose=%s\nwire=%s\nproduct_wire=smx2\nhold_flash=1\n"
-          "share=state_matrix_only\npeer_http=lab_ops_only\n"
-          "peer_http_is_product_bus=0\nllm_is_commander=0\n"
-          "python=0\nobserver=NexusCore\n",
-          b->id, b->purpose,
+          "{\"schema\":\"grokium.purpose.v1\",\"ok\":true,"
+          "\"id\":\"%s\",\"purpose\":\"%s\",\"wire\":\"%s\","
+          "\"observer\":\"NexusCore\","
+          "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+          "\"peer_http_is_product_bus\":false,"
+          "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+          "\"llm_is_commander\":false,\"python\":0}\n",
+          id_tok, pur_tok,
           strcmp(b->id, "nb-manager") == 0 ? "smx_motivate" : "smx2");
   fclose(pf);
   return 0;
