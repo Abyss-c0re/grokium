@@ -546,15 +546,107 @@ int gk_save_dir(const gk_consolidator *C, const char *dir) {
   return 0;
 }
 
+/* Read int leaf after "key": in a small dual-wire plate body. */
+static int plate_json_int(const char *body, const char *key, int def) {
+  char pat[48];
+  const char *p;
+  long v = 0;
+  int sign = 1;
+  if (!body || !key || !key[0]) return def;
+  snprintf(pat, sizeof pat, "\"%s\"", key);
+  p = strstr(body, pat);
+  if (!p) return def;
+  p = strchr(p + strlen(pat), ':');
+  if (!p) return def;
+  p++;
+  while (*p == ' ' || *p == '\t') p++;
+  if (*p == '-') {
+    sign = -1;
+    p++;
+  }
+  if (*p < '0' || *p > '9') return def;
+  while (*p >= '0' && *p <= '9' && v < 100000000L) {
+    v = v * 10L + (long)(*p - '0');
+    p++;
+  }
+  return (int)(v * (long)sign);
+}
+
+/* Read short string leaf after "key":"…" (machine token). */
+static void plate_json_str(const char *body, const char *key, char *out,
+                           size_t cap) {
+  char pat[48];
+  const char *p;
+  size_t o = 0;
+  if (!out || cap < 2) return;
+  out[0] = 0;
+  if (!body || !key || !key[0]) return;
+  snprintf(pat, sizeof pat, "\"%s\"", key);
+  p = strstr(body, pat);
+  if (!p) return;
+  p = strchr(p + strlen(pat), ':');
+  if (!p) return;
+  p++;
+  while (*p == ' ' || *p == '\t') p++;
+  if (*p != '"') return;
+  p++;
+  for (; *p && *p != '"' && o + 1 < cap && o < 48; p++) {
+    unsigned char c = (unsigned char)*p;
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '.')
+      out[o++] = (char)c;
+    else
+      out[o++] = '_';
+  }
+  out[o] = 0;
+}
+
 int gk_load_dir(gk_consolidator *C, const char *dir) {
-  char path[512];
+  char path[512], body[2048], grade_tok[32];
+  FILE *f;
+  size_t nread;
+  int n_items, n_concepts, pack_i;
   if (!C || !dir) return -1;
   gk_init(C, "loaded");
   snprintf(path, sizeof path, "%s/matrix.bin", dir);
   if (smx_load_bin(&C->matrix, path) != 0) return -1;
   snprintf(path, sizeof path, "%s/concept.bin", dir);
   smx_load_bin(&C->concept_mx, path);
-  C->seal_ok = C->matrix.bits_set > 0;
-  snprintf(C->grade, sizeof C->grade, C->seal_ok ? "OK" : "EMPTY");
+  /*
+   * Restore dual-wire meta from CONSOLIDATE.json when present.
+   * matrix.bin alone under-reports n_items/n_concepts/pack_seq on ability.
+   */
+  snprintf(path, sizeof path, "%s/CONSOLIDATE.json", dir);
+  f = fopen(path, "r");
+  if (f) {
+    nread = fread(body, 1, sizeof body - 1, f);
+    body[nread] = 0;
+    fclose(f);
+    n_items = plate_json_int(body, "n_items", -1);
+    n_concepts = plate_json_int(body, "n_concepts", -1);
+    pack_i = plate_json_int(body, "pack_seq", -1);
+    plate_json_str(body, "grade", grade_tok, sizeof grade_tok);
+    if (n_items >= 0 && n_items <= GK_MAX_ITEMS) C->n_items = n_items;
+    if (n_concepts >= 0 && n_concepts <= GK_MAX_CONCEPTS)
+      C->n_concepts = n_concepts;
+    if (pack_i >= 0) C->pack_seq = (uint64_t)pack_i;
+    if (grade_tok[0])
+      snprintf(C->grade, sizeof C->grade, "%s", grade_tok);
+    /* seal_ok is JSON bool true|false on the dual-wire plate. */
+    if (strstr(body, "\"seal_ok\":true") || strstr(body, "\"seal_ok\": true"))
+      C->seal_ok = 1;
+    else if (strstr(body, "\"seal_ok\":false") ||
+             strstr(body, "\"seal_ok\": false"))
+      C->seal_ok = 0;
+    else
+      C->seal_ok = C->matrix.bits_set > 0;
+    if (!C->grade[0])
+      snprintf(C->grade, sizeof C->grade,
+               C->matrix.bits_set > 0 ? "OK" : "EMPTY");
+  } else {
+    /* No plate: derive honest empty/OK from matrix bits only. */
+    C->seal_ok = C->matrix.bits_set > 0;
+    snprintf(C->grade, sizeof C->grade, C->seal_ok ? "OK" : "EMPTY");
+  }
   return 0;
 }

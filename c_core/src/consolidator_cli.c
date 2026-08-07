@@ -248,7 +248,9 @@ int main(int argc, char **argv) {
       gk_ability_ex(&L, now, 1, ldir, ab, sizeof ab);
       if (!plate_dual_wire_ok(ab) || !strstr(ab, "\"source\":\"disk\"") ||
           !strstr(ab, "\"loaded\":true") || !strstr(ab, ldir) ||
-          !strstr(ab, "\"bits_set\":")) {
+          !strstr(ab, "\"bits_set\":") ||
+          !strstr(ab, "\"n_items\":2") || !strstr(ab, "\"n_concepts\":2") ||
+          !strstr(ab, "\"pack_seq\":1")) {
         fprintf(stderr, "selftest: ability load-hit honesty fail: %.250s\n",
                 ab);
         return 1;
