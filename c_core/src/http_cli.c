@@ -121,8 +121,8 @@ static int selftest(void) {
   char resp[4096];
   const char *b;
   int st, fails = 0;
-  /* Headroom for coord dual-wire/HOLD_FLASH deny cases beyond base 52. */
-  setenv("GROKIUM_SERVE_MAX", "56", 1);
+  /* Headroom for method-deny + coord/contract dual-wire cases. */
+  setenv("GROKIUM_SERVE_MAX", "72", 1);
   /* Integrity tick needs repo root (CODE_SEAL + privacy plate). */
   set_repo_root_env();
   {
@@ -408,6 +408,25 @@ static int selftest(void) {
         !strstr(b, "\"hold_flash\":1") ||
         !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: coord need_plate dual-wire fail: %.400s\n", b);
+      fails++;
+    }
+  }
+  /* coord method deny → schema-scoped grokium.coord.v1 (not generic error.v1). */
+  if (http_get("127.0.0.1", port, "/v1/coord", resp, sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "405") && !strstr(b, "\"error\":\"method\"")) ||
+        !strstr(b, "\"schema\":\"grokium.coord.v1\"") ||
+        !strstr(b, "\"error\":\"method\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http\":\"lab_ops_only\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"llm_is_commander\":false") ||
+        !strstr(b, "\"hold_flash\":1") || !strstr(b, "\"python\":0") ||
+        strstr(b, "\"schema\":\"grokium.error.v1\"") ||
+        strstr(resp, "text/plain")) {
+      fprintf(stderr, "selftest: coord method dual-wire fail: %.400s\n", b);
       fails++;
     }
   }
@@ -837,6 +856,43 @@ static int selftest(void) {
       fails++;
     }
   }
+  /* form method deny → contract_form.v1 method (not generic error.v1). */
+  if (http_get("127.0.0.1", port, "/v1/contract/form", resp, sizeof resp) < 0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "405") && !strstr(b, "\"error\":\"method\"")) ||
+        !strstr(b, "\"schema\":\"grokium.contract_form.v1\"") ||
+        !strstr(b, "\"error\":\"method\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"hold_flash\":1") || !strstr(b, "\"python\":0") ||
+        strstr(b, "\"schema\":\"grokium.error.v1\"") ||
+        strstr(resp, "text/plain")) {
+      fprintf(stderr, "selftest: contract form method dual-wire fail: %.400s\n",
+              b);
+      fails++;
+    }
+  }
+  /* validate method deny → contract_validate.v1 method dual-wire. */
+  if (http_get("127.0.0.1", port, "/v1/contract/validate", resp, sizeof resp) <
+      0)
+    fails++;
+  else {
+    b = body_of(resp);
+    if ((!strstr(resp, "405") && !strstr(b, "\"error\":\"method\"")) ||
+        !strstr(b, "\"schema\":\"grokium.contract_validate.v1\"") ||
+        !strstr(b, "\"error\":\"method\"") ||
+        !strstr(b, "\"product_wire\":\"smx2\"") ||
+        !strstr(b, "\"peer_http_is_product_bus\":false") ||
+        !strstr(b, "\"hold_flash\":1") || !strstr(b, "\"python\":0") ||
+        strstr(b, "\"schema\":\"grokium.error.v1\"") ||
+        strstr(resp, "text/plain")) {
+      fprintf(stderr,
+              "selftest: contract validate method dual-wire fail: %.400s\n", b);
+      fails++;
+    }
+  }
   /* Missing assignee/task → need_assignee_and_task dual-wire */
   if (http_post("127.0.0.1", port, "/v1/contract/form", "{\"task\":\"only\"}",
                 resp, sizeof resp) < 0)
@@ -930,6 +986,31 @@ static int selftest(void) {
         !strstr(b, "\"python\":0")) {
       fprintf(stderr, "selftest: manager tick dual-wire fail: %.400s\n", b);
       fails++;
+    }
+  }
+  /* manager/tick wrong method (PUT) → manager_tick.v1 method dual-wire. */
+  {
+    char putreq[256];
+    snprintf(putreq, sizeof putreq,
+             "PUT /v1/manager/tick HTTP/1.1\r\nHost: 127.0.0.1\r\n"
+             "Connection: close\r\n\r\n");
+    if (http_exchange("127.0.0.1", port, putreq, resp, sizeof resp) < 0)
+      fails++;
+    else {
+      b = body_of(resp);
+      if ((!strstr(resp, "405") && !strstr(b, "\"error\":\"method\"")) ||
+          !strstr(b, "\"schema\":\"grokium.manager_tick.v1\"") ||
+          !strstr(b, "\"error\":\"method\"") ||
+          !strstr(b, "\"wire\":\"smx_motivate\"") ||
+          !strstr(b, "\"product_wire\":\"smx2\"") ||
+          !strstr(b, "\"peer_http_is_product_bus\":false") ||
+          !strstr(b, "\"hold_flash\":1") || !strstr(b, "\"python\":0") ||
+          strstr(b, "\"schema\":\"grokium.error.v1\"") ||
+          strstr(resp, "text/plain")) {
+        fprintf(stderr, "selftest: manager tick method dual-wire fail: %.400s\n",
+                b);
+        fails++;
+      }
     }
   }
   if (http_get("127.0.0.1", port, "/v1/instinct", resp, sizeof resp) < 0)

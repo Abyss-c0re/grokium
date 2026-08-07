@@ -77,7 +77,7 @@ int grokium_manager_motivate_dir(const char *dir);
  */
 void grokium_manager_tick_json(int motivated, const char *dir, char *out,
                                size_t cap);
-/* Dual-wire manager-tick deny/help (need_dir_or_run | generic error).
+/* Dual-wire manager-tick deny/help (need_dir_or_run | method | generic).
  * Host TUI /manager help and CLI manager-tick help|? share this plate. */
 void grokium_manager_tick_err_json(const char *error, char *out, size_t cap);
 
@@ -88,7 +88,8 @@ void grokium_manager_tick_err_json(const char *error, char *out, size_t cap);
  */
 void grokium_contract_form_json(const grokium_contract *c, char *out,
                                 size_t cap);
-/* Dual-wire form deny (need_assignee_and_task | form_failed | need_json_body). */
+/* Dual-wire form deny (need_assignee_and_task | form_failed | need_json_body |
+ * method). */
 void grokium_contract_form_err_json(const char *error, char *out, size_t cap);
 
 /*
@@ -99,7 +100,8 @@ void grokium_contract_form_err_json(const char *error, char *out, size_t cap);
 void grokium_contract_validate_json(const grokium_contract *c, int rc,
                                     int digit, unsigned bits_set, char *out,
                                     size_t cap);
-/* Dual-wire validate deny (need_path | contract_not_found | need_json_body). */
+/* Dual-wire validate deny (need_path | contract_not_found | need_json_body |
+ * method). */
 void grokium_contract_validate_err_json(const char *error, char *out,
                                         size_t cap);
 

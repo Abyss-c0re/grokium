@@ -1049,7 +1049,9 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     int allow;
     char id[48];
     if (strcmp(method, "POST") != 0) {
-      http_reply_err(cfd, 405, "method");
+      /* Schema-scoped dual-wire (match chat/agent method deny). */
+      gk_coord_err_json("method", resp, sizeof resp);
+      http_reply(cfd, 405, "application/json", resp);
       return;
     }
     if (!C || !body || body_n == 0) {
@@ -1080,7 +1082,9 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     int digit = -1, min_set = 0;
     grokium_contract c;
     if (strcmp(method, "POST") != 0) {
-      http_reply_err(cfd, 405, "method");
+      /* Schema-scoped dual-wire (not generic error.v1 header-only feel). */
+      grokium_contract_form_err_json("method", resp, sizeof resp);
+      http_reply(cfd, 405, "application/json", resp);
       return;
     }
     if (!body || body_n == 0) {
@@ -1121,7 +1125,8 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     grokium_smx m;
     int rc, dig;
     if (strcmp(method, "POST") != 0) {
-      http_reply_err(cfd, 405, "method");
+      grokium_contract_validate_err_json("method", resp, sizeof resp);
+      http_reply(cfd, 405, "application/json", resp);
       return;
     }
     if (!body || body_n == 0) {
@@ -1160,7 +1165,9 @@ static void handle(int cfd, gk_consolidator *C, gk_fleet *F, grokium_law *L,
     char cdir[400];
     int n;
     if (strcmp(method, "POST") != 0 && strcmp(method, "GET") != 0) {
-      http_reply_err(cfd, 405, "method");
+      /* Schema-scoped dual-wire manager deny (PUT/DELETE etc.). */
+      grokium_manager_tick_err_json("method", resp, sizeof resp);
+      http_reply(cfd, 405, "application/json", resp);
       return;
     }
     contract_dir_for(root, cdir, sizeof cdir);
