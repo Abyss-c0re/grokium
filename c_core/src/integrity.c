@@ -406,6 +406,19 @@ int gk_integrity_tick(const char *repo_root, char *json_out, size_t cap) {
   return ok ? 1 : 0;
 }
 
+/* On-disk policy must declare dual-wire honesty (pretty or compact JSON). */
+static int policy_dual_wire_ok(const char *body) {
+  if (!body || !body[0]) return 0;
+  if (!strstr(body, "product_wire") || !strstr(body, "smx2")) return 0;
+  if (!strstr(body, "lab_ops_only")) return 0;
+  if (!strstr(body, "peer_http_is_product_bus")) return 0;
+  if (!strstr(body, "llm_is_commander")) return 0;
+  if (!strstr(body, "state_matrix_only")) return 0;
+  if (!strstr(body, "hold_flash")) return 0;
+  if (!strstr(body, "python")) return 0;
+  return 1;
+}
+
 int gk_integrity_policy(const char *repo_root, char *json_out, size_t cap) {
   char path[512];
   const char *root = repo_root && repo_root[0] ? repo_root : ".";
@@ -415,6 +428,18 @@ int gk_integrity_policy(const char *repo_root, char *json_out, size_t cap) {
     snprintf(json_out, cap,
              "{\"schema\":\"grokium.integrity_policy.v1\",\"ok\":false,"
              "\"error\":\"no_policy\","
+             "\"path\":\"data/integrity/POLICY.json\","
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm_is_commander\":false,\"python\":0}");
+    return -1;
+  }
+  /* Fail-closed: incomplete dual-wire policy must not pass as ok plate. */
+  if (!policy_dual_wire_ok(json_out)) {
+    snprintf(json_out, cap,
+             "{\"schema\":\"grokium.integrity_policy.v1\",\"ok\":false,"
+             "\"error\":\"policy_dual_wire\","
              "\"path\":\"data/integrity/POLICY.json\","
              "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
              "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","

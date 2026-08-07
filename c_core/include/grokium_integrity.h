@@ -10,7 +10,8 @@
 /* Verify CODE_SEAL + privacy plate. Writes LATEST.json. Returns 1 pass, 0 fail, -1 error. */
 int gk_integrity_tick(const char *repo_root, char *json_out, size_t cap);
 
-/* Read POLICY.json into out (truncated). Returns 0 ok. */
+/* Read POLICY.json into out (truncated). Returns 0 ok.
+ * Fail-closed: missing file or incomplete dual-wire honesty → error plate. */
 int gk_integrity_policy(const char *repo_root, char *json_out, size_t cap);
 
 /* Intentional reseal of product tree into data/integrity/CODE_SEAL.json. */

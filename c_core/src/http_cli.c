@@ -1056,11 +1056,17 @@ static int selftest(void) {
     fails++;
   else {
     b = body_of(resp);
+    /* Policy may be pretty-printed; require dual-wire honesty leaves. */
     if (!strstr(b, "grokium.integrity_policy.v1") ||
         !strstr(b, "fail_closed") || !strstr(b, "state_matrix_only") ||
         !strstr(b, "data_collector") || !strstr(b, "grok_model") ||
-        !strstr(b, "INTEGRITY_NO_LEAK_LAW")) {
-      fprintf(stderr, "selftest: integrity policy fail: %.400s\n", resp);
+        !strstr(b, "INTEGRITY_NO_LEAK_LAW") ||
+        !strstr(b, "product_wire") || !strstr(b, "smx2") ||
+        !strstr(b, "lab_ops_only") ||
+        !strstr(b, "peer_http_is_product_bus") ||
+        !strstr(b, "llm_is_commander") || !strstr(b, "python")) {
+      fprintf(stderr, "selftest: integrity policy dual-wire fail: %.400s\n",
+              resp);
       fails++;
     }
   }

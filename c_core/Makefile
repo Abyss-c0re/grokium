@@ -370,8 +370,24 @@ test-integrity: $(BUILD)/grokium-integrity
 	grep -q '"python": 0' ../data/integrity/PRIVACY_CANONICAL.json; \
 	grep -q '"telemetry": false' ../data/integrity/PRIVACY_CANONICAL.json; \
 	echo "$$T" | grep -q '"privacy_ok":true'; \
-	$(BUILD)/grokium-integrity policy .. | grep -q state_matrix_only; \
-	$(BUILD)/grokium-integrity policy .. | grep -q '"product_wire"'; \
+	P=$$($(BUILD)/grokium-integrity policy ..); \
+	echo "$$P" | grep -q state_matrix_only; \
+	echo "$$P" | grep -q product_wire; \
+	echo "$$P" | grep -q lab_ops_only; \
+	echo "$$P" | grep -q peer_http_is_product_bus; \
+	echo "$$P" | grep -q llm_is_commander; \
+	echo "$$P" | grep -q python; \
+	PD=$$(mktemp -d /tmp/gk_bad_policy_XXXXXX); \
+	mkdir -p "$$PD/data/integrity"; \
+	printf '%s\n' '{"schema":"grokium.integrity_policy.v1","law":"x"}' \
+	  >"$$PD/data/integrity/POLICY.json"; \
+	BP=$$($(BUILD)/grokium-integrity policy "$$PD" 2>/dev/null || true); \
+	rm -rf "$$PD"; \
+	echo "$$BP" | grep -q '"error":"policy_dual_wire"'; \
+	echo "$$BP" | grep -q '"product_wire":"smx2"'; \
+	echo "$$BP" | grep -q '"peer_http":"lab_ops_only"'; \
+	echo "$$BP" | grep -q '"llm_is_commander":false'; \
+	echo "$$BP" | grep -q '"python":0'; \
 	echo INTEGRITY_OK
 
 test-fleet: $(BUILD)/grokium-fleet
