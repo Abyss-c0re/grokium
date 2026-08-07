@@ -187,9 +187,17 @@ int grokium_smx_filter_allow_frame(const grokium_law *law,
 
   /* External origin: stricter — only SMX/NEXUS_COORD/CBLC/01, no free JSON chat */
   if (from_external) {
+    /* NEXUS_COORD before n==64 short-circuit (sha256 digests are 64 hex chars;
+     * a 64-byte NEXUS_COORD must not skip HOLD_FLASH / dual-wire honesty). */
+    if (n >= 11 && !memcmp(frame, "NEXUS_COORD", 11)) {
+      /* Shape + HOLD_FLASH ack, then dual-wire product-bus honesty. */
+      if (!nexus_coord_plate_ok(s, n)) return 0;
+      if (!bounded_has(s, n, "share=state_matrix_only")) return 0;
+      if (!bounded_has(s, n, "product_wire=smx2")) return 0;
+      if (!bounded_has(s, n, "peer_http=lab_ops_only")) return 0;
+      return 1;
+    }
     if (n == 64 || n == 512) return 1;
-    if (n >= 11 && !memcmp(frame, "NEXUS_COORD", 11))
-      return nexus_coord_plate_ok(s, n);
     if (n >= 4 && !memcmp(frame, "CBLC", 4)) return 1;
     if (n >= 2 && frame[0] == '{') {
       /* contract plates only — must declare schema contract/smx */
@@ -216,9 +224,9 @@ int grokium_smx_filter_allow_frame(const grokium_law *law,
   }
 
   /* Internal (core → filter): same shapes plus broader machine plates */
-  if (n == 64 || n == 512) return 1;
   if (n >= 11 && !memcmp(frame, "NEXUS_COORD", 11))
     return nexus_coord_plate_ok(s, n);
+  if (n == 64 || n == 512) return 1;
   if (n >= 4 && !memcmp(frame, "CBLC", 4)) return 1;
   if (n >= 2 && frame[0] == '{') {
     if (grokium_smx_filter_is_prose(s, n)) return 0;
