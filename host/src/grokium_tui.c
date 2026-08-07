@@ -523,10 +523,16 @@ static void shell_run_direct(const char *cmd) {
   }
   ng_shell_ensure_policy_files();
   ng_cmd_result cr = ng_run_command(cmd, 60);
-  snprintf(blks[t].head, sizeof blks[t].head, "tool · shell · exit %d", cr.exit_code);
+  /* Dual-wire shell plate (nanobot.shell.v1) — no free-text exit=N dump. */
+  char *shell_body = ng_tool_result_body(cr.exit_code, cr.output);
+  {
+    int ex = cr.exit_code;
+    if (ex < 0 || ex > 9999) ex = 9999;
+    snprintf(blks[t].head, sizeof blks[t].head, "tool · shell · exit %d", ex);
+  }
   blk_append_str(t, "\n— result —\n");
-  if (cr.output && cr.output[0]) {
-    blk_append_str(t, cr.output);
+  if (shell_body && shell_body[0]) {
+    blk_append_str(t, shell_body);
   } else {
     char empty_plate[512];
     /* Dual-wire empty shell body — no free-text (no output) placeholder. */
@@ -536,17 +542,16 @@ static void shell_run_direct(const char *cmd) {
   blks[t].open = cfg.ui_open_tool_spoiler_on_done;
   draw();
 
-  /* Loop output back into the agent so it presents/summarizes for the user */
+  /* Loop dual-wire plate back into the agent for plain-text presentation. */
   {
     char prompt[IN_MAX + 2048];
     snprintf(prompt, sizeof prompt,
              "I ran this shell command myself:\n```\n%.400s\n```\n"
-             "exit code: %d\n"
-             "stdout/stderr:\n```\n%.3500s\n```\n"
+             "Dual-wire result plate (machine fields · schema nanobot.shell.v1):\n"
+             "```\n%.3500s\n```\n"
              "Present these results to me in plain text: what happened, "
              "and the important output lines. Do not re-run the command.",
-             cmd, cr.exit_code,
-             (cr.output && cr.output[0]) ? cr.output : "");
+             cmd, (shell_body && shell_body[0]) ? shell_body : "{}");
     /* Use chat without tools for pure presentation */
     setenv("NANOBOT_TOOLS", "0", 1);
     stream_acc acc;
@@ -581,6 +586,7 @@ static void shell_run_direct(const char *cmd) {
     }
     live_think = live_tool = live_asst = -1;
   }
+  free(shell_body);
   ng_cmd_result_free(&cr);
   draw();
 }
