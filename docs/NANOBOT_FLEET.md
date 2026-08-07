@@ -21,7 +21,9 @@ make -C c_core all
 ```
 
 Env: `NANOBOT_BIN` (default `nanobot`), `GROKIUM_HOME_ROOT` (default `data/home`).
-Spawn writes `PURPOSE.txt` + `nanobot.log` under each home.
+Deploy rewrites each bot home `PURPOSE.txt` as dual-wire JSON
+(`grokium.purpose.v1` — machine tokens only; not free-text key=value).
+Spawn also ensures purpose plate + `nanobot.log` under each home.
 
 ### Honesty rules
 
