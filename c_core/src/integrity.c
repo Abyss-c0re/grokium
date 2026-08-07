@@ -439,6 +439,7 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
                "{\"schema\":\"grokium.integrity_reseal.v1\",\"ok\":false,"
                "\"error\":\"no_files\",\"share\":\"state_matrix_only\","
                "\"hold_flash\":1,\"product_wire\":\"smx2\","
+               "\"peer_http\":\"lab_ops_only\","
                "\"peer_http_is_product_bus\":false,"
                "\"llm_is_commander\":false,\"python\":0}");
     return -1;
@@ -455,6 +456,7 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
                "{\"schema\":\"grokium.integrity_reseal.v1\",\"ok\":false,"
                "\"error\":\"write_privacy\",\"share\":\"state_matrix_only\","
                "\"hold_flash\":1,\"product_wire\":\"smx2\","
+               "\"peer_http\":\"lab_ops_only\","
                "\"peer_http_is_product_bus\":false,"
                "\"llm_is_commander\":false,\"python\":0}");
     return -1;
@@ -494,6 +496,7 @@ int gk_integrity_reseal(const char *repo_root, char *json_out, size_t cap) {
                "{\"schema\":\"grokium.integrity_reseal.v1\",\"ok\":false,"
                "\"error\":\"write_seal\",\"share\":\"state_matrix_only\","
                "\"hold_flash\":1,\"product_wire\":\"smx2\","
+               "\"peer_http\":\"lab_ops_only\","
                "\"peer_http_is_product_bus\":false,"
                "\"llm_is_commander\":false,\"python\":0}");
     return -1;

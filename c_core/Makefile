@@ -323,7 +323,19 @@ test-integrity: $(BUILD)/grokium-integrity
 	R=$$($(BUILD)/grokium-integrity reseal ..); \
 	echo "$$R" | grep -q '"ok":true'; \
 	echo "$$R" | grep -q '"product_wire":"smx2"'; \
+	echo "$$R" | grep -q '"peer_http":"lab_ops_only"'; \
+	echo "$$R" | grep -q '"peer_http_is_product_bus":false'; \
+	echo "$$R" | grep -q '"llm_is_commander":false'; \
 	echo "$$R" | grep -q '"python":0'; \
+	ER=$$($(BUILD)/grokium-integrity reseal /tmp/gk_empty_reseal_$$$$ 2>/dev/null || true); \
+	echo "$$ER" | grep -q '"error":"no_files"'; \
+	echo "$$ER" | grep -q '"schema":"grokium.integrity_reseal.v1"'; \
+	echo "$$ER" | grep -q '"product_wire":"smx2"'; \
+	echo "$$ER" | grep -q '"peer_http":"lab_ops_only"'; \
+	echo "$$ER" | grep -q '"peer_http_is_product_bus":false'; \
+	echo "$$ER" | grep -q '"llm_is_commander":false'; \
+	echo "$$ER" | grep -q '"hold_flash":1'; \
+	echo "$$ER" | grep -q '"python":0'; \
 	grep -q '"product_wire": "smx2"' ../data/integrity/CODE_SEAL.json; \
 	grep -q '"peer_http": "lab_ops_only"' ../data/integrity/CODE_SEAL.json; \
 	grep -q '"llm_is_commander": false' ../data/integrity/CODE_SEAL.json; \
