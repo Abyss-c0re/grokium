@@ -209,10 +209,50 @@ int main(int argc, char **argv) {
         !strstr(ability, "\"llm_is_commander\":false") ||
         !strstr(ability, "\"llm_on_hot_path\":false") ||
         !strstr(ability, "\"python\":0") ||
-        !strstr(ability, "\"share\":\"state_matrix_only\"")) {
+        !strstr(ability, "\"share\":\"state_matrix_only\"") ||
+        !strstr(ability, "\"source\":\"live\"") ||
+        !strstr(ability, "\"loaded\":true")) {
       fprintf(stderr, "selftest: ability dual-wire honesty fail: %s\n",
               ability);
       return 1;
+    }
+    /* Disk load honesty: miss → loaded=false; hit after save → loaded=true. */
+    {
+      gk_consolidator L;
+      char ab[768];
+      const char *ldir = "/tmp/gk_cons_load_honesty";
+      gk_init(&L, "empty");
+      gk_ability_ex(&L, now, 0, ldir, ab, sizeof ab);
+      if (!plate_dual_wire_ok(ab) || !strstr(ab, "\"source\":\"disk\"") ||
+          !strstr(ab, "\"loaded\":false") || !strstr(ab, "\"dir\":\"") ||
+          !strstr(ab, ldir) || !strstr(ab, "\"grade\":\"EMPTY\"")) {
+        fprintf(stderr, "selftest: ability load-miss honesty fail: %.250s\n",
+                ab);
+        return 1;
+      }
+      /* Hostile dir inject must not break the plate. */
+      gk_ability_ex(&L, now, 0, "data/kn\"ow;x", ab, sizeof ab);
+      if (!plate_dual_wire_ok(ab) || strstr(ab, "kn\"ow") ||
+          !strstr(ab, "\"loaded\":false")) {
+        fprintf(stderr, "selftest: ability load dir inject fail: %.250s\n", ab);
+        return 1;
+      }
+      if (gk_save_dir(&C, ldir) != 0) {
+        fprintf(stderr, "selftest: load honesty save_dir failed\n");
+        return 1;
+      }
+      if (gk_load_dir(&L, ldir) != 0) {
+        fprintf(stderr, "selftest: load honesty load_dir failed\n");
+        return 1;
+      }
+      gk_ability_ex(&L, now, 1, ldir, ab, sizeof ab);
+      if (!plate_dual_wire_ok(ab) || !strstr(ab, "\"source\":\"disk\"") ||
+          !strstr(ab, "\"loaded\":true") || !strstr(ab, ldir) ||
+          !strstr(ab, "\"bits_set\":")) {
+        fprintf(stderr, "selftest: ability load-hit honesty fail: %.250s\n",
+                ab);
+        return 1;
+      }
     }
     /* Grade inject must not break ability / CONSOLIDATE.json plates. */
     {
@@ -508,9 +548,12 @@ int main(int argc, char **argv) {
     return C.seal_ok ? 0 : 1;
   }
   if (!strcmp(argv[1], "ability")) {
+    int loaded;
     if (argc > 2) dir = argv[2];
-    if (gk_load_dir(&C, dir) != 0) gk_init(&C, "empty");
-    gk_ability(&C, now, ability, sizeof ability);
+    /* Disk load honesty — miss is EMPTY + loaded=false (no silent pretence). */
+    loaded = (gk_load_dir(&C, dir) == 0) ? 1 : 0;
+    if (!loaded) gk_init(&C, "empty");
+    gk_ability_ex(&C, now, loaded, dir, ability, sizeof ability);
     printf("%s\n", ability);
     return 0;
   }

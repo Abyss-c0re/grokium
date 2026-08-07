@@ -142,6 +142,9 @@ int gk_consolidate(gk_consolidator *C, double now_ts) {
   return C->n_concepts;
 }
 
+/* Forward: path escape used by ability load honesty before definition. */
+static void json_escape_path(const char *in, char *out, size_t cap);
+
 /* Machine token for plate fields (host/grade — no free-text inject). */
 static void plate_token(const char *in, char *out, size_t cap) {
   size_t i, o = 0;
@@ -160,31 +163,77 @@ static void plate_token(const char *in, char *out, size_t cap) {
   out[o] = 0;
 }
 
-int gk_ability(const gk_consolidator *C, double now_ts, char *json_out,
-               size_t cap) {
+int gk_ability_ex(const gk_consolidator *C, double now_ts, int loaded,
+                  const char *dir, char *json_out, size_t cap) {
   double age;
   int fresh;
-  char grade_tok[32];
+  char grade_tok[32], dir_esc[256];
+  const char *source;
+  int loaded_flag;
   if (!C || !json_out || cap < 32) return -1;
   age = (now_ts > 0 ? now_ts : (double)time(NULL)) - C->last_seal_ts;
   fresh = (C->last_seal_ts > 0 && age <= (double)GK_SEAL_TTL_SEC);
   plate_token(C->grade, grade_tok, sizeof grade_tok);
   if (!grade_tok[0]) snprintf(grade_tok, sizeof grade_tok, "EMPTY");
+  /*
+   * Load honesty: live memory (HTTP/CLI in-process) vs disk hit/miss.
+   * Disk miss still yields EMPTY grade but loaded=false (no silent pretence).
+   */
+  if (loaded < 0) {
+    source = "live";
+    loaded_flag = 1;
+  } else if (loaded > 0) {
+    source = "disk";
+    loaded_flag = 1;
+  } else {
+    source = "disk";
+    loaded_flag = 0;
+  }
+  dir_esc[0] = 0;
+  if (dir && dir[0] && strcmp(source, "disk") == 0)
+    json_escape_path(dir, dir_esc, sizeof dir_esc);
   /* Dual-wire honesty: ability is StateMatrix grade only — not product chat. */
-  snprintf(json_out, cap,
-           "{\"schema\":\"grokium.ability.v1\",\"ok\":true,"
-           "\"grade\":\"%s\",\"seal_ok\":%s,\"fresh\":%s,"
-           "\"n_items\":%d,\"n_concepts\":%d,\"bits_set\":%u,"
-           "\"pack_seq\":%llu,\"ttl_sec\":%d,"
-           "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
-           "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
-           "\"peer_http_is_product_bus\":false,"
-           "\"llm\":false,\"llm_is_commander\":false,"
-           "\"llm_on_hot_path\":false,\"python\":0}",
-           grade_tok, C->seal_ok ? "true" : "false", fresh ? "true" : "false",
-           C->n_items, C->n_concepts, C->matrix.bits_set,
-           (unsigned long long)C->pack_seq, GK_SEAL_TTL_SEC);
+  if (dir_esc[0]) {
+    snprintf(json_out, cap,
+             "{\"schema\":\"grokium.ability.v1\",\"ok\":true,"
+             "\"grade\":\"%s\",\"seal_ok\":%s,\"fresh\":%s,"
+             "\"n_items\":%d,\"n_concepts\":%d,\"bits_set\":%u,"
+             "\"pack_seq\":%llu,\"ttl_sec\":%d,"
+             "\"source\":\"%s\",\"loaded\":%s,\"dir\":\"%s\","
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm\":false,\"llm_is_commander\":false,"
+             "\"llm_on_hot_path\":false,\"python\":0}",
+             grade_tok, C->seal_ok ? "true" : "false",
+             fresh ? "true" : "false", C->n_items, C->n_concepts,
+             C->matrix.bits_set, (unsigned long long)C->pack_seq,
+             GK_SEAL_TTL_SEC, source, loaded_flag ? "true" : "false",
+             dir_esc);
+  } else {
+    snprintf(json_out, cap,
+             "{\"schema\":\"grokium.ability.v1\",\"ok\":true,"
+             "\"grade\":\"%s\",\"seal_ok\":%s,\"fresh\":%s,"
+             "\"n_items\":%d,\"n_concepts\":%d,\"bits_set\":%u,"
+             "\"pack_seq\":%llu,\"ttl_sec\":%d,"
+             "\"source\":\"%s\",\"loaded\":%s,"
+             "\"share\":\"state_matrix_only\",\"hold_flash\":1,"
+             "\"product_wire\":\"smx2\",\"peer_http\":\"lab_ops_only\","
+             "\"peer_http_is_product_bus\":false,"
+             "\"llm\":false,\"llm_is_commander\":false,"
+             "\"llm_on_hot_path\":false,\"python\":0}",
+             grade_tok, C->seal_ok ? "true" : "false",
+             fresh ? "true" : "false", C->n_items, C->n_concepts,
+             C->matrix.bits_set, (unsigned long long)C->pack_seq,
+             GK_SEAL_TTL_SEC, source, loaded_flag ? "true" : "false");
+  }
   return 0;
+}
+
+int gk_ability(const gk_consolidator *C, double now_ts, char *json_out,
+               size_t cap) {
+  /* Live in-process consolidator (HTTP /v1/ability · save ABILITY.json). */
+  return gk_ability_ex(C, now_ts, -1, NULL, json_out, cap);
 }
 
 /* Shared dual-wire tails for coord ingest plates (CLI + HTTP + host; py=0). */
