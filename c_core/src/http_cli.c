@@ -662,12 +662,17 @@ static int selftest(void) {
     fails++;
   else {
     b = body_of(resp);
+    /* Live consolidator path — source=live · loaded=true (not disk miss). */
     if (!strstr(b, "\"schema\":\"grokium.ability.v1\"") ||
         !strstr(b, "\"product_wire\":\"smx2\"") ||
         !strstr(b, "\"peer_http_is_product_bus\":false") ||
         !strstr(b, "\"llm_is_commander\":false") ||
         !strstr(b, "\"llm_on_hot_path\":false") ||
-        !strstr(b, "\"python\":0")) {
+        !strstr(b, "\"python\":0") ||
+        !strstr(b, "\"source\":\"live\"") ||
+        !strstr(b, "\"loaded\":true") ||
+        !strstr(b, "\"share\":\"state_matrix_only\"") ||
+        !strstr(b, "\"hold_flash\":1")) {
       fprintf(stderr, "selftest: ability dual-wire fail: %.400s\n", b);
       fails++;
     }
