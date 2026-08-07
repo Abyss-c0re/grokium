@@ -200,6 +200,20 @@ static int privacy_ok(const char *root) {
   return 1;
 }
 
+/* CODE_SEAL must declare dual-wire honesty (pretty or compact JSON). */
+static int seal_dual_wire_ok(const char *body) {
+  if (!body || !body[0]) return 0;
+  if (!strstr(body, "product_wire") || !strstr(body, "smx2")) return 0;
+  if (!strstr(body, "lab_ops_only")) return 0;
+  if (!strstr(body, "peer_http_is_product_bus")) return 0;
+  if (!strstr(body, "llm_is_commander")) return 0;
+  if (!strstr(body, "hold_flash")) return 0;
+  if (!strstr(body, "state_matrix_only")) return 0;
+  if (!strstr(body, "python")) return 0;
+  return 1;
+}
+
+/* Returns 0 ok, -1 missing/unreadable, -2 incomplete dual-wire honesty. */
 static int load_seal_expected(const char *root, gk_seal_ent *ents, int *n,
                               char exp_agg[65]) {
   char path[512], *body = NULL;
@@ -233,6 +247,11 @@ static int load_seal_expected(const char *root, gk_seal_ent *ents, int *n,
   }
   fclose(f);
   body[sz] = 0;
+  /* Fail-closed: seal without dual-wire honesty is not a valid product seal. */
+  if (!seal_dual_wire_ok(body)) {
+    free(body);
+    return -2;
+  }
   {
     const char *a = strstr(body, "\"aggregate\"");
     if (a) {
@@ -337,18 +356,22 @@ int gk_integrity_tick(const char *repo_root, char *json_out, size_t cap) {
   char exp_agg[65], live_agg[65], lines[64 * 1024];
   int n = 0, i, bad = 0, priv, seal_ok, ok;
   size_t used = 0;
-  if (load_seal_expected(root, exp, &n, exp_agg) != 0) {
-    if (json_out && cap)
-      snprintf(json_out, cap,
-               "{\"schema\":\"grokium.integrity_report.v1\",\"ok\":false,"
-               "\"error\":\"no_code_seal\","
-               "\"hint\":\"reseal\","
-               "\"fail_closed\":true,\"share\":\"state_matrix_only\","
-               "\"hold_flash\":1,\"product_wire\":\"smx2\","
-               "\"peer_http\":\"lab_ops_only\","
-               "\"peer_http_is_product_bus\":false,"
-               "\"llm_is_commander\":false,\"python\":0}");
-    return -1;
+  {
+    int seal_rc = load_seal_expected(root, exp, &n, exp_agg);
+    if (seal_rc != 0) {
+      if (json_out && cap)
+        snprintf(json_out, cap,
+                 "{\"schema\":\"grokium.integrity_report.v1\",\"ok\":false,"
+                 "\"error\":\"%s\","
+                 "\"hint\":\"reseal\","
+                 "\"fail_closed\":true,\"share\":\"state_matrix_only\","
+                 "\"hold_flash\":1,\"product_wire\":\"smx2\","
+                 "\"peer_http\":\"lab_ops_only\","
+                 "\"peer_http_is_product_bus\":false,"
+                 "\"llm_is_commander\":false,\"python\":0}",
+                 seal_rc == -2 ? "seal_dual_wire" : "no_code_seal");
+      return -1;
+    }
   }
   lines[0] = 0;
   for (i = 0; i < n; i++) {

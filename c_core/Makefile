@@ -358,6 +358,19 @@ test-integrity: $(BUILD)/grokium-integrity
 	echo "$$NS" | grep -q '"hint":"reseal"'; \
 	echo "$$NS" | grep -q '"product_wire":"smx2"'; \
 	echo "$$NS" | grep -qv 'grokium integrity reseal'; \
+	SD=$$(mktemp -d /tmp/gk_bad_seal_XXXXXX); \
+	mkdir -p "$$SD/data/integrity"; \
+	printf '%s\n' \
+	  '{"schema":"grokium.code_seal.v1","aggregate":"00","files":{"x":"0000000000000000000000000000000000000000000000000000000000000000"}}' \
+	  >"$$SD/data/integrity/CODE_SEAL.json"; \
+	BS=$$($(BUILD)/grokium-integrity tick "$$SD" 2>/dev/null || true); \
+	rm -rf "$$SD"; \
+	echo "$$BS" | grep -q '"error":"seal_dual_wire"'; \
+	echo "$$BS" | grep -q '"hint":"reseal"'; \
+	echo "$$BS" | grep -q '"product_wire":"smx2"'; \
+	echo "$$BS" | grep -q '"peer_http":"lab_ops_only"'; \
+	echo "$$BS" | grep -q '"llm_is_commander":false'; \
+	echo "$$BS" | grep -q '"python":0'; \
 	grep -q '"product_wire": "smx2"' ../data/integrity/LATEST.json; \
 	grep -q '"python": 0' ../data/integrity/LATEST.json; \
 	grep -q '"schema": "grokium.privacy_canonical.v1"' \
